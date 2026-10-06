@@ -542,7 +542,31 @@ export function useChatMessages() {
     isGlobalAdmin: isAdmin,
     canAssignOthers,
     canAssignMinuta,
+    canAssignProyectos,
+    canAssignIngestas,
+    canEditAllActivities,
+    canDeleteActivities,
+    canManageMinuta,
+    canManageProyectos,
+    canManageIngestas,
   } = useCapabilities()
+  // Permiso de escritura y de asignar de cada hoja: el chat crea temas en las tres y antes
+  // pedia el de Minuta para todo (o ninguno).
+  const puedeGestionarHoja: Record<HojaTipo, boolean> = {
+    minuta: canManageMinuta,
+    proyecto: canManageProyectos,
+    ingesta: canManageIngestas,
+  }
+  const puedeAsignarHoja: Record<HojaTipo, boolean> = {
+    minuta: canAssignMinuta,
+    proyecto: canAssignProyectos,
+    ingesta: canAssignIngestas,
+  }
+  const nombreHoja: Record<HojaTipo, string> = {
+    minuta: 'la minuta',
+    proyecto: 'Proyectos',
+    ingesta: 'Ingestas',
+  }
 
   useEffect(() => {
     if (!user || !teamId) return
@@ -699,18 +723,22 @@ export function useChatMessages() {
   // Foto del equipo que se le pasa a la IA para responder preguntas: actividades visibles
   // segun el rol, errores abiertos y carga por persona. Un colaborador solo se ve a si mismo.
   async function buildTeamData(senderId: string) {
-    const [activities, errors, members, temas] = await Promise.all([
+    const [activities, errors, members, temas, proyectos] = await Promise.all([
       activitiesService.getByTeam(teamId),
       errorsService.getByTeam(teamId),
       profilesService.getByTeam(teamId),
       minutesService.getByTeam(teamId, 'minuta'),
+      minutesService.getByTeam(teamId, 'proyecto'),
     ])
 
-    // Compromiso = nacio de un tema de minuta, o sea alguien lo tomo delante del equipo.
-    // Lo demas es trabajo propio. Sin esta distincion, preguntar "que tiene pendiente el
-    // equipo" en un equipo real devolvia 88 cosas cuando los compromisos eran 12: seis
-    // veces mas ruido que señal, y la gente deja de creerle a la respuesta.
-    const deMinuta = new Set(temas.flatMap((t) => t.linked_activity_ids))
+    // Compromiso = nacio de un tema de minuta o de un item de Proyectos, o sea alguien lo
+    // asumio con el equipo (mismo criterio que la hoja Compromisos). Lo demas es trabajo
+    // propio. Sin esta distincion, preguntar "que tiene pendiente el equipo" en un equipo real
+    // devolvia 88 cosas cuando los compromisos eran 12: seis veces mas ruido que señal, y la
+    // gente deja de creerle a la respuesta. `temas` (solo minuta) sigue alimentando lo que es
+    // propio de la reunion: temas sin asignar y temas para conversar.
+    const fuentesCompromiso = [...temas, ...proyectos]
+    const deMinuta = new Set(fuentesCompromiso.flatMap((t) => t.linked_activity_ids))
 
     // Y lo que quedo a medio camino: tema con dueño escrito que nunca genero actividad.
     // Para el resto del sistema no existe -no suma carga, no aparece en Compromisos- asi
@@ -762,12 +790,12 @@ export function useChatMessages() {
       }))
 
     // Cumplimiento semanal de compromisos (Level 10 Meeting de EOS, ver useCompromisos.ts):
-    // solo lo que nacio de un tema de minuta y vence esta semana. Un colaborador solo ve lo
+    // solo lo que nacio de un tema de minuta o de un proyecto y vence esta semana. Un colaborador solo ve lo
     // suyo, igual que el resto de teamData.
     const semanaActual = weekRange(0)
     const compromisosSemanaBase = compromisosEnVentana(
       activities,
-      temas,
+      fuentesCompromiso,
       semanaActual.from,
       semanaActual.to,
     ).filter((a) => !isColaborador || a.responsible_id === senderId)
@@ -778,7 +806,7 @@ export function useChatMessages() {
     // compromisos tengo atrasados" no de un numero distinto al de la pantalla.
     const hoy = new Date()
     hoy.setHours(0, 0, 0, 0)
-    const compromisosVencidos = compromisosVencidosAbiertos(activities, temas)
+    const compromisosVencidos = compromisosVencidosAbiertos(activities, fuentesCompromiso)
       .filter((a) => !isColaborador || a.responsible_id === senderId)
       .map((a) => {
         const vence = new Date(a.due_date)
@@ -886,6 +914,13 @@ export function useChatMessages() {
       return
     }
     const title = activity.title.replace(/^\[Ingesta\]\s*/, '')
+    // Mismo permiso que el boton de Actividades (migracion 038 dice "NO desde el chat" sin el).
+    if (!canDeleteActivities) {
+      await aiSay(
+        `No tienes permiso para eliminar actividades. Pidele a tu jefatura que borre "${title}".`,
+      )
+      return
+    }
     if (activity.status !== 'pendiente') {
       await aiSay(
         `No puedo eliminar "${title}": ya esta "${statusLabels[activity.status] ?? activity.status}". Si igual sobra, hazlo desde Actividades.`,
@@ -925,6 +960,14 @@ export function useChatMessages() {
       return
     }
     const title = activity.title.replace(/^\[Ingesta\]\s*/, '')
+    // Convertir = crear en el destino + eliminar la original: hacen falta los dos permisos,
+    // si no quedaban las dos copias (o ninguna).
+    if (!canDeleteActivities || !puedeGestionarHoja['proyecto']) {
+      await aiSay(
+        `No puedo convertir "${title}": hace falta permiso para eliminar actividades y para escribir en ${nombreHoja['proyecto']}.`,
+      )
+      return
+    }
     if (activity.status !== 'pendiente') {
       await aiSay(
         `No puedo convertir "${title}" en proyecto: ya esta "${statusLabels[activity.status] ?? activity.status}".`,
@@ -996,6 +1039,14 @@ export function useChatMessages() {
       return
     }
     const title = activity.title.replace(/^\[Ingesta\]\s*/, '')
+    // Convertir = crear en el destino + eliminar la original: hacen falta los dos permisos,
+    // si no quedaban las dos copias (o ninguna).
+    if (!canDeleteActivities || !puedeGestionarHoja['ingesta']) {
+      await aiSay(
+        `No puedo convertir "${title}": hace falta permiso para eliminar actividades y para escribir en ${nombreHoja['ingesta']}.`,
+      )
+      return
+    }
     if (activity.status !== 'pendiente') {
       await aiSay(
         `No puedo convertir "${title}" en solicitud de ingesta: ya esta "${statusLabels[activity.status] ?? activity.status}".`,
@@ -1062,6 +1113,12 @@ export function useChatMessages() {
       return
     }
     const title = activity.title.replace(/^\[Ingesta\]\s*/, '')
+    // Convertir = crear en el destino + eliminar la original: hacen falta los dos permisos,
+    // si no quedaban las dos copias (o ninguna).
+    if (!canDeleteActivities) {
+      await aiSay(`No puedo convertir "${title}": hace falta permiso para eliminar actividades.`)
+      return
+    }
     if (activity.status !== 'pendiente') {
       await aiSay(
         `No puedo convertir "${title}" en error: ya esta "${statusLabels[activity.status] ?? activity.status}".`,
@@ -1624,7 +1681,8 @@ export function useChatMessages() {
     try {
       const memList = await ensureMembers()
       const acts = await activitiesService.getByTeam(teamId)
-      const scope = canAssignOthers
+      // Editar actividades ajenas es 'editar_todas'; 'asignar_otros' queda solo para reasignar.
+      const scope = canEditAllActivities
         ? acts
         : acts.filter((a) => a.responsible_id === message.sender_id)
       open = scope.filter((a) => a.status !== 'completado')
@@ -1744,12 +1802,14 @@ export function useChatMessages() {
       unresolvedReason?: 'not_found' | 'ambiguous' | 'no_permission'
     } = {},
   ) {
-    // Colaborador/invitado: solo su propia actividad y no puede reasignar a terceros
+    // Sin 'editar_todas' solo se toca lo propio; sin 'asignar_otros' no se reasigna a terceros.
+    // Antes los dos dependian de asignar_otros (la migracion 049 copio ese flag a editar_todas
+    // para que nadie perdiera lo que ya podia hacer).
+    if (!canEditAllActivities && activity.responsible_id !== user?.id) {
+      await aiSay('Solo puedes modificar tus propias actividades.')
+      return null
+    }
     if (!canAssignOthers) {
-      if (activity.responsible_id !== user?.id) {
-        await aiSay('Solo puedes modificar tus propias actividades.')
-        return null
-      }
       if (updates.responsible_id && updates.responsible_id !== user?.id) {
         delete updates.responsible_id
       }
@@ -1933,8 +1993,13 @@ export function useChatMessages() {
     let skipped = 0
     for (const id of activityIds) {
       const activity = await activitiesService.getById(id)
-      // Colaborador/invitado: igual que commitUpdate, solo puede tocar lo suyo.
-      if (!activity || (!canAssignOthers && activity.responsible_id !== user?.id)) {
+      // Igual que commitUpdate: sin editar_todas solo lo propio, sin asignar_otros no se
+      // reasigna a terceros.
+      if (
+        !activity ||
+        (!canEditAllActivities && activity.responsible_id !== user?.id) ||
+        (!canAssignOthers && !!changes.responsibleId && changes.responsibleId !== user?.id)
+      ) {
         skipped++
         continue
       }
@@ -2040,6 +2105,12 @@ export function useChatMessages() {
   ) => {
     const esProyecto = tipo === 'proyecto'
     const esIngesta = tipo === 'ingesta'
+    // Antes se intentaba igual y la base lo rechazaba ("revisa tus permisos"); ahora se avisa
+    // antes, con el permiso de esa hoja.
+    if (!puedeGestionarHoja[tipo]) {
+      await aiSay(`No tienes permiso para agregar temas en ${nombreHoja[tipo]}.`)
+      return null
+    }
     const responsableNames = responsableTextoLibre ?? responsables.map((r) => r.name).join(', ')
     let creado
     try {
@@ -2819,7 +2890,7 @@ export function useChatMessages() {
 
         const topic: PendingMinuta = { tema, comentarios: content, plazo }
 
-        if (hints.length && canAssignMinuta) {
+        if (hints.length && puedeAsignarHoja[tipoHoja]) {
           // Cada nombre se resuelve por separado: "Genaro y Javier" son dos personas, no
           // una a desambiguar entre dos candidatos.
           const resolved: { id: string; name: string }[] = []
@@ -2871,9 +2942,9 @@ export function useChatMessages() {
             })
           }
         } else {
-          if (hints.length && !canAssignMinuta) {
+          if (hints.length && !puedeAsignarHoja[tipoHoja]) {
             await aiSay(
-              `No puedes asignar temas de minuta a otras personas, asi que "${tema}" queda sin responsable.`,
+              `No puedes asignar temas de ${nombreHoja[tipoHoja]} a otras personas, asi que "${tema}" queda sin responsable.`,
             )
           }
           await createMinutaTopic(topic, [], message.sender_id, undefined, tipoHoja, primerPunto)

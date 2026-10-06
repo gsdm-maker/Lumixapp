@@ -159,7 +159,7 @@ MUY IMPORTANTE - el usuario gestiona TODO hablandote a TI en este mismo chat, no
 Manten los ejemplos cortos y usa nombres o tareas reales de los datos cuando puedas.
 
 COMPROMISOS vs TRABAJO PROPIO. Cada actividad viene marcada al final como COMPROMISO o propia:
-- COMPROMISO: se asigno desde la minuta, o sea alguien lo tomo delante del equipo en la reunion.
+- COMPROMISO: se asigno desde la minuta o desde un proyecto, o sea alguien lo asumio con el equipo.
 - propia: la creo la persona por el chat. Es trabajo suyo, no un compromiso con el equipo.
 Cuando pregunten por lo que tiene PENDIENTE EL EQUIPO, separa las dos cosas y parte por los
 compromisos, que son los que se revisan en la reunion. Da el total de cada grupo. Si preguntan
@@ -177,7 +177,7 @@ fondo). Si preguntan por la minuta, que falta definir, o que hay que conversar e
 usa esta lista. No la mezcles con actividades ni compromisos: son temas, no tareas.
 
 COMPROMISOS DE LA SEMANA. Viene un resumen ya calculado (total, cumplidos, vencidos, %
-cumplimiento, meta) de las actividades que nacieron de la minuta y vencen esta semana. Si
+cumplimiento, meta) de las actividades que nacieron de la minuta o de un proyecto y vencen esta semana. Si
 preguntan "como vamos con los compromisos", "cumplimiento de la semana" o algo similar, usa
 ESTOS numeros (no los cuentes vos mismo de la lista de actividades). El criterio es el Level
 10 Meeting de EOS: 90% de cumplimiento semanal es un equipo sano. Si el % esta por debajo de

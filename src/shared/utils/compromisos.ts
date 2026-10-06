@@ -17,8 +17,10 @@ export function deriveEstado(item: MinuteItem, byId: Record<string, Activity>): 
 }
 
 /**
- * Actividades que cuentan como "compromiso": nacieron de un tema de minuta (aparecen en
- * `linked_activity_ids` de algun item) y su entrega cae dentro de la ventana [desde, hasta].
+ * Actividades que cuentan como "compromiso": nacieron de un tema de Minuta o de un item de
+ * Proyectos (aparecen en `linked_activity_ids` de algun item que se pase en `minuteItems`) y su
+ * entrega cae dentro de la ventana [desde, hasta]. Lo creado como actividad propia por el chat
+ * no tiene item y queda fuera.
  *
  * No filtra por visibilidad de rol: cada consumidor (la pagina Compromisos, el chat) aplica
  * su propia regla de "que puede ver quien" por separado, igual que ya hacia useCompromisos.ts.
@@ -38,7 +40,8 @@ export function compromisosEnVentana(
 }
 
 /**
- * Compromisos vencidos y no cerrados, de CUALQUIER semana: nacieron de un tema de minuta, su
+ * Compromisos vencidos y no cerrados, de CUALQUIER semana: nacieron de un tema de minuta o de
+ * un proyecto, su
  * entrega ya paso (antes de hoy) y siguen sin completarse.
  *
  * Existe porque la ventana semanal de compromisosEnVentana los esconde: lo que vencia la

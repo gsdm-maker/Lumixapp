@@ -395,10 +395,20 @@ export function ProyectoDetailPage() {
         key={createItem?.id ?? 'closed'}
         item={createItem}
         memberName={memberName}
+        fechasObligatorias={
+          createItem
+            ? {
+                inicio: fechaInicioEfectiva(createItem.id, allItems),
+                termino: plazoEfectivo(createItem, allItems),
+              }
+            : undefined
+        }
         onClose={() => {
           setCreateForId(null)
           reload()
         }}
+        // Las fechas elegidas al asignar (inicio y termino) las guarda la misma RPC que vincula
+        // la actividad: asi alcanza con el permiso de asignar, sin exigir el de gestionar.
         onCreate={createActivitiesFromItem}
       />
 

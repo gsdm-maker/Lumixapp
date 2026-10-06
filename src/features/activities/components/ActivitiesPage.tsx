@@ -13,6 +13,7 @@ import { activitiesService } from '@infrastructure/supabase/activities.service'
 import { teamsService } from '@infrastructure/supabase/teams.service'
 import { profilesService } from '@infrastructure/supabase/profiles.service'
 import { notificationsService } from '@infrastructure/supabase/notifications.service'
+import { armarArbol } from '@features/activities/utils/arbol'
 import { minutesService } from '@infrastructure/supabase/minutes.service'
 import { useAuth } from '@core/auth/hooks/useAuth'
 import { useCapabilities } from '@core/auth/hooks/useCapabilities'
@@ -20,7 +21,7 @@ import { useToast } from '@shared/components/ui/Toast'
 import { exportToCSV } from '@shared/utils/export'
 import { formatDateLocal, parseDateLocal } from '@shared/utils/date'
 import { DatePicker } from '@shared/components/ui/DatePicker'
-import type { Activity, ActivityStatus, Profile } from '@shared/types'
+import type { Activity, ActivityStatus, MinuteItem, Profile } from '@shared/types'
 import type { BadgeVariant } from '@shared/components/ui/Badge'
 
 const statusFilters: { value: ActivityStatus | 'todas' | 'activas'; label: string }[] = [
@@ -58,6 +59,7 @@ export function ActivitiesPage() {
     deleteActivity,
     counts,
     allActivities,
+    proyectoItems,
     teamNames,
     managedIds,
     isManager,
@@ -83,7 +85,8 @@ export function ActivitiesPage() {
   const [showBlockModal, setShowBlockModal] = useState(false)
   const [editingPriority, setEditingPriority] = useState(false)
   const { profile, user } = useAuth()
-  const { canAssignOthers, canDeleteActivities } = useCapabilities()
+  const { canAssignOthers, canDeleteActivities, canEditAllActivities, canManageProyectos } =
+    useCapabilities()
   const [confirmDelete, setConfirmDelete] = useState<Activity | null>(null)
   const toast = useToast()
   const location = useLocation()
@@ -112,6 +115,10 @@ export function ActivitiesPage() {
   const [subMember, setSubMember] = useState('')
   const [subPriority, setSubPriority] = useState(2)
   const [subDue, setSubDue] = useState('')
+  // Solo cuando la actividad padre viene de un Proyecto: ahi la subtarea tambien se crea como
+  // item del proyecto, que se planifica con inicio y termino (igual que al asignar desde
+  // Proyectos), asi que el inicio es obligatorio.
+  const [subInicio, setSubInicio] = useState('')
   const [subToMinuta, setSubToMinuta] = useState(false)
   const [subBusy, setSubBusy] = useState(false)
 
@@ -129,12 +136,15 @@ export function ActivitiesPage() {
   const [asgToMinuta, setAsgToMinuta] = useState(false)
   const [asgBusy, setAsgBusy] = useState(false)
 
-  // Editable si NO esta cerrada y sos el responsable o lideras el equipo de esa actividad.
+  // Editable si NO esta cerrada y sos el responsable, lideras el equipo de esa actividad, o
+  // tenes "editar actividades ajenas" en ese equipo (el permiso se resuelve contra el equipo
+  // activo, por eso solo vale para actividades de ese equipo; la RLS lo exige igual, 049).
   const canEdit =
     !!selectedActivity &&
     selectedActivity.status !== 'completado' &&
     (selectedActivity.responsible_id === profile?.id ||
-      managedIds.includes(selectedActivity.team_id))
+      managedIds.includes(selectedActivity.team_id) ||
+      (canEditAllActivities && selectedActivity.team_id === profile?.team_id))
 
   // Equipos que lidera (para delegar), excluyendo el equipo activo.
   useEffect(() => {
@@ -326,6 +336,7 @@ export function ActivitiesPage() {
   // otro equipo), y el titulo es propio -no el de la actividad padre-.
   const createSubtask = async () => {
     if (!user || !selectedActivity || !subMember || !subTitle.trim()) return
+    if (itemPadre) return createSubtaskProyecto(itemPadre)
     setSubBusy(true)
     try {
       const due = subDue ? new Date(subDue).toISOString() : selectedActivity.due_date
@@ -347,6 +358,73 @@ export function ActivitiesPage() {
       setSubTitle('')
       setSubMember('')
       toast.success(subToMinuta ? 'Subtarea creada y agregada a la minuta' : 'Subtarea creada')
+    } catch {
+      toast.error('No se pudo crear la subtarea')
+    } finally {
+      setSubBusy(false)
+    }
+  }
+
+  // Subtarea de una actividad que viene de un Proyecto: se crea como item hijo en el proyecto
+  // (Lista, Tablero y Cronograma la muestran) vinculado a su actividad, igual que si se
+  // hubiera asignado desde Proyectos. SIN parent_activity_id a proposito: ese campo dispara
+  // el cierre automatico del padre (migracion 025), y en Proyectos cada actividad se cierra
+  // por su cuenta. La relacion padre-hija se lee del arbol del proyecto (ver utils/arbol.ts).
+  const createSubtaskProyecto = async (padre: MinuteItem) => {
+    if (!user || !selectedActivity || subFechasInvalidas) return
+    setSubBusy(true)
+    try {
+      let raiz = padre
+      while (raiz.parent_item_id) {
+        const p = proyectoItems.find((i) => i.id === raiz.parent_item_id)
+        if (!p) break
+        raiz = p
+      }
+      const child = await createWithMinuta({
+        teamId: selectedActivity.team_id,
+        memberId: subMember,
+        title: subTitle.trim(),
+        description: '',
+        priority: subPriority,
+        dueISO: new Date(subDue + 'T00:00:00').toISOString(),
+        addToMinuta: subToMinuta,
+        observations: `Origen: Proyecto: ${raiz.tema}`,
+      })
+      try {
+        await minutesService.create({
+          team_id: padre.team_id,
+          tipo: 'proyecto',
+          orden: proyectoItems.filter((i) => i.team_id === padre.team_id).length,
+          tema: subTitle.trim(),
+          para_todos: false,
+          responsables: [subMember],
+          responsables_text: '',
+          estado: 'en_desarrollo',
+          plazo: subDue,
+          fecha_inicio: subInicio,
+          prioridad: subPriority,
+          comentarios: '',
+          linked_activity_ids: [child.id],
+          created_by: user.id,
+          parent_item_id: padre.id,
+        })
+      } catch (err) {
+        // Sin el item, la actividad quedaria suelta y fuera del proyecto: se deshace.
+        await activitiesService.remove(child.id).catch(() => {})
+        throw err
+      }
+      const nm = subMembers.find((m) => m.id === subMember)?.full_name
+      if (nm) setChildNames((prev) => ({ ...prev, [subMember]: nm }))
+      setShowSubtask(false)
+      setSubTitle('')
+      setSubMember('')
+      setSubInicio('')
+      reload()
+      toast.success(
+        subToMinuta
+          ? 'Subtarea creada en el proyecto y en la minuta'
+          : 'Subtarea creada en el proyecto',
+      )
     } catch {
       toast.error('No se pudo crear la subtarea')
     } finally {
@@ -386,6 +464,34 @@ export function ActivitiesPage() {
       setAsgBusy(false)
     }
   }
+
+  // Misma forma de arbol que el proyecto: subtareas bajo la actividad de su item padre.
+  const filas = armarArbol(activities, proyectoItems)
+
+  // Item del proyecto al que esta vinculada la actividad abierta (null si no viene de uno).
+  const itemPadre = selectedActivity
+    ? (proyectoItems.find((i) => i.linked_activity_ids.includes(selectedActivity.id)) ?? null)
+    : null
+  // Fechas YYYY-MM-DD: comparar como texto ordena igual que comparar fechas.
+  const subFechasInvertidas = !!subInicio && !!subDue && subInicio > subDue
+  const subFechasInvalidas = !!itemPadre && (!subInicio || !subDue || subFechasInvertidas)
+  // Crear el item en el proyecto exige proyectos.gestionar (o jefatura/admin) en la RLS
+  // (puede_escribir_hoja, migracion 049). Sin eso el insert fallaria despues de crear la
+  // actividad: mejor no ofrecerlo.
+  const puedeAgregarSubtarea = !itemPadre || canManageProyectos
+  // Subtareas a listar en el detalle: las de parent_activity_id (delegadas / creadas antes)
+  // + las actividades de los items hijos en el proyecto, sin repetir.
+  const hijosProyecto = itemPadre
+    ? proyectoItems
+        .filter((i) => i.parent_item_id === itemPadre.id)
+        .flatMap((i) => i.linked_activity_ids)
+        .map((id) => allActivities.find((a) => a.id === id))
+        .filter((a): a is Activity => !!a)
+    : []
+  const subtareas = [
+    ...children,
+    ...hijosProyecto.filter((h) => !children.some((c) => c.id === h.id)),
+  ]
 
   return (
     <div className="flex flex-col h-full">
@@ -638,7 +744,8 @@ export function ActivitiesPage() {
                 </tr>
               </thead>
               <tbody>
-                {activities.map((activity) => {
+                {filas.map((fila) => {
+                  const { activity, depth, nivelSuperior } = fila
                   const days = getDaysRemaining(activity.due_date)
                   return (
                     <tr
@@ -647,7 +754,11 @@ export function ActivitiesPage() {
                       className="border-b border-border hover:bg-surface/30 cursor-pointer transition-colors"
                     >
                       <td className="py-2.5 px-3">
-                        <div className="flex items-center gap-1.5">
+                        <div
+                          className="flex items-center gap-1.5"
+                          style={{ paddingLeft: depth * 16 }}
+                        >
+                          {depth > 0 && <span className="text-slate-600 flex-shrink-0">↳</span>}
                           {activity.observations && (
                             <span
                               title={activity.observations}
@@ -666,9 +777,9 @@ export function ActivitiesPage() {
                             <span className="text-fg-body whitespace-normal break-words block">
                               {activity.title}
                             </span>
-                            {teamNames[activity.team_id] && (
+                            {(nivelSuperior || teamNames[activity.team_id]) && (
                               <span className="text-[10px] text-slate-500">
-                                {teamNames[activity.team_id]}
+                                {nivelSuperior ?? teamNames[activity.team_id]}
                               </span>
                             )}
                           </div>
@@ -1006,12 +1117,13 @@ export function ActivitiesPage() {
               <div className="pt-2 border-t border-border-strong">
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-slate-500">Subtareas</p>
-                  {!showSubtask && (
+                  {!showSubtask && puedeAgregarSubtarea && (
                     <button
                       onClick={() => {
                         setShowSubtask(true)
                         setSubPriority(selectedActivity.priority)
                         setSubDue(selectedActivity.due_date.split('T')[0])
+                        setSubInicio('')
                       }}
                       className="text-[11px] text-indigo-400 hover:text-indigo-300 font-medium"
                     >
@@ -1019,10 +1131,16 @@ export function ActivitiesPage() {
                     </button>
                   )}
                 </div>
+                {!puedeAgregarSubtarea && (
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Esta actividad es de un proyecto: sus subtareas las agrega quien gestiona
+                    proyectos.
+                  </p>
+                )}
 
-                {children.length > 0 && (
+                {subtareas.length > 0 && (
                   <div className="mt-2 space-y-1">
-                    {children.map((c) => (
+                    {subtareas.map((c) => (
                       <button
                         key={c.id}
                         onClick={() => openChild(c)}
@@ -1095,11 +1213,42 @@ export function ActivitiesPage() {
                           ))}
                         </div>
                       </div>
-                      <div className="flex-1">
-                        <p className="text-[11px] text-slate-500 mb-1">Fecha entrega</p>
-                        <DatePicker value={subDue || null} onChange={(v) => setSubDue(v ?? '')} />
-                      </div>
+                      {!itemPadre && (
+                        <div className="flex-1">
+                          <p className="text-[11px] text-slate-500 mb-1">Fecha entrega</p>
+                          <DatePicker value={subDue || null} onChange={(v) => setSubDue(v ?? '')} />
+                        </div>
+                      )}
                     </div>
+                    {itemPadre && (
+                      <div>
+                        <div className="flex gap-3">
+                          <div className="flex-1">
+                            <p className="text-[11px] text-slate-500 mb-1">Inicio</p>
+                            <DatePicker
+                              value={subInicio || null}
+                              onChange={(v) => setSubInicio(v ?? '')}
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-[11px] text-slate-500 mb-1">Término (entrega)</p>
+                            <DatePicker
+                              value={subDue || null}
+                              onChange={(v) => setSubDue(v ?? '')}
+                            />
+                          </div>
+                        </div>
+                        <p
+                          className={`text-[11px] mt-1 ${subFechasInvalidas ? 'text-amber-400' : 'text-slate-500'}`}
+                        >
+                          {subFechasInvertidas
+                            ? 'El inicio no puede ser posterior al término'
+                            : subFechasInvalidas
+                              ? 'Define inicio y término para poder crearla'
+                              : 'También quedará como subtarea en el proyecto'}
+                        </p>
+                      </div>
+                    )}
                     <label className="flex items-center gap-2 text-[11px] text-fg-muted cursor-pointer">
                       <input
                         type="checkbox"
@@ -1112,7 +1261,7 @@ export function ActivitiesPage() {
                     <div className="flex gap-2">
                       <Button
                         size="sm"
-                        disabled={subBusy || !subMember || !subTitle.trim()}
+                        disabled={subBusy || !subMember || !subTitle.trim() || subFechasInvalidas}
                         onClick={createSubtask}
                       >
                         {subBusy ? 'Creando...' : 'Crear subtarea'}

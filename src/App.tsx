@@ -7,6 +7,7 @@ import { AppLayout } from '@shared/components/layout/AppLayout'
 import { ErrorBoundary } from '@shared/components/ErrorBoundary'
 import { ToastProvider } from '@shared/components/ui/Toast'
 import { AuthGuard } from '@core/auth/components/AuthGuard'
+import { ModuloGuard } from '@core/auth/components/ModuloGuard'
 
 const ChatPage = lazy(() =>
   import('@features/chat/components/ChatPage').then((m) => ({ default: m.ChatPage })),
@@ -106,18 +107,81 @@ export function App() {
                       }
                     >
                       <Route path="/chat" element={<ChatPage />} />
-                      <Route path="/activities" element={<ActivitiesPage />} />
-                      <Route path="/minuta" element={<MinutaPage />} />
-                      <Route path="/proyectos" element={<ProyectosPage />} />
-                      <Route path="/proyectos/:id" element={<ProyectoDetailPage />} />
-                      <Route path="/compromisos" element={<CompromisosPage />} />
-                      <Route path="/errors" element={<ErrorsPage />} />
-                      <Route path="/dashboard" element={<DashboardPage />} />
-                      <Route path="/gantt" element={<GanttPage />} />
+                      <Route
+                        path="/activities"
+                        element={
+                          <ModuloGuard cap="modulos.actividades">
+                            <ActivitiesPage />
+                          </ModuloGuard>
+                        }
+                      />
+                      <Route
+                        path="/minuta"
+                        element={
+                          <ModuloGuard cap="modulos.minuta">
+                            <MinutaPage />
+                          </ModuloGuard>
+                        }
+                      />
+                      <Route
+                        path="/proyectos"
+                        element={
+                          <ModuloGuard cap="modulos.proyectos">
+                            <ProyectosPage />
+                          </ModuloGuard>
+                        }
+                      />
+                      <Route
+                        path="/proyectos/:id"
+                        element={
+                          <ModuloGuard cap="modulos.proyectos">
+                            <ProyectoDetailPage />
+                          </ModuloGuard>
+                        }
+                      />
+                      <Route
+                        path="/compromisos"
+                        element={
+                          <ModuloGuard cap="modulos.compromisos">
+                            <CompromisosPage />
+                          </ModuloGuard>
+                        }
+                      />
+                      <Route
+                        path="/errors"
+                        element={
+                          <ModuloGuard cap="modulos.errores">
+                            <ErrorsPage />
+                          </ModuloGuard>
+                        }
+                      />
+                      <Route
+                        path="/dashboard"
+                        element={
+                          <ModuloGuard cap="modulos.dashboard">
+                            <DashboardPage />
+                          </ModuloGuard>
+                        }
+                      />
+                      <Route
+                        path="/gantt"
+                        element={
+                          <ModuloGuard cap="modulos.planificacion">
+                            <GanttPage />
+                          </ModuloGuard>
+                        }
+                      />
                       <Route path="/notifications" element={<NotificationsPage />} />
                       <Route path="/teams" element={<TeamsPage />} />
                       <Route path="/admin" element={<AdminPage />} />
-                      <Route path="/ingestas" element={<IngestasTabs />} />
+                      <Route
+                        path="/ingestas"
+                        element={
+                          <ModuloGuard cap="modulos.ingestas">
+                            <IngestasTabs />
+                          </ModuloGuard>
+                        }
+                      />
                       <Route path="/profile" element={<ProfilePage />} />
                       <Route path="*" element={<Navigate to="/chat" replace />} />
                     </Route>

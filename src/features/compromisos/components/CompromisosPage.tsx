@@ -42,8 +42,10 @@ export function CompromisosPage() {
     guardarComentario,
     reload,
   } = useCompromisos()
-  const { canViewAllActivities, isGlobalAdmin } = useCapabilities()
-  const conduce = canViewAllActivities || isGlobalAdmin
+  // Conducir (mover de semana, llevar a minuta, comentar el tema) tiene permiso propio desde
+  // la migracion 049. Antes se usaba "ver todas las actividades": un invitado veia los
+  // botones y la base se los rechazaba, porque esas escrituras van a la minuta.
+  const { canConducirCompromisos: conduce } = useCapabilities()
   const toast = useToast()
 
   // Arranca TODO PLEGADO: la primera mirada es el tablero del equipo -quien va como- y
@@ -487,14 +489,16 @@ function PersonaCard({
                   </p>
                   <div className="flex flex-wrap items-center gap-2 mt-1 text-[10px]">
                     <span className="text-slate-500">{formatDateLocal(c.due_date)}</span>
-                    {/* Solo se marca cuando viene de un PROYECTO (subtarea): el caso comun es un
-                      tema suelto de minuta y no hace falta etiquetarlo. */}
-                    {c.origen === 'proyecto' && (
-                      <span
-                        className="text-amber-400"
-                        title="Compromiso de una subtarea de proyecto"
-                      >
+                    {/* Se marca cuando NO es un tema suelto de minuta (el caso comun, sin
+                      etiqueta): subtema de minuta, o actividad de la hoja Proyectos. */}
+                    {c.origen === 'subtema' && (
+                      <span className="text-amber-400" title="Compromiso de un subtema de minuta">
                         📁 {c.origenProyecto}
+                      </span>
+                    )}
+                    {c.origen === 'proyecto' && (
+                      <span className="text-sky-400" title="Compromiso de un proyecto">
+                        🗂 Proyecto: {c.origenProyecto}
                       </span>
                     )}
                     {/* Cuantas veces se movio la fecha (migracion 035, trigger en la base). Un

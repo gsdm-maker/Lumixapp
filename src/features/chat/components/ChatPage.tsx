@@ -211,7 +211,13 @@ export function ChatPage() {
     descartarActividadElegida,
   } = useChatMessages()
 
-  const { canAssignOthers, canManageMinuta } = useCapabilities()
+  const { canAssignOthers, canManageMinuta, canManageProyectos, canManageIngestas } =
+    useCapabilities()
+  const chipPermitido: Record<string, boolean> = {
+    minuta: canManageMinuta,
+    proyecto: canManageProyectos,
+    ingesta: canManageIngestas,
+  }
 
   // Compartido entre "editar una" (modal) y "reasignar varias" (barra de accion masiva del
   // listado): ambos necesitan el roster, y no vale la pena pedirlo dos veces.
@@ -728,7 +734,10 @@ export function ChatPage() {
                 abajo quedaba fuera de vista al elegirlo (bug real reportado por Sebastian). */}
             <div className="flex gap-1 mb-2 overflow-x-auto flex-nowrap">
               {(['auto', 'actividad', 'error', 'ingesta', 'masivo', 'minuta', 'proyecto'] as const)
-                .filter((t) => (t !== 'minuta' && t !== 'proyecto') || canManageMinuta)
+                // Cada chip con el permiso de su destino (antes Proyecto pedia el de Minuta, e
+                // Ingesta no pedia nada). Error queda abierto a todos a proposito (Sebastian):
+                // cualquiera puede reportar un error por el chat.
+                .filter((t) => chipPermitido[t] ?? true)
                 .map((t) => (
                   <button
                     key={t}

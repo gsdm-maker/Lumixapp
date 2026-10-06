@@ -17,10 +17,19 @@ interface Props {
   // de X" cuando alguien ya tiene la suya y no hay que duplicarsela).
   soloResponsables?: string[]
   memberName: (id: string) => string
+  // Solo Proyectos: el item se planifica con inicio y termino (Cronograma), asi que no se
+  // asigna sin las dos fechas. Viene precargado con las fechas efectivas del item. Sin esta
+  // prop (Minuta) la fecha sigue siendo opcional y cae a 6 dias habiles.
+  fechasObligatorias?: { inicio: string | null; termino: string | null }
   onClose: () => void
   onCreate: (
     item: DecoratedItem,
-    opts: { responsibleIds: string[]; priority: number; dueDate: string | null },
+    opts: {
+      responsibleIds: string[]
+      priority: number
+      dueDate: string | null
+      fechaInicio?: string | null
+    },
   ) => Promise<unknown>
 }
 
@@ -28,16 +37,22 @@ export function AsignarActividadModal({
   item,
   soloResponsables,
   memberName,
+  fechasObligatorias,
   onClose,
   onCreate,
 }: Props) {
   const [priority, setPriority] = useState(2)
-  const [due, setDue] = useState(item?.plazo ?? '')
+  const [due, setDue] = useState(fechasObligatorias?.termino ?? item?.plazo ?? '')
+  const [inicio, setInicio] = useState(fechasObligatorias?.inicio ?? '')
   const [busy, setBusy] = useState(false)
   const toast = useToast()
   const navigate = useNavigate()
 
   const resp = soloResponsables ?? item?.responsables ?? []
+  const exigeFechas = !!fechasObligatorias
+  // Fechas YYYY-MM-DD: comparar como texto ordena igual que comparar fechas.
+  const fechasInvertidas = exigeFechas && !!inicio && !!due && inicio > due
+  const faltanFechas = exigeFechas && (!inicio || !due || fechasInvertidas)
 
   return (
     <Modal open={!!item} onClose={onClose} title="Crear actividad" size="sm">
@@ -82,11 +97,34 @@ export function AsignarActividadModal({
                 ))}
               </div>
             </div>
-            <div className="flex-1">
-              <p className="text-[11px] text-slate-500 mb-1">Fecha entrega</p>
-              <DatePicker value={due || null} onChange={(v) => setDue(v ?? '')} />
-            </div>
+            {!exigeFechas && (
+              <div className="flex-1">
+                <p className="text-[11px] text-slate-500 mb-1">Fecha entrega</p>
+                <DatePicker value={due || null} onChange={(v) => setDue(v ?? '')} />
+              </div>
+            )}
           </div>
+          {exigeFechas && (
+            <div>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <p className="text-[11px] text-slate-500 mb-1">Inicio</p>
+                  <DatePicker value={inicio || null} onChange={(v) => setInicio(v ?? '')} />
+                </div>
+                <div className="flex-1">
+                  <p className="text-[11px] text-slate-500 mb-1">Término (entrega)</p>
+                  <DatePicker value={due || null} onChange={(v) => setDue(v ?? '')} />
+                </div>
+              </div>
+              {faltanFechas && (
+                <p className="text-[11px] text-amber-400 mt-1">
+                  {fechasInvertidas
+                    ? 'El inicio no puede ser posterior al término'
+                    : 'Define inicio y término para poder asignar'}
+                </p>
+              )}
+            </div>
+          )}
           {item.linkedActivities.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {item.linkedActivities.map((a) => (
@@ -109,7 +147,7 @@ export function AsignarActividadModal({
           <div className="flex gap-2 pt-1">
             <Button
               size="sm"
-              disabled={busy || resp.length === 0}
+              disabled={busy || resp.length === 0 || faltanFechas}
               onClick={async () => {
                 setBusy(true)
                 try {
@@ -117,6 +155,7 @@ export function AsignarActividadModal({
                     responsibleIds: resp,
                     priority,
                     dueDate: due || null,
+                    ...(exigeFechas ? { fechaInicio: inicio || null } : {}),
                   })
                   onClose()
                   toast.success(

@@ -70,9 +70,10 @@ export interface Compromiso extends Activity {
   diasVencida: number
   /** Ya se escalo a la minuta para conversarse. */
   enMinuta: boolean
-  /** De donde salio: un tema suelto de minuta, o una subtarea de un proyecto (parent_item_id). */
-  origen: 'minuta' | 'proyecto'
-  /** Titulo del tema raiz, solo si origen es 'proyecto' (da contexto: "de: Revisar capacidad"). */
+  /** De donde salio: un tema suelto de minuta, un subtema de minuta (parent_item_id), o un
+   * item de la hoja Proyectos (cualquier nivel). */
+  origen: 'minuta' | 'subtema' | 'proyecto'
+  /** Titulo del tema raiz (o nombre del proyecto), salvo origen 'minuta'. Da contexto. */
   origenProyecto?: string
   /** Id del tema de Minuta que originó este compromiso (via linked_activity_ids). Los
    * comentarios de un compromiso SON los del tema, no los de la actividad -la nota real
@@ -141,17 +142,22 @@ export function useCompromisos() {
 
   const load = useCallback(async () => {
     if (!teamId) return
-    const [acts, gente, temas] = await Promise.all([
+    // Compromiso = lo que alguien asumio con el equipo: nacio de un tema de Minuta o de un
+    // item de Proyectos (pedido de Sebastian). Lo creado como actividad propia por el chat no
+    // tiene tema y queda fuera solo.
+    const [acts, gente, minuta, proyectos] = await Promise.all([
       activitiesService.getByTeam(teamId),
       profilesService.getByTeam(teamId),
       minutesService.getByTeam(teamId, 'minuta'),
+      minutesService.getByTeam(teamId, 'proyecto'),
     ])
+    const temas = [...minuta, ...proyectos]
     setTodas(acts)
     setTemas(temas)
     setMiembros(gente)
     setEscaladas(
       new Set(
-        temas
+        minuta
           .filter((t) => t.estado === 'definir')
           .flatMap((t) => t.linked_activity_ids as string[]),
       ),
@@ -179,12 +185,15 @@ export function useCompromisos() {
     canViewAllActivities || isGlobalAdmin || a.responsible_id === profile?.id
   const visibles = compromisosEnVentana(todas, temas, desde, hasta).filter(puedeVer)
 
-  // Tema que trajo esta actividad a Compromisos (el que la tiene en linked_activity_ids).
+  // Tema que trajo esta actividad a Compromisos (el que la tiene en linked_activity_ids). Si
+  // viene de un proyecto se prefiere ese item: llevarla a la minuta crea un segundo tema con
+  // el mismo vinculo, y el origen real sigue siendo el proyecto.
   const temaDe = (activityId: string) =>
+    temas.find((t) => t.tipo === 'proyecto' && t.linked_activity_ids.includes(activityId)) ??
     temas.find((t) => t.linked_activity_ids.includes(activityId))
 
-  // Sube por parent_item_id hasta el tema raiz. Todos los ancestros estan en `temas`
-  // -mismo equipo, mismo tipo 'minuta'-, asi que la cadena nunca queda cortada a mitad.
+  // Sube por parent_item_id hasta el tema raiz. Todos los ancestros estan en `temas` -mismo
+  // equipo, y la cadena nunca cruza de hoja-, asi que nunca queda cortada a mitad.
   const raizDe = (item: MinuteItem): MinuteItem => {
     let actual = item
     while (actual.parent_item_id) {
@@ -200,15 +209,20 @@ export function useCompromisos() {
     vence.setHours(0, 0, 0, 0)
     const completada = a.status === 'completado'
     const origenTema = temaDe(a.id)
-    const esProyecto = !!origenTema?.parent_item_id
+    const origen: Compromiso['origen'] =
+      origenTema?.tipo === 'proyecto'
+        ? 'proyecto'
+        : origenTema?.parent_item_id
+          ? 'subtema'
+          : 'minuta'
     return {
       ...a,
       aTiempo: completada && !!a.completed_at && new Date(a.completed_at) <= new Date(a.due_date),
       diasVencida:
         !completada && vence < hoy ? Math.floor((hoy.getTime() - vence.getTime()) / 86_400_000) : 0,
       enMinuta: escaladas.has(a.id),
-      origen: esProyecto ? 'proyecto' : 'minuta',
-      origenProyecto: esProyecto ? raizDe(origenTema!).tema : undefined,
+      origen,
+      origenProyecto: origen !== 'minuta' ? raizDe(origenTema!).tema : undefined,
       temaId: origenTema?.id,
       comentariosTema: origenTema?.comentarios ?? '',
     }

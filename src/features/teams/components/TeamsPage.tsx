@@ -55,6 +55,10 @@ export function TeamsPage() {
   // activo del usuario, que puede ser otro).
   const puedeGestionarMiembros =
     canManageThis || myMembership?.permissions?.['equipo.gestionar_miembros'] === true
+  // Lo mismo para configurar el equipo (umbral de sobrecarga y catalogo de grupos), permiso
+  // propio desde la migracion 049. Asignarle el grupo a un miembro sigue siendo de jefatura:
+  // es un UPDATE de team_members (policy 021).
+  const puedeConfigurar = canManageThis || myMembership?.permissions?.['equipo.configurar'] === true
 
   // Al abrir un equipo se trae su umbral. La lista de equipos del hook no lo incluye, y
   // pedirlo aca es una consulta chica que solo ocurre al desplegar el panel.
@@ -140,7 +144,7 @@ export function TeamsPage() {
                 <div className="mt-4 pt-3 border-t border-border-strong">
                   {/* Ajustes del equipo. Solo quien lo administra: la RLS lo exige igual,
                       pero mostrar un control que va a ser rechazado es peor que esconderlo. */}
-                  {canManageThis && (
+                  {puedeConfigurar && (
                     <div className="mb-4 pb-3 border-b border-border-strong/60">
                       <h4 className="text-xs font-medium text-fg-faint mb-2">Ajustes</h4>
                       <label className="flex flex-wrap items-center gap-2 text-xs text-fg-muted">
@@ -169,7 +173,7 @@ export function TeamsPage() {
 
                   {/* Grupos de trabajo (alias "foco"): catalogo por equipo, solo jefatura los
                       crea/borra. Sirven para filtrar en Minuta/Actividades. */}
-                  {canManageThis && (
+                  {puedeConfigurar && (
                     <div className="mb-4 pb-3 border-b border-border-strong/60">
                       <h4 className="text-xs font-medium text-fg-faint mb-2">Grupos de trabajo</h4>
                       <div className="flex flex-wrap gap-1.5 mb-2">

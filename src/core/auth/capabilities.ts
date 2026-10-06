@@ -3,13 +3,19 @@ export type Capability =
   | 'minuta.gestionar'
   | 'minuta.eliminar'
   | 'minuta.asignar'
+  | 'proyectos.gestionar'
+  | 'proyectos.eliminar'
+  | 'proyectos.asignar'
+  | 'compromisos.conducir'
   | 'actividades.asignar_otros'
   | 'actividades.ver_todas'
   | 'actividades.editar_todas'
   | 'actividades.eliminar'
   | 'errores.gestionar'
   | 'ingestas.gestionar'
+  | 'ingestas.asignar'
   | 'equipo.gestionar_miembros'
+  | 'equipo.configurar'
   | 'modulos.actividades'
   | 'modulos.minuta'
   | 'modulos.compromisos'
@@ -23,15 +29,30 @@ export const CAPABILITIES: { key: Capability; label: string; group: string }[] =
   { key: 'minuta.gestionar', label: 'Gestionar minuta (crear/editar)', group: 'Minuta' },
   { key: 'minuta.eliminar', label: 'Eliminar temas', group: 'Minuta' },
   { key: 'minuta.asignar', label: 'Asignar actividades desde minuta', group: 'Minuta' },
+  // Proyectos tenia que pedir prestados los permisos de Minuta (migracion 049).
+  { key: 'proyectos.gestionar', label: 'Gestionar proyectos (crear/editar)', group: 'Proyectos' },
+  { key: 'proyectos.eliminar', label: 'Eliminar proyectos y subtareas', group: 'Proyectos' },
+  { key: 'proyectos.asignar', label: 'Asignar actividades desde proyectos', group: 'Proyectos' },
+  {
+    key: 'compromisos.conducir',
+    label: 'Conducir la revision (mover semana, llevar a minuta, comentar)',
+    group: 'Compromisos',
+  },
   { key: 'actividades.asignar_otros', label: 'Asignar a terceros', group: 'Actividades' },
   { key: 'actividades.ver_todas', label: 'Ver todas las del equipo', group: 'Actividades' },
   { key: 'actividades.editar_todas', label: 'Editar actividades ajenas', group: 'Actividades' },
   { key: 'actividades.eliminar', label: 'Eliminar actividades', group: 'Actividades' },
   { key: 'errores.gestionar', label: 'Gestionar errores', group: 'Errores' },
   { key: 'ingestas.gestionar', label: 'Gestionar ingestas', group: 'Ingestas' },
+  { key: 'ingestas.asignar', label: 'Asignar actividades desde ingestas', group: 'Ingestas' },
   {
     key: 'equipo.gestionar_miembros',
     label: 'Agregar/quitar miembros y cambiar su rol',
+    group: 'Equipo',
+  },
+  {
+    key: 'equipo.configurar',
+    label: 'Configurar equipo (grupos de trabajo, umbral de sobrecarga)',
     group: 'Equipo',
   },
   // Visibilidad de modulos completos en la navegacion. Por defecto TODOS en true para

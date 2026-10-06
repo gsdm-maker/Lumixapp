@@ -89,8 +89,11 @@ export const activitiesService = {
    * el vinculo con la minuta y las notificaciones.
    */
   async remove(id: string): Promise<void> {
-    const { error } = await supabase.from('activities').delete().eq('id', id)
+    // RLS no da error al bloquear un DELETE (migracion 038): simplemente no borra nada. Sin
+    // contar las filas, el chat respondia "Listo, elimine" aunque la actividad siguiera ahi.
+    const { data, error } = await supabase.from('activities').delete().eq('id', id).select('id')
     if (error) throw error
+    if (!data?.length) throw new Error('No autorizado para eliminar esta actividad')
   },
 
   /**

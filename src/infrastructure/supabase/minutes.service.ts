@@ -38,7 +38,29 @@ export const minutesService = {
   },
 
   async remove(id: string): Promise<void> {
-    const { error } = await supabase.from('minute_items').delete().eq('id', id)
+    // RLS no da error al bloquear un DELETE: simplemente no borra nada. Sin contar las filas,
+    // la app avisaba "eliminado" aunque el tema siguiera ahi.
+    const { data, error } = await supabase.from('minute_items').delete().eq('id', id).select('id')
+    if (error) throw error
+    if (!data?.length) throw new Error('No autorizado para eliminar este tema')
+  },
+
+  // Vincula actividades recien creadas a su tema con el permiso de ASIGNAR de esa hoja (RPC de
+  // la migracion 049). Un UPDATE directo pedia permiso de gestionar: con solo "asignar", la
+  // actividad se creaba pero quedaba sin vincular.
+  async vincularActividades(
+    itemId: string,
+    activityIds: string[],
+    responsables: string[],
+    fechas?: { inicio: string | null; plazo: string | null },
+  ): Promise<void> {
+    const { error } = await supabase.rpc('vincular_actividades_tema', {
+      p_item: itemId,
+      p_activity_ids: activityIds,
+      p_responsables: responsables,
+      p_fecha_inicio: fechas?.inicio ?? null,
+      p_plazo: fechas?.plazo ?? null,
+    })
     if (error) throw error
   },
 

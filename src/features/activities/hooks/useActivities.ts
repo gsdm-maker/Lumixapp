@@ -2,17 +2,21 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { activitiesService } from '@infrastructure/supabase/activities.service'
 import { notificationsService } from '@infrastructure/supabase/notifications.service'
 import { profilesService } from '@infrastructure/supabase/profiles.service'
+import { minutesService } from '@infrastructure/supabase/minutes.service'
 import { teamsService, type GrupoTrabajo } from '@infrastructure/supabase/teams.service'
 import { useAuth } from '@core/auth/hooks/useAuth'
 import { parseDateLocal } from '@shared/utils/date'
 import { useToast } from '@shared/components/ui/Toast'
-import type { Activity, ActivityStatus, Profile } from '@shared/types'
+import type { Activity, ActivityStatus, MinuteItem, Profile } from '@shared/types'
 
 // Actividades PERSONALES + de los equipos que lidero (cross-equipo). Privacidad:
 // veo TODAS las mias (en cualquier equipo) y, de terceros, solo en equipos donde soy jefe.
 export function useActivities() {
   const [activities, setActivities] = useState<Activity[]>([])
   const [members, setMembers] = useState<Profile[]>([])
+  // Items de Proyectos de mis equipos: solo para agrupar en la lista las actividades de
+  // subtareas bajo la de su item padre (ver utils/arbol.ts).
+  const [proyectoItems, setProyectoItems] = useState<MinuteItem[]>([])
   const [teamNames, setTeamNames] = useState<Record<string, string>>({})
   const [managedIds, setManagedIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
@@ -68,6 +72,15 @@ export function useActivities() {
     const map = new Map<string, Activity>()
     ;[...mine, ...managedActs].forEach((a) => map.set(a.id, a))
     setActivities([...map.values()].filter((a) => !a.title.startsWith('[Ingesta]')))
+
+    // Si falla (ej. un equipo sin permiso de lectura de proyectos), la lista se ve plana como
+    // antes: el agrupado es un extra, no algo de lo que dependa la pantalla.
+    const proyectos = await Promise.all(
+      Object.keys(names).map((id) =>
+        minutesService.getByTeam(id, 'proyecto').catch(() => [] as MinuteItem[]),
+      ),
+    )
+    setProyectoItems(proyectos.flat())
 
     // Miembros (para nombres/filtro): de los equipos que lidero + yo mismo.
     const memberLists = await Promise.all(mIds.map((id) => profilesService.getByTeam(id)))
@@ -248,6 +261,7 @@ export function useActivities() {
   return {
     activities: filtered,
     allActivities: activities,
+    proyectoItems,
     members,
     teamNames,
     managedIds,

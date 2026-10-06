@@ -99,13 +99,18 @@ export function useMinuta(tipo: HojaTipo = 'minuta') {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const { user, profile } = useAuth()
-  const { canManageMinuta, canDeleteMinuta, canAssignMinuta, canManageIngestas } = useCapabilities()
+  const caps = useCapabilities()
   const teamId = profile?.team_id ?? ''
   const esIngesta = tipo === 'ingesta'
   // Cada hoja se gobierna con su propio permiso: administrar ingestas no deberia exigir
-  // permiso de minuta. Coincide con lo que exige la RLS (funcion puede_escribir_hoja).
-  const puedeGestionar = esIngesta ? canManageIngestas : canManageMinuta
-  const puedeEliminar = esIngesta ? canManageIngestas : canDeleteMinuta
+  // permiso de minuta, ni proyectos (migracion 049). Coincide con lo que exige la RLS
+  // (funcion puede_escribir_hoja).
+  const permisos = {
+    minuta: [caps.canManageMinuta, caps.canDeleteMinuta, caps.canAssignMinuta],
+    proyecto: [caps.canManageProyectos, caps.canDeleteProyectos, caps.canAssignProyectos],
+    ingesta: [caps.canManageIngestas, caps.canManageIngestas, caps.canAssignIngestas],
+  } as const
+  const [puedeGestionar, puedeEliminar, puedeAsignar] = permisos[tipo]
 
   const load = useCallback(async () => {
     if (!teamId) return
@@ -461,7 +466,13 @@ export function useMinuta(tipo: HojaTipo = 'minuta') {
   // Crea una actividad por cada responsable elegido y las vincula al tema (estado sincronizado)
   const createActivitiesFromItem = async (
     item: MinuteItem,
-    opts: { responsibleIds: string[]; priority: number; dueDate: string | null },
+    opts: {
+      responsibleIds: string[]
+      priority: number
+      dueDate: string | null
+      // Solo Proyectos: inicio y termino elegidos al asignar quedan en el item (Cronograma).
+      fechaInicio?: string | null
+    },
   ) => {
     if (!user || !teamId) return
     const due = opts.dueDate
@@ -469,16 +480,29 @@ export function useMinuta(tipo: HojaTipo = 'minuta') {
       : addBusinessDays(new Date(), 6).toISOString()
     const newIds: string[] = []
 
+    // Desde Proyectos el origen es el proyecto raiz, no la minuta (antes decia siempre "Minuta
+    // semanal", aunque la actividad viniera de una subtarea de un proyecto).
+    let raiz: MinuteItem = item
+    while (raiz.parent_item_id) {
+      const padre = items.find((i) => i.id === raiz.parent_item_id)
+      if (!padre) break
+      raiz = padre
+    }
+    const esProyecto = item.tipo === 'proyecto'
+    const origen = esProyecto ? `Proyecto: ${raiz.tema}` : 'Minuta semanal'
+
     for (const rid of opts.responsibleIds) {
       const activity = await activitiesService.create({
         title: item.tema,
-        description: item.comentarios || `Foco de reunion: ${item.tema}`,
+        description:
+          item.comentarios ||
+          (esProyecto ? `Proyecto ${raiz.tema}: ${item.tema}` : `Foco de reunion: ${item.tema}`),
         responsible_id: rid,
         priority: opts.priority,
         status: 'pendiente',
         due_date: due,
         dependencies: [],
-        observations: 'Origen: Minuta semanal',
+        observations: `Origen: ${origen}`,
         team_id: teamId,
         created_by: user.id,
       })
@@ -486,8 +510,8 @@ export function useMinuta(tipo: HojaTipo = 'minuta') {
       if (rid !== user.id) {
         try {
           await notificationsService.send(rid, {
-            title: 'Nueva actividad (Minuta)',
-            body: `"${item.tema}" - Entrega: ${formatDateLocal(due)}`,
+            title: esProyecto ? 'Nueva actividad (Proyecto)' : 'Nueva actividad (Minuta)',
+            body: `"${item.tema}"${esProyecto && raiz.id !== item.id ? ` (${raiz.tema})` : ''} - Entrega: ${formatDateLocal(due)}`,
             type: 'deadline_soon',
             metadata: { activity_id: activity.id },
           })
@@ -497,18 +521,18 @@ export function useMinuta(tipo: HojaTipo = 'minuta') {
       }
     }
 
-    const mergedResp = Array.from(new Set([...item.responsables, ...opts.responsibleIds]))
-    await minutesService.update(item.id, {
-      linked_activity_ids: [...item.linked_activity_ids, ...newIds],
-      responsables: mergedResp,
-      // responsables_text es el nombre libre que trae un tema cargado desde planilla, ANTES
-      // de tener un responsable real del sistema. Una vez que se asigna de verdad, se limpia:
-      // si no, responsablesLabel() lo sigue sumando y queda mostrando un nombre viejo junto
-      // al responsable real (caso real: "Felipe Quintanilla" colgado despues de reasignar a
-      // "Juan Diaz").
-      responsables_text: '',
-      estado: 'en_desarrollo',
-    })
+    // responsables_text (nombre libre de un tema cargado desde planilla) se limpia en la RPC
+    // al asignar de verdad: si no, responsablesLabel() lo seguia sumando y mostraba un nombre
+    // viejo junto al responsable real (caso real: "Felipe Quintanilla" colgado despues de
+    // reasignar a "Juan Diaz").
+    await minutesService.vincularActividades(
+      item.id,
+      newIds,
+      opts.responsibleIds,
+      opts.fechaInicio !== undefined
+        ? { inicio: opts.fechaInicio, plazo: opts.dueDate }
+        : undefined,
+    )
     await load()
     return newIds.length
   }
@@ -542,7 +566,7 @@ export function useMinuta(tipo: HojaTipo = 'minuta') {
     tipo,
     canManage: puedeGestionar,
     canDelete: puedeEliminar,
-    canAssign: canAssignMinuta,
+    canAssign: puedeAsignar,
     addItem,
     bulkAdd,
     updateItem,
