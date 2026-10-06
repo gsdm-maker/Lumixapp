@@ -1,71 +1,88 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useId, type ReactNode } from 'react'
+import { cx } from '@shared/utils/cx'
+import { useOverlay } from '@shared/hooks/useOverlay'
+import { IconButton } from './Button'
 
 interface ModalProps {
   open: boolean
   onClose: () => void
   title?: string
+  /** Una linea bajo el titulo para dar contexto. */
+  description?: ReactNode
   children: ReactNode
-  size?: 'sm' | 'md' | 'lg'
+  /** Botonera fija al pie: Cancelar a la izquierda, accion principal a la derecha. */
+  footer?: ReactNode
+  size?: 'sm' | 'md' | 'lg' | 'xl'
+  /** false = tocar fuera no cierra (decisiones que no deben perderse por un toque). */
+  dismissible?: boolean
 }
 
-const sizeClasses = {
-  sm: 'max-w-sm',
-  md: 'max-w-md',
-  lg: 'max-w-lg',
-}
+const SIZE = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-lg', xl: 'max-w-2xl' }
 
-export function Modal({ open, onClose, title, children, size = 'md' }: ModalProps) {
-  const overlayRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    if (open) {
-      document.addEventListener('keydown', handleKey)
-      document.body.style.overflow = 'hidden'
-    }
-    return () => {
-      document.removeEventListener('keydown', handleKey)
-      document.body.style.overflow = ''
-    }
-  }, [open, onClose])
+/**
+ * Dialogo centrado. Para decisiones y formularios cortos; para editar el detalle de algo que
+ * esta en una lista usar <SidePanel>, que no tapa la lista.
+ */
+export function Modal({
+  open,
+  onClose,
+  title,
+  description,
+  children,
+  footer,
+  size = 'md',
+  dismissible = true,
+}: ModalProps) {
+  const ref = useOverlay(open, onClose)
+  const titleId = useId()
 
   if (!open) return null
 
   return (
     <div
-      ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-      onClick={(e) => {
-        if (e.target === overlayRef.current) onClose()
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40"
+      onMouseDown={(e) => {
+        if (dismissible && e.target === e.currentTarget) onClose()
       }}
     >
       <div
-        className={`w-full ${sizeClasses[size]} rounded-xl border border-border-strong bg-panel shadow-2xl animate-in`}
+        ref={ref}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
+        tabIndex={-1}
+        className={cx(
+          'w-full flex flex-col bg-panel border border-border-strong shadow-xl outline-none',
+          'max-h-[90dvh] rounded-t-xl sm:rounded-lg',
+          SIZE[size],
+        )}
       >
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border-strong/50">
-            <h3 className="text-lg font-semibold text-fg">{title}</h3>
-            <button
+          <div className="flex items-start gap-3 px-5 pt-4 pb-3 border-b border-border">
+            <div className="flex-1 min-w-0">
+              <h2 id={titleId} className="text-lg font-semibold text-fg">
+                {title}
+              </h2>
+              {description && <p className="text-xs text-fg-faint mt-0.5">{description}</p>}
+            </div>
+            <IconButton
+              icon="x"
+              label="Cerrar"
               onClick={onClose}
-              aria-label="Cerrar"
-              // p-2.5 (no p-1): objetivo tactil de ~40px -este boton se usa en TODOS los
-              // modales de la app, vale la pena que sea facil de tocar en el celular.
-              className="p-2.5 -mr-2.5 rounded-lg hover:bg-surface text-fg-faint hover:text-fg-body transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
+              className="-mr-2 -mt-1"
+              data-overlay-close
+            />
           </div>
         )}
-        <div className="px-6 py-4">{children}</div>
+        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        {footer && (
+          <div
+            className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border"
+            style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))' }}
+          >
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   )

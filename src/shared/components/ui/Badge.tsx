@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
+import { cx } from '@shared/utils/cx'
 
-export type BadgeVariant = 'default' | 'success' | 'warning' | 'danger' | 'info'
+export type BadgeVariant = 'default' | 'success' | 'warning' | 'danger' | 'info' | 'blocked'
 
 interface BadgeProps {
   variant?: BadgeVariant
@@ -8,21 +9,25 @@ interface BadgeProps {
   className?: string
 }
 
-const variantClasses: Record<BadgeVariant, string> = {
-  default: 'bg-surface-2 text-fg-body',
-  success:
-    'bg-emerald-900/50 text-emerald-400 border border-emerald-700/50 light:bg-emerald-100 light:text-emerald-700 light:border-emerald-300',
-  warning:
-    'bg-amber-900/50 text-amber-400 border border-amber-700/50 light:bg-amber-100 light:text-amber-700 light:border-amber-300',
-  danger:
-    'bg-red-900/50 text-red-400 border border-red-700/50 light:bg-red-100 light:text-red-700 light:border-red-300',
-  info: 'bg-blue-900/50 text-blue-400 border border-blue-700/50 light:bg-blue-100 light:text-blue-700 light:border-blue-300',
+// Etiqueta chica para conteos y marcas puntuales ("Invitado", "3 vencidas"). Para el ESTADO de
+// una actividad/tema usar <StatusLabel>, que es el codigo unico de estados de la app.
+const VARIANT: Record<BadgeVariant, string> = {
+  default: 'bg-surface text-fg-muted',
+  success: 'bg-success-soft text-success',
+  warning: 'bg-warning-soft text-warning',
+  danger: 'bg-danger-soft text-danger',
+  info: 'bg-accent-soft text-accent',
+  blocked: 'bg-blocked-soft text-blocked',
 }
 
-export function Badge({ variant = 'default', children, className = '' }: BadgeProps) {
+export function Badge({ variant = 'default', children, className }: BadgeProps) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${variantClasses[variant]} ${className}`}
+      className={cx(
+        'inline-flex items-center gap-1 rounded-sm px-1.5 h-5 text-xs font-medium whitespace-nowrap',
+        VARIANT[variant],
+        className,
+      )}
     >
       {children}
     </span>

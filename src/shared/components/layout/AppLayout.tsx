@@ -2,27 +2,35 @@ import { useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { BottomNav } from './BottomNav'
+import { navItems } from './navItems'
 import { NovedadesModal } from '@shared/components/ui/NovedadesModal'
+import { IconButton } from '@shared/components/ui/Button'
+import { LumixIcon } from '@shared/components/ui/LumixIcon'
 import { useAppHeight } from '@shared/hooks/useAppHeight'
+import { useAuth } from '@core/auth/hooks/useAuth'
+import { cx } from '@shared/utils/cx'
 
 export function AppLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const location = useLocation()
-  // El chat ya tiene todo lo demas al alcance via el hamburguesa: una segunda barra fija
-  // abajo le resta ~50-60px permanentes justo donde vive su propio input+boton enviar, y en
-  // el celular (con el teclado abierto) eso terminaba empujando el boton fuera del area
-  // visible. Las demas rutas mantienen el BottomNav como siempre.
-  const ocultarBottomNav = location.pathname.startsWith('/chat')
+  const [menuAbierto, setMenuAbierto] = useState(false)
+  const { pathname } = useLocation()
+  const { profile } = useAuth()
   useAppHeight()
+
+  // Titulo de la seccion en el encabezado movil (en escritorio lo da la barra lateral).
+  const seccion =
+    navItems.find((i) => pathname.startsWith(i.to))?.label ??
+    (pathname.startsWith('/admin')
+      ? 'Administración'
+      : pathname.startsWith('/profile')
+        ? 'Perfil'
+        : 'Lumix')
 
   return (
     <div
-      className="flex bg-shell text-fg"
-      // position: fixed + top/height tomados en vivo de visualViewport (useAppHeight): asi
-      // el layout SIEMPRE pinta donde el navegador dice que esta lo visible, en vez de vivir
-      // en el flujo normal del documento -eso es lo que dejaba la parte de arriba fuera de
-      // la vista al cerrar el teclado en iOS (offsetTop que no vuelve a 0, bug real
-      // reportado por Sebastian; ver el docblock de useAppHeight.ts para el detalle).
+      className="flex bg-shell text-fg-body"
+      // position: fixed + top/height tomados en vivo de visualViewport (useAppHeight): el
+      // layout pinta siempre donde el navegador dice que esta lo visible. Arregla el salto de
+      // la parte de arriba al cerrar el teclado en iOS (ver useAppHeight.ts).
       style={{
         position: 'fixed',
         top: 'var(--app-top, 0px)',
@@ -32,63 +40,51 @@ export function AppLayout() {
       }}
     >
       <NovedadesModal />
-      {/* Mobile overlay */}
-      {sidebarOpen && (
+
+      {menuAbierto && (
         <div
-          className="fixed inset-0 z-40 bg-black/60 md:hidden"
-          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          onClick={() => setMenuAbierto(false)}
         />
       )}
 
-      {/* Sidebar - desktop always visible, mobile slide-over.
-          El corte es en md (768px) y no lg (1024px): un notebook con escalado de Windows al
-          125-150% (muy comun) reporta un ancho logico de ~900-1100px, y con el corte en lg
-          caia del lado "movil" (drawer + header + bottom nav) en vez del de escritorio. */}
+      {/* Barra lateral: fija en escritorio, deslizable en movil. Corte en md (768px): un
+          notebook con escalado de Windows al 125-150% reporta ~900-1100px logicos, y con lg
+          caia del lado movil. */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-200 ease-in-out md:relative md:translate-x-0 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-        style={{ paddingTop: 'env(safe-area-inset-top)' }}
+        className={cx(
+          'fixed inset-y-0 left-0 z-50 transform transition-transform duration-200 ease-out md:relative md:translate-x-0',
+          menuAbierto ? 'translate-x-0' : '-translate-x-full',
+        )}
       >
-        <Sidebar onClose={() => setSidebarOpen(false)} />
+        <Sidebar onClose={() => setMenuAbierto(false)} />
       </div>
 
-      {/* Main content area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile header */}
         <header
-          className="flex items-center gap-3 px-3 border-b border-border bg-panel md:hidden flex-shrink-0"
+          className="md:hidden shrink-0 flex items-center gap-2 px-2 border-b border-border bg-panel"
           style={{
             height: 'calc(3rem + env(safe-area-inset-top))',
             paddingTop: 'env(safe-area-inset-top)',
           }}
         >
-          <button
-            onClick={() => setSidebarOpen(true)}
-            aria-label="Abrir menu"
-            // p-2.5 (no p-1.5): objetivo tactil de ~40px, mas cerca de los 44px que
-            // recomiendan Apple/Material para el boton principal de navegacion en mobile.
-            className="p-2.5 -ml-2 rounded-lg hover:bg-surface text-fg-faint"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 6h16M4 12h16M4 18h16"
-              />
-            </svg>
-          </button>
-          <span className="text-fg-body font-semibold text-sm">Lumix</span>
+          <IconButton
+            icon="menu"
+            label="Abrir menú"
+            size="md"
+            onClick={() => setMenuAbierto(true)}
+          />
+          <LumixIcon size="sm" />
+          <span className="text-sm font-semibold text-fg truncate">{seccion}</span>
         </header>
 
-        {/* Page content */}
-        <main className="flex-1 overflow-hidden">
+        {/* key = equipo activo: al cambiar de equipo (sin recargar) la pantalla se vuelve a
+            montar y ningun hook queda con datos del equipo anterior. */}
+        <main className="flex-1 overflow-hidden" key={profile?.team_id ?? 'sin-equipo'}>
           <Outlet />
         </main>
 
-        {/* Navegacion inferior (solo movil) */}
-        {!ocultarBottomNav && <BottomNav />}
+        <BottomNav onMore={() => setMenuAbierto(true)} />
       </div>
     </div>
   )

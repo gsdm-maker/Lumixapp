@@ -1,88 +1,189 @@
 @import 'tailwindcss';
 
-/* Tema claro: opt-in, no automatico por prefers-color-scheme -el look oscuro actual es el
-   default fijo para quien no elige nada-. Se activa con [data-theme="light"] en <html> (ver
-   ThemeContext).
+/* ============================================================================================
+   SISTEMA DE DISENO DE LUMIX (rediseno 2026, ver docs/design-system.md)
 
-   Sistema de TOKENS (no clases "light:" repetidas): cada color neutro tiene un nombre semantico
-   (panel, surface, fg, border, etc.) cuyo valor real vive en una variable CSS que cambia con
-   [data-theme]. Los componentes usan una sola clase (`bg-panel`, `text-fg-muted`) que ya
-   responde a los dos temas solos -no hay una clase por tema que mantener sincronizada-.
+   Todo color de la app sale de una variable CSS. Asi el tema (claro/oscuro) y el acento se
+   cambian en tiempo de ejecucion poniendo dos atributos en <html>:
+     data-theme  = light | dark            (ThemeContext; claro es el default)
+     data-accent = petroleo | indigo | azul (ThemeContext; petroleo es el default)
 
-   Por que el cambio (encontrado probando la Fase 6 con clases "light:" manuales): un script de
-   migracion masiva se comio casos con sufijo de opacidad (`/50`), clases sueltas en un ternario
-   con comilla simple, y until selectores especiales de Tailwind (`[&>th]:...`) -3 bugs reales
-   en produccion de la sesion-. Con tokens, esa clase de bug deja de poder pasar: no hay una
-   segunda clase que un script (o una persona) se pueda olvidar de agregar.
+   Patron de Tailwind v4 para variables + temas: los canales RGB crudos viven en :root /
+   [data-theme] / [data-accent], y un @theme NO-inline los mapea a colores de Tailwind. Con
+   @theme inline el valor se hornea en el build y el cambio de tema deja de funcionar.
 
-   Patron recomendado por Tailwind v4 para variables CSS + dark/light: los canales RGB crudos
-   viven en :root / [data-theme='light'], y un @theme NO-inline los mapea a colores de Tailwind
-   (usar @theme inline aca rompe el cambio de tema: hornea el valor en tiempo de build). */
+   Sin "/ <alpha-value>": esa sintaxis es de Tailwind v3 y en v4 el navegador la recibe literal
+   y descarta el color entero. La opacidad (bg-panel/50) ya funciona sola via color-mix().
+   ============================================================================================ */
+
+/* Variante heredada: algunas pantallas todavia usan `light:` para ajustes puntuales. Las nuevas
+   no la necesitan: usan tokens que ya responden a los dos temas. */
 @custom-variant light (&:where([data-theme='light'], [data-theme='light'] *));
 
-:root {
-  /* Oscuro (default, FIJO): exactamente los mismos tonos que ya se usaban como clases sueltas
-     -bg-slate-900, text-slate-200, etc.-, solo que ahora con nombre. No se toca ni un valor
-     de aca por ningun motivo: es el look de siempre. */
-  --shell: 2 6 23; /* slate-950: fondo general de la app */
-  --panel: 15 23 42; /* slate-900: headers, modales, paneles solidos */
-  --surface: 30 41 59; /* slate-800: botones/controles segmentados */
-  --field: 30 41 59; /* slate-800: inputs/dropdowns (separado de surface para no atarlos) */
-  --surface-2: 51 65 85; /* slate-700: hover, avatares, pildoras */
-  --surface-soft: 15 23 42; /* slate-900 a baja opacidad: insets sutiles (subtareas, tarjetas) */
-  --border: 30 41 59; /* slate-800: divisores */
-  --border-strong: 51 65 85; /* slate-700: bordes de inputs/tarjetas */
-  --fg: 241 245 249; /* slate-100: titulos */
-  --fg-body: 226 232 240; /* slate-200: texto de cuerpo */
-  --fg-muted: 203 213 225; /* slate-300: texto secundario */
-  --fg-faint: 148 163 184; /* slate-400: texto de apoyo/metadatos */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  /* Fuente variable alojada en el propio sitio: la CSP (netlify.toml) solo permite font-src
+     'self', asi que Google Fonts no carga. Subconjunto latino: cubre todo el espanol. */
+  src: url('/fonts/ibm-plex-sans-latin.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-/* Claro: paleta redisenada tras revision (la primera version se sentia "sucia"/amarillenta -un
-   neutro CALIDO- en vez de moderna). Referencias: Vercel Geist (superficie #fff / secundaria
-   #fafafa, texto primario #000, secundario #666) y GitHub Primer (borde default #d0d7de, fondo
-   sutil #f6f8fa) - los dos tratan el oscuro como el tema "canonico" y el claro como la variante,
-   igual que aca. Fondo general ahora es un gris frio casi-blanco (slate-50), no beige; titulos
-   mas oscuros (slate-900) para mas contraste/nitidez. Contraste pensado para pasar WCAG AA
-   (>=4.5:1 en texto normal). */
-[data-theme='light'] {
-  --shell: 248 250 252; /* slate-50 */
-  --panel: 255 255 255;
-  --surface: 241 245 249; /* slate-100 */
-  --field: 255 255 255; /* blanco: un input se lee mejor solido que gris palido */
-  --surface-2: 226 232 240; /* slate-200 */
-  --surface-soft: 248 250 252; /* slate-50 */
-  /* Divisores muy sutiles a proposito: en oscuro una linea de 1px se nota poco por el bajo
-     contraste general, pero la MISMA linea sobre blanco se lee "dura" -el ojo es mas sensible
-     a una raya gris sobre blanco que sobre un fondo ya oscuro-. La practica recomendada (Primer,
-     Geist, y la literatura de UI en general) es "gris casi invisible + espacio" en vez de lineas
-     marcadas; border-strong (bordes de inputs, que si necesitan definirse) queda un poco mas
-     visible que el divisor suelto. */
-  --border: 241 245 249; /* slate-100 */
-  --border-strong: 203 213 225; /* slate-300: bordes de inputs/tarjetas, estos si necesitan
-     definirse (Primer usa un tono similar, #d0d7de, para bordes interactivos) */
-  --fg: 15 23 42; /* slate-900: mas oscuro que antes para titulos con mas peso visual */
-  --fg-body: 51 65 85; /* slate-700 */
-  --fg-muted: 71 85 105; /* slate-600 */
-  --fg-faint: 100 116 139; /* slate-500 */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-mono-400-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+2000-206F;
+}
+
+/* --- Tema claro (default) ------------------------------------------------------------------ */
+:root {
+  /* Neutros: tinta fria sobre papel casi blanco. */
+  --shell: 246 247 248; /* fondo general de la app */
+  --panel: 255 255 255; /* encabezados, tablas, paneles, dialogos */
+  --surface: 238 240 242; /* controles en reposo, filas de grupo */
+  --field: 255 255 255; /* inputs */
+  --surface-2: 226 229 233; /* hover, avatares */
+  --surface-soft: 243 244 246; /* insets sutiles: subtareas, seleccion suave */
+  --border: 226 229 233; /* divisores */
+  --border-strong: 205 210 216; /* bordes de inputs y contenedores */
+  --fg: 21 25 30; /* titulos y datos */
+  --fg-body: 43 50 58; /* texto de cuerpo */
+  --fg-muted: 74 83 93; /* texto secundario */
+  --fg-faint: 107 116 128; /* metadatos */
+
+  /* Semantica: solo para comunicar estado, nunca para decorar. */
+  --success: 29 122 70;
+  --success-soft: 230 243 236;
+  --warning: 163 90 0;
+  --warning-soft: 251 240 224;
+  --danger: 180 35 24;
+  --danger-soft: 251 233 231;
+  --blocked: 91 75 176;
+  --blocked-soft: 238 236 250;
+
+  color-scheme: light;
+}
+
+/* --- Tema oscuro ------------------------------------------------------------------------- */
+[data-theme='dark'] {
+  --shell: 17 20 23;
+  --panel: 23 27 31;
+  --surface: 30 35 40;
+  --field: 23 27 31;
+  --surface-2: 42 48 54;
+  --surface-soft: 20 24 27;
+  --border: 37 43 49;
+  --border-strong: 52 60 68;
+  --fg: 232 235 238;
+  --fg-body: 204 210 216;
+  --fg-muted: 170 178 187;
+  --fg-faint: 132 141 151;
+
+  --success: 76 194 127;
+  --success-soft: 19 39 28;
+  --warning: 227 164 63;
+  --warning-soft: 43 33 18;
+  --danger: 240 112 95;
+  --danger-soft: 45 23 20;
+  --blocked: 167 156 240;
+  --blocked-soft: 30 27 52;
+
+  color-scheme: dark;
+}
+
+/* --- Acento: una escala completa por opcion ------------------------------------------------
+   Cada opcion define los 11 tonos. Toda la app usa el acento a traves de estos tonos (y de
+   `indigo-*`, que apunta aca: ver @theme). Agregar una opcion nueva = un bloque mas. */
+:root,
+[data-accent='petroleo'] {
+  --a-50: 234 245 246;
+  --a-100: 207 232 234;
+  --a-200: 163 211 215;
+  --a-300: 111 184 190;
+  --a-400: 63 156 163;
+  --a-500: 28 131 139;
+  --a-600: 11 107 114;
+  --a-700: 10 88 94;
+  --a-800: 12 70 75;
+  --a-900: 13 58 62;
+  --a-950: 6 35 38;
+}
+
+[data-accent='indigo'] {
+  --a-50: 238 242 255;
+  --a-100: 224 231 255;
+  --a-200: 199 210 254;
+  --a-300: 165 180 252;
+  --a-400: 129 140 248;
+  --a-500: 99 102 241;
+  --a-600: 79 70 229;
+  --a-700: 67 56 202;
+  --a-800: 55 48 163;
+  --a-900: 49 46 129;
+  --a-950: 30 27 75;
+}
+
+[data-accent='azul'] {
+  --a-50: 239 246 255;
+  --a-100: 219 234 254;
+  --a-200: 191 219 254;
+  --a-300: 147 197 253;
+  --a-400: 96 165 250;
+  --a-500: 59 130 246;
+  --a-600: 37 99 235;
+  --a-700: 29 78 216;
+  --a-800: 30 64 175;
+  --a-900: 30 58 138;
+  --a-950: 23 37 84;
+}
+
+/* Rol del acento segun el tema: texto/enlace legible sobre el fondo, y relleno de botones. */
+:root {
+  --accent: var(--a-600);
+  --accent-fill: var(--a-600);
+  --accent-soft: var(--a-50);
+  --on-accent: 255 255 255;
+}
+[data-theme='dark'] {
+  --accent: var(--a-400);
+  --accent-fill: var(--a-500);
+  --accent-soft: var(--a-950);
 }
 
 @theme {
-  --color-primary: #6366f1;
-  --color-primary-light: #818cf8;
-  --color-primary-dark: #4f46e5;
-  --color-success: #22c55e;
-  --color-warning: #f59e0b;
-  --color-error: #ef4444;
-  --color-critical: #dc2626;
+  --font-sans: 'IBM Plex Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
 
-  /* IMPORTANTE: sin "/ <alpha-value>". Esa sintaxis es de Tailwind v3 (un placeholder de texto
-     que el build de JS reemplazaba a mano) y NO existe en v4 -aca no la procesa nadie, el
-     navegador la recibe literal, "rgb(30 41 59 / <alpha-value>)" no es una funcion rgb() valida,
-     y el color entero se descarta (cae al initial/heredado: fondos transparentes, bordes
-     "currentColor" -por eso se veian blancos en oscuro y negros en claro-). En v4 el soporte de
-     opacidad (bg-panel/50) ya viene solo via color-mix(), no hace falta escribir nada especial
-     aca; alcanza con un color valido. */
+  /* Escala de texto compacta (5 tamanos de uso real). text-base queda en 16px a proposito: es
+     el minimo para que iOS no haga zoom al enfocar un input. */
+  --text-2xs: 11px;
+  --text-2xs--line-height: 1.4;
+  --text-xs: 12px;
+  --text-xs--line-height: 1.45;
+  --text-sm: 13px;
+  --text-sm--line-height: 1.5;
+  --text-lg: 15px;
+  --text-lg--line-height: 1.4;
+  --text-xl: 18px;
+  --text-xl--line-height: 1.3;
+  --text-2xl: 21px;
+  --text-2xl--line-height: 1.25;
+
+  /* Esquinas moderadas: rounded-lg / rounded-xl dejan de ser globos. */
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-2xl: 10px;
+
+  /* Neutros con nombre semantico */
   --color-shell: rgb(var(--shell));
   --color-panel: rgb(var(--panel));
   --color-surface: rgb(var(--surface));
@@ -95,15 +196,43 @@
   --color-fg-body: rgb(var(--fg-body));
   --color-fg-muted: rgb(var(--fg-muted));
   --color-fg-faint: rgb(var(--fg-faint));
+
+  /* Semantica */
+  --color-success: rgb(var(--success));
+  --color-success-soft: rgb(var(--success-soft));
+  --color-warning: rgb(var(--warning));
+  --color-warning-soft: rgb(var(--warning-soft));
+  --color-danger: rgb(var(--danger));
+  --color-danger-soft: rgb(var(--danger-soft));
+  --color-blocked: rgb(var(--blocked));
+  --color-blocked-soft: rgb(var(--blocked-soft));
+
+  /* Acento */
+  --color-accent: rgb(var(--accent));
+  --color-accent-fill: rgb(var(--accent-fill));
+  --color-accent-soft: rgb(var(--accent-soft));
+  --color-on-accent: rgb(var(--on-accent));
+  --color-primary: rgb(var(--accent-fill));
+
+  /* indigo-* era el acento escrito a mano en 226 lugares. Apuntandolo a la escala del acento,
+     todo eso pasa a cambiar con data-accent sin tocar cada pantalla. Las pantallas nuevas usan
+     accent/accent-fill/accent-soft directamente. */
+  --color-indigo-50: rgb(var(--a-50));
+  --color-indigo-100: rgb(var(--a-100));
+  --color-indigo-200: rgb(var(--a-200));
+  --color-indigo-300: rgb(var(--a-300));
+  --color-indigo-400: rgb(var(--a-400));
+  --color-indigo-500: rgb(var(--a-500));
+  --color-indigo-600: rgb(var(--a-600));
+  --color-indigo-700: rgb(var(--a-700));
+  --color-indigo-800: rgb(var(--a-800));
+  --color-indigo-900: rgb(var(--a-900));
+  --color-indigo-950: rgb(var(--a-950));
 }
 
-/* html/body FIJOS a toda la pantalla, sin poder scrollear ellos mismos: sin esto, el
-   documento entero queda scrolleable (aunque nunca se note en desktop), y en Safari/iOS
-   al enfocar el textarea del chat el navegador decide "traer el campo a la vista" scrolleando
-   el DOCUMENTO -no nuestros contenedores internos-, lo que se veia como que toda la pantalla
-   saltaba hacia arriba al escribir (bug real reportado por Sebastian). Con html/body fijos,
-   ese salto no tiene donde ocurrir: todo el scroll real pasa por los contenedores internos
-   (overflow-y-auto) que ya existen adentro de cada pantalla. */
+/* html/body FIJOS a toda la pantalla: en Safari/iOS, al enfocar el textarea del chat, el
+   navegador scrolleaba el DOCUMENTO y toda la pantalla saltaba (bug real). Todo el scroll
+   pasa por los contenedores internos (overflow-y-auto) de cada pantalla. */
 html,
 body {
   height: 100%;
@@ -112,9 +241,7 @@ body {
 }
 
 html {
-  /* Sin esto, Safari/iOS puede agrandar el texto solo al rotar la pantalla (piensa que hay
-     que "ajustar" el tamano para que siga siendo legible) -practica estandar de reset movil,
-     no un bug puntual encontrado esta vez. */
+  /* Evita que Safari/iOS agrande el texto al rotar la pantalla. */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
@@ -123,24 +250,17 @@ body {
   margin: 0;
   background-color: rgb(var(--shell));
   color: rgb(var(--fg-body));
-  font-family:
-    'Inter',
-    system-ui,
-    -apple-system,
-    sans-serif;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  /* Numeros tabulares en toda la app: fechas, horas y porcentajes se alinean en columna. */
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Flash gris por defecto al tocar un boton/link en mobile, reemplazado por uno sutil del
-     color de acento -mismo criterio en toda la app en vez de que cada componente resuelva
-     su propio :active. */
-  -webkit-tap-highlight-color: rgba(99, 102, 241, 0.15);
+  -webkit-tap-highlight-color: rgb(var(--accent) / 0.12);
 }
 
-/* touch-action: manipulation en todo lo tocable: sea el DOBLE TAP GENERA ZOOM por
-   defecto en varios navegadores moviles (con ~300ms de demora esperando a ver si es un
-   doble tap) -en una app que se usa a los toques todo el dia, esa demora se nota. No
-   reemplaza el fix del tamano de letra (Ronda anterior): ese evita el zoom AL ENFOCAR un
-   campo, esto evita el zoom por doble-tap en botones/tarjetas. */
+/* Evita el zoom por doble tap (y su demora de ~300ms) en todo lo tocable. */
 button,
 a,
 [role='button'],
@@ -150,48 +270,47 @@ textarea {
   touch-action: manipulation;
 }
 
+/* Foco visible y consistente para teclado, en el color del acento. */
+:focus-visible {
+  outline: 2px solid rgb(var(--accent));
+  outline-offset: 1px;
+}
+
 #root {
   height: 100%;
 }
 
-/* Custom scrollbar */
+/* Scrollbars finas en el tono de los bordes. */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
-
 ::-webkit-scrollbar-track {
   background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 10px;
+  background: rgb(var(--border-strong));
+  border-radius: 6px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: rgb(var(--fg-faint));
 }
-
-[data-theme='light'] ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-}
-
-[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
-/* Firefox */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #334155 transparent;
-}
-
-[data-theme='light'] * {
-  scrollbar-color: #cbd5e1 transparent;
+  scrollbar-color: rgb(var(--border-strong)) transparent;
 }
 
 /* PWA safe area */
 .pt-safe {
   padding-top: env(safe-area-inset-top, 0px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

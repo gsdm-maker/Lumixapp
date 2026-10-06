@@ -106,6 +106,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTeamPermissions({})
   }
 
+  // Cambio de equipo activo (idea 18 de la propuesta UI/UX). Antes se hacia con un UPDATE suelto
+  // en el Sidebar + window.location.reload(): una recarga completa para cambiar de contexto.
+  // Ahora se actualiza el perfil y la membresia aca, y AppLayout vuelve a montar la pantalla
+  // actual (key = team_id) para que ningun hook quede con datos del equipo anterior.
+  const switchTeam = async (teamId: string) => {
+    if (!user) return { error: 'No hay sesion' }
+    const { error } = await supabase.from('profiles').update({ team_id: teamId }).eq('id', user.id)
+    if (error) return { error: error.message }
+    const prof = await fetchProfile(user.id)
+    const m = await fetchMembership(user.id, prof?.team_id ?? null)
+    setProfile(prof)
+    setTeamRole(m.role)
+    setTeamPermissions(m.permissions)
+    return { error: null }
+  }
+
   const resetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email)
     if (error) return { error: error.message }
@@ -125,6 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signUp,
         signOut,
         resetPassword,
+        switchTeam,
       }}
     >
       {children}

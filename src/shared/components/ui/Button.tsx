@@ -1,41 +1,108 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { cx } from '@shared/utils/cx'
+import { Icon, type IconName } from './Icon'
+import { Spinner } from './Spinner'
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
-type ButtonSize = 'sm' | 'md' | 'lg'
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
+export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant
   size?: ButtonSize
-  children: ReactNode
+  /** Icono a la izquierda del texto. */
+  icon?: IconName
+  /** Muestra un spinner y desactiva el boton. */
+  loading?: boolean
+  children?: ReactNode
 }
 
-const variantClasses: Record<ButtonVariant, string> = {
-  primary: 'bg-indigo-600 hover:bg-indigo-500 text-white',
-  secondary:
-    'bg-surface-2 hover:bg-slate-600 text-fg-body border border-border-strong light:hover:bg-slate-200',
-  ghost: 'hover:bg-surface text-fg-muted',
-  danger: 'bg-red-600 hover:bg-red-500 text-white',
+// Compactos a proposito (brief: "keep them compact"). La accion principal se distingue por el
+// relleno del acento, no por el tamano.
+const VARIANT: Record<ButtonVariant, string> = {
+  primary: 'bg-accent-fill text-on-accent hover:brightness-110 border border-transparent',
+  secondary: 'bg-panel text-fg border border-border-strong hover:bg-surface hover:border-fg-faint',
+  ghost: 'text-fg-muted border border-transparent hover:bg-surface hover:text-fg',
+  danger: 'bg-danger text-on-accent hover:brightness-110 border border-transparent',
 }
 
-const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'px-3 py-1.5 text-sm',
-  md: 'px-4 py-2 text-sm',
-  lg: 'px-6 py-3 text-base',
+const SIZE: Record<ButtonSize, string> = {
+  xs: 'h-7 px-2 text-xs gap-1',
+  sm: 'h-8 px-2.5 text-sm gap-1.5',
+  md: 'h-9 px-3.5 text-sm gap-2',
+  lg: 'h-10 px-4 text-sm gap-2',
 }
 
-export function Button({
-  variant = 'primary',
-  size = 'md',
-  className = '',
-  children,
-  ...props
-}: ButtonProps) {
+const ICON_SIZE: Record<ButtonSize, number> = { xs: 14, sm: 15, md: 16, lg: 16 }
+
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  {
+    variant = 'primary',
+    size = 'md',
+    icon,
+    loading = false,
+    className,
+    children,
+    disabled,
+    type = 'button',
+    ...props
+  },
+  ref,
+) {
   return (
     <button
-      className={`inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+      ref={ref}
+      type={type}
+      disabled={disabled || loading}
+      className={cx(
+        'inline-flex items-center justify-center rounded-md font-medium whitespace-nowrap transition-[background-color,border-color,filter,color] duration-100 disabled:opacity-50 disabled:cursor-not-allowed',
+        VARIANT[variant],
+        SIZE[size],
+        className,
+      )}
       {...props}
     >
+      {loading ? (
+        <Spinner size={ICON_SIZE[size]} />
+      ) : (
+        icon && <Icon name={icon} size={ICON_SIZE[size]} />
+      )}
       {children}
     </button>
   )
+})
+
+interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
+  icon: IconName
+  /** Obligatorio: es lo unico que lee un lector de pantalla. Tambien se usa de tooltip. */
+  label: string
+  size?: 'xs' | 'sm' | 'md'
+  variant?: 'ghost' | 'secondary'
 }
+
+const ICON_BTN: Record<'xs' | 'sm' | 'md', string> = { xs: 'w-7 h-7', sm: 'w-8 h-8', md: 'w-9 h-9' }
+
+/** Boton solo-icono. Siempre lleva `label` (accesibilidad + tooltip nativo). */
+export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton(
+  { icon, label, size = 'sm', variant = 'ghost', className, type = 'button', ...props },
+  ref,
+) {
+  return (
+    <button
+      ref={ref}
+      type={type}
+      aria-label={label}
+      title={label}
+      className={cx(
+        'inline-flex items-center justify-center rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+        variant === 'ghost'
+          ? 'text-fg-faint hover:text-fg hover:bg-surface'
+          : 'text-fg-muted bg-panel border border-border-strong hover:text-fg hover:bg-surface',
+        ICON_BTN[size],
+        className,
+      )}
+      {...props}
+    >
+      <Icon name={icon} size={size === 'xs' ? 14 : 16} />
+    </button>
+  )
+})

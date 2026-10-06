@@ -8,6 +8,8 @@ import { Avatar } from '@shared/components/ui/Avatar'
 import { LumixIcon } from '@shared/components/ui/LumixIcon'
 import { useAuth } from '@core/auth/hooks/useAuth'
 import { useTheme } from '@core/theme/ThemeContext'
+import { ACCENTS } from '@core/theme/apariencia'
+import { SegmentedControl } from '@shared/components/ui/SegmentedControl'
 import { supabase } from '@infrastructure/supabase/client'
 import { profilesService } from '@infrastructure/supabase/profiles.service'
 import { normalizeFullName } from '@shared/utils/name'
@@ -67,7 +69,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 export function ProfilePage() {
   const { profile, user, signOut } = useAuth()
-  const { theme, setTheme } = useTheme()
+  const { preference, setPreference, accent, setAccent } = useTheme()
   const navigate = useNavigate()
   const toast = useToast()
   const [fullName, setFullName] = useState(profile?.full_name ?? '')
@@ -257,34 +259,51 @@ export function ProfilePage() {
           )}
         </Card>
 
-        {/* Apariencia: oscuro (default de siempre) o claro, opt-in y guardado por dispositivo */}
+        {/* Apariencia: tema (claro por defecto desde el rediseno) y color de acento. */}
         <Card padding="md">
-          <p className="text-sm font-medium text-fg-body mb-2">Apariencia</p>
-          <div className="inline-flex rounded-lg bg-surface p-0.5">
-            <button
-              onClick={() => setTheme('dark')}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                theme === 'dark'
-                  ? 'bg-slate-700 text-indigo-300 shadow-sm'
-                  : 'text-fg-faint hover:text-fg-body'
-              }`}
-            >
-              🌙 Oscuro
-            </button>
-            <button
-              onClick={() => setTheme('light')}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                theme === 'light'
-                  ? 'light:bg-white light:text-indigo-600 light:shadow-sm'
-                  : 'text-fg-faint hover:text-fg-body'
-              }`}
-            >
-              ☀️ Claro
-            </button>
+          <p className="text-sm font-medium text-fg mb-3">Apariencia</p>
+          <div className="grid gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="w-14 text-xs text-fg-faint">Tema</span>
+              <SegmentedControl
+                label="Tema"
+                value={preference}
+                onChange={setPreference}
+                options={[
+                  { value: 'light', label: 'Claro' },
+                  { value: 'dark', label: 'Oscuro' },
+                  { value: 'system', label: 'Sistema' },
+                ]}
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="w-14 text-xs text-fg-faint">Acento</span>
+              <div role="radiogroup" aria-label="Color de acento" className="flex gap-1.5">
+                {ACCENTS.map((a) => (
+                  <button
+                    key={a.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={accent === a.value}
+                    onClick={() => setAccent(a.value)}
+                    className={`inline-flex items-center gap-1.5 h-7 px-2 rounded-md border text-xs transition-colors ${
+                      accent === a.value
+                        ? 'border-fg text-fg'
+                        : 'border-border-strong text-fg-muted hover:border-fg-faint'
+                    }`}
+                  >
+                    <span
+                      className="w-3 h-3 rounded-sm"
+                      style={{ background: a.swatch }}
+                      aria-hidden="true"
+                    />
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
-          <p className="text-[11px] text-slate-500 light:text-slate-400 mt-2">
-            Se guarda en este dispositivo.
-          </p>
+          <p className="text-xs text-fg-faint mt-3">Se guarda en este dispositivo.</p>
         </Card>
 
         {/* Sobre Lumix */}

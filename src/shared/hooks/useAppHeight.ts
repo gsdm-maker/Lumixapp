@@ -31,6 +31,11 @@ export function useAppHeight() {
       const arriba = vv?.offsetTop ?? 0
       document.documentElement.style.setProperty('--app-height', `${alto}px`)
       document.documentElement.style.setProperty('--app-top', `${arriba}px`)
+      // Teclado en pantalla abierto = el viewport visual quedo bastante mas bajo que la
+      // ventana. Lo usa BottomNav para esconderse mientras se escribe (ver su docblock).
+      const teclado = window.innerHeight - alto > 140
+      if (teclado) document.documentElement.setAttribute('data-teclado', 'abierto')
+      else document.documentElement.removeAttribute('data-teclado')
     }
     // Un segundo chequeo con una demora corta: en iOS 26 el primer evento de resize/scroll
     // al abrir/cerrar el teclado a veces llega con el offset todavia sin asentar del todo

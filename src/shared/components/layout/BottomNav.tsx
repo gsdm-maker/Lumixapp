@@ -1,34 +1,59 @@
 import { NavLink } from 'react-router-dom'
 import { useCapabilities } from '@core/auth/hooks/useCapabilities'
+import { useNotificationsContext } from '@core/notifications/NotificationContext'
+import { Icon } from '@shared/components/ui/Icon'
+import { cx } from '@shared/utils/cx'
 import { bottomNavItems } from './navItems'
 
-// Barra de accesos rapidos, solo en movil (complementa al menu hamburguesa).
-export function BottomNav() {
+/**
+ * Barra inferior del celular: 4 destinos + "Mas" (abre el menu completo).
+ *
+ * Se oculta sola mientras el teclado esta abierto (AppLayout marca data-teclado en <html>):
+ * en el chat, una barra fija bajo el campo de texto empujaba el boton Enviar fuera de la
+ * pantalla con el teclado abierto (bug real). Con el teclado cerrado, la barra se ve en todas
+ * las pantallas, chat incluido.
+ */
+export function BottomNav({ onMore }: { onMore: () => void }) {
   const { can } = useCapabilities()
+  const { unreadCount } = useNotificationsContext()
+  const item = 'flex-1 flex flex-col items-center justify-center gap-1 pt-1.5 pb-1 text-2xs'
+
   return (
     <nav
-      className="md:hidden flex-shrink-0 flex items-stretch border-t border-border bg-panel"
+      aria-label="Accesos rápidos"
+      className="md:hidden shrink-0 flex items-stretch border-t border-border bg-panel [[data-teclado=abierto]_&]:hidden"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
       {bottomNavItems
-        .filter((item) => !item.capability || can(item.capability))
-        .map((item) => (
+        .filter((i) => !i.capability || can(i.capability))
+        .map((i) => (
           <NavLink
-            key={item.to}
-            to={item.to}
-            aria-label={item.label}
+            key={i.to}
+            to={i.to}
             className={({ isActive }) =>
-              `flex-1 flex flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] font-medium transition-colors ${
+              cx(
+                item,
+                'relative',
                 isActive
-                  ? 'text-indigo-400 light:text-indigo-600'
-                  : 'text-slate-500 hover:text-fg-muted'
-              }`
+                  ? 'text-fg font-semibold before:absolute before:top-0 before:left-1/2 before:-translate-x-1/2 before:w-6 before:h-0.5 before:rounded-full before:bg-accent'
+                  : 'text-fg-faint',
+              )
             }
           >
-            <item.icon className="w-5 h-5" />
-            <span>{item.label}</span>
+            <Icon name={i.icon} size={20} />
+            <span className="truncate max-w-full px-0.5">{i.label}</span>
           </NavLink>
         ))}
+      <button type="button" onClick={onMore} className={cx(item, 'relative text-fg-faint')}>
+        <Icon name="menu" size={20} />
+        <span>Más</span>
+        {unreadCount > 0 && (
+          <span
+            aria-label={`${unreadCount} notificaciones sin leer`}
+            className="absolute top-1 left-1/2 ml-2 w-2 h-2 rounded-full bg-danger"
+          />
+        )}
+      </button>
     </nav>
   )
 }

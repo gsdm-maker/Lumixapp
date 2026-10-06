@@ -18,3 +18,31 @@ export function getDaysRemainingLocal(dueDate: string): number {
   due.setHours(0, 0, 0, 0)
   return Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 }
+
+export type DueTone = 'late' | 'today' | 'soon' | 'normal'
+
+/**
+ * Fecha de entrega en palabras, como la diria una persona: "hoy", "ayer", "mañana",
+ * "hace 3 d", "jue 8", "9 oct". El tono dice que tan urgente es (rojo/ambar solo cuando
+ * importa). Usar con <DueDate>.
+ */
+export function fechaRelativa(iso: string): { text: string; tone: DueTone; days: number } {
+  const days = getDaysRemainingLocal(iso)
+  const date = parseDateLocal(iso)
+  if (days < 0) return { text: days === -1 ? 'ayer' : `hace ${-days} d`, tone: 'late', days }
+  if (days === 0) return { text: 'hoy', tone: 'today', days }
+  if (days === 1) return { text: 'mañana', tone: 'soon', days }
+  if (days <= 6) {
+    const dia = date.toLocaleDateString('es-CL', { weekday: 'short' }).replace('.', '')
+    return { text: `${dia} ${date.getDate()}`, tone: 'soon', days }
+  }
+  const mismoAnio = date.getFullYear() === new Date().getFullYear()
+  const text = date
+    .toLocaleDateString('es-CL', {
+      day: 'numeric',
+      month: 'short',
+      ...(mismoAnio ? {} : { year: 'numeric' }),
+    })
+    .replace('.', '')
+  return { text, tone: 'normal', days }
+}

@@ -14,4 +14,6 @@ export interface AuthState {
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<{ error: string | null }>
+  /** Cambia el equipo activo sin recargar la app. */
+  switchTeam: (teamId: string) => Promise<{ error: string | null }>
 }
