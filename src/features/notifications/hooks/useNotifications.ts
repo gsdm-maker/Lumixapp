@@ -1,37 +1,32 @@
-// Etiquetas y colores por tipo de notificacion. El estado vive en NotificationContext:
+import type { IconName } from '@shared/components/ui/Icon'
+
+// Icono, etiqueta y tono por tipo de notificacion. El estado vive en NotificationContext:
 // tener ademas un hook con su propia copia significaba dos canales realtime abiertos y
 // un contador que no se enteraba de lo que hacia el otro.
+//
+// El tipo se lee por el icono (forma) y solo los avisos que piden atencion llevan color
+// semantico; antes cada tipo tenia un color de Tailwind distinto que no decia nada.
 
-export function getNotificationIcon(type: string) {
-  switch (type) {
-    case 'activity_blocked':
-      return 'bg-red-500'
-    case 'critical_error':
-      return 'bg-red-600'
-    case 'deadline_soon':
-      return 'bg-amber-500'
-    case 'missing_info':
-      return 'bg-blue-500'
-    case 'overload':
-      return 'bg-orange-500'
-    default:
-      return 'bg-slate-500 light:bg-slate-400'
-  }
+interface NotificationKind {
+  icon: IconName
+  label: string
+  tone: 'danger' | 'warning' | 'muted'
+}
+
+const KINDS: Record<string, NotificationKind> = {
+  activity_blocked: { icon: 'lock', label: 'Actividad bloqueada', tone: 'danger' },
+  critical_error: { icon: 'bug', label: 'Error crítico', tone: 'danger' },
+  deadline_soon: { icon: 'clock', label: 'Fecha límite próxima', tone: 'warning' },
+  missing_info: { icon: 'info', label: 'Falta información', tone: 'warning' },
+  overload: { icon: 'alert', label: 'Sobrecarga', tone: 'warning' },
+}
+
+const DEFAULT_KIND: NotificationKind = { icon: 'bell', label: 'Notificación', tone: 'muted' }
+
+export function getNotificationKind(type: string): NotificationKind {
+  return KINDS[type] ?? DEFAULT_KIND
 }
 
 export function getNotificationLabel(type: string) {
-  switch (type) {
-    case 'activity_blocked':
-      return 'Actividad bloqueada'
-    case 'critical_error':
-      return 'Error critico'
-    case 'deadline_soon':
-      return 'Fecha limite proxima'
-    case 'missing_info':
-      return 'Falta informacion'
-    case 'overload':
-      return 'Sobrecarga'
-    default:
-      return 'Notificacion'
-  }
+  return getNotificationKind(type).label
 }

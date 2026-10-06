@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react'
 import { activitiesService } from '@infrastructure/supabase/activities.service'
 import { errorsService } from '@infrastructure/supabase/errors.service'
 import { profilesService } from '@infrastructure/supabase/profiles.service'
+import { teamsService } from '@infrastructure/supabase/teams.service'
 import { useAuth } from '@core/auth/hooks/useAuth'
 import { useCapabilities } from '@core/auth/hooks/useCapabilities'
 import { parseDateLocal } from '@shared/utils/date'
 import type { Activity, Profile } from '@shared/types'
 
-interface MemberWorkload {
+export interface MemberWorkload {
+  id: string
   name: string
   total: number
   completed: number
@@ -15,20 +17,22 @@ interface MemberWorkload {
   totalHours: number
 }
 
-interface StatusCount {
+export interface StatusCount {
   pendiente: number
   en_proceso: number
+  // falta_informacion + esperando_aprobacion: detenidas esperando a alguien
+  esperando: number
   bloqueado: number
   completado: number
 }
 
-interface PriorityCount {
+export interface PriorityCount {
   alta: number
   media: number
   baja: number
 }
 
-interface TrendDay {
+export interface TrendDay {
   label: string
   date: string
   count: number
@@ -41,7 +45,10 @@ interface DashboardData {
   criticalErrors: number
   completedThisWeek: number
   overdue: number
+  // Las vencidas mas antiguas primero (las que mas urge mirar), maximo 5.
+  overdueList: Activity[]
   upcomingDeadlines: Activity[]
+  memberNames: Record<string, string>
   memberWorkloads: MemberWorkload[]
   statusCounts: StatusCount
   priorityCounts: PriorityCount
@@ -56,15 +63,18 @@ export function useDashboard() {
     criticalErrors: 0,
     completedThisWeek: 0,
     overdue: 0,
+    overdueList: [],
     upcomingDeadlines: [],
+    memberNames: {},
     memberWorkloads: [],
-    statusCounts: { pendiente: 0, en_proceso: 0, bloqueado: 0, completado: 0 },
+    statusCounts: { pendiente: 0, en_proceso: 0, esperando: 0, bloqueado: 0, completado: 0 },
     priorityCounts: { alta: 0, media: 0, baja: 0 },
     weeklyTrend: [],
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const [teamName, setTeamName] = useState<string | null>(null)
   const { user, profile } = useAuth()
   const { isColaborador } = useCapabilities()
   const teamId = profile?.team_id ?? ''
@@ -123,7 +133,10 @@ export function useDashboard() {
 
       const today = new Date()
       today.setHours(0, 0, 0, 0)
-      const overdue = notCompleted.filter((a) => parseDateLocal(a.due_date) < today).length
+      const overdueAll = notCompleted
+        .filter((a) => parseDateLocal(a.due_date) < today)
+        .sort((a, b) => parseDateLocal(a.due_date).getTime() - parseDateLocal(b.due_date).getTime())
+      const overdue = overdueAll.length
 
       // Tendencia: completadas por dia en los ultimos 7 dias (por completed_at)
       const DOW = ['do', 'lu', 'ma', 'mi', 'ju', 'vi', 'sa']
@@ -153,11 +166,16 @@ export function useDashboard() {
           .length,
         completedThisWeek,
         overdue,
+        overdueList: overdueAll.slice(0, 5),
         upcomingDeadlines,
+        memberNames: Object.fromEntries(members.map((m) => [m.id, m.full_name])),
         memberWorkloads,
         statusCounts: {
           pendiente: filteredActivities.filter((a) => a.status === 'pendiente').length,
           en_proceso: filteredActivities.filter((a) => a.status === 'en_proceso').length,
+          esperando: filteredActivities.filter(
+            (a) => a.status === 'falta_informacion' || a.status === 'esperando_aprobacion',
+          ).length,
           bloqueado: filteredActivities.filter((a) => a.status === 'bloqueado').length,
           completado: filteredActivities.filter((a) => a.status === 'completado').length,
         },
@@ -177,9 +195,34 @@ export function useDashboard() {
     return () => {
       cancelled = true
     }
-  }, [user, teamId, reloadKey])
+    // isColaborador cambia que se cuenta (lo propio o todo el equipo): si cambia el rol o se
+    // resuelven las capacidades despues del primer render, hay que recalcular.
+  }, [user, teamId, reloadKey, isColaborador])
 
-  return { ...data, loading, error, reload: () => setReloadKey((k) => k + 1) }
+  // Nombre del equipo para el encabezado. Aparte de la carga principal: si falla, el
+  // dashboard se ve igual, solo sin el nombre.
+  useEffect(() => {
+    if (!teamId) return
+    let cancelled = false
+    teamsService
+      .getById(teamId)
+      .then((t) => {
+        if (!cancelled) setTeamName(t?.name ?? null)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [teamId])
+
+  return {
+    ...data,
+    teamName,
+    isColaborador,
+    loading,
+    error,
+    reload: () => setReloadKey((k) => k + 1),
+  }
 }
 
 function buildWorkloads(activities: Activity[], members: Profile[]): MemberWorkload[] {
@@ -199,6 +242,7 @@ function buildWorkloads(activities: Activity[], members: Profile[]): MemberWorkl
     const percentage = Math.round((totalHours / weeklyHours) * 100)
 
     return {
+      id: member.id,
       name: member.full_name,
       total,
       completed,

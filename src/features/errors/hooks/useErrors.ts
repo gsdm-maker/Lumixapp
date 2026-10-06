@@ -223,7 +223,7 @@ export const severityLabels: Record<ErrorSeverity, string> = {
   baja: 'Baja',
   media: 'Media',
   alta: 'Alta',
-  critica: 'Critica',
+  critica: 'Crítica',
 }
 
 // 'en_revision' se muestra como "En proceso": desde que se crea directo en ese estado

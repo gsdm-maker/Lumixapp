@@ -1,19 +1,36 @@
 import { useState } from 'react'
-import { Card } from '@shared/components/ui/Card'
 import { Badge } from '@shared/components/ui/Badge'
-import { Button } from '@shared/components/ui/Button'
-import { Input } from '@shared/components/ui/Input'
+import { Button, IconButton } from '@shared/components/ui/Button'
+import { Input, Select } from '@shared/components/ui/Input'
 import { Avatar } from '@shared/components/ui/Avatar'
+import { Icon } from '@shared/components/ui/Icon'
+import { PageHeader } from '@shared/components/ui/PageHeader'
+import { SectionLabel } from '@shared/components/ui/Indicators'
+import { EmptyState } from '@shared/components/ui/EmptyState'
+import { LoadingState } from '@shared/components/ui/Spinner'
+import { useToast } from '@shared/components/ui/Toast'
 import { useAuth } from '@core/auth/hooks/useAuth'
 import { useTeams, useTeamMembers } from '@features/teams/hooks/useTeams'
 import { adminService } from '@infrastructure/supabase/admin.service'
 import { normalizeFullName } from '@shared/utils/name'
+import { cx } from '@shared/utils/cx'
 
 const roles = ['admin', 'jefatura', 'colaborador', 'invitado'] as const
 
+const ROLE_LABEL: Record<string, string> = {
+  admin: 'Admin',
+  jefatura: 'Jefatura',
+  colaborador: 'Colaborador',
+  invitado: 'Invitado',
+}
+
 export function AdminPage() {
   const { profile } = useAuth()
+  const toast = useToast()
   const { teams, loading: teamsLoading, createTeam } = useTeams()
+  // Un solo equipo seleccionado para las dos cosas, como siempre: el equipo del formulario
+  // "Crear usuario" es tambien el que queda abierto abajo, asi se ve al tiro a la persona
+  // recien creada en su equipo.
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null)
   const { members, loading: membersLoading, reload } = useTeamMembers(selectedTeam ?? '')
 
@@ -24,12 +41,15 @@ export function AdminPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [generatedPassword, setGeneratedPassword] = useState('')
+  const [creando, setCreando] = useState(false)
 
   if (profile?.role !== 'admin') {
     return (
-      <div className="flex flex-col items-center justify-center h-full">
-        <p className="text-sm text-fg-faint">No tienes permisos de administrador</p>
-      </div>
+      <EmptyState
+        icon="lock"
+        title="No tienes permisos de administrador"
+        className="h-full justify-center"
+      />
     )
   }
 
@@ -38,6 +58,7 @@ export function AdminPage() {
     setError('')
     setSuccess('')
     setGeneratedPassword('')
+    setCreando(true)
     try {
       const result = await adminService.createUser(
         newEmail,
@@ -46,187 +67,248 @@ export function AdminPage() {
         newRole,
         selectedTeam ?? undefined,
       )
-      setSuccess(`Usuario ${newEmail} creado. Rol: ${newRole}`)
+      setSuccess(`Usuario ${newEmail} creado con rol ${ROLE_LABEL[newRole] ?? newRole}.`)
       setGeneratedPassword(result.password)
       setNewEmail('')
       setNewName('')
       if (selectedTeam) reload()
     } catch (err) {
       setError((err as Error).message)
+    } finally {
+      setCreando(false)
     }
   }
 
   const handleCreateTeam = async () => {
     if (!newTeamName.trim()) return
-    await createTeam(newTeamName.trim(), '')
-    setNewTeamName('')
+    try {
+      await createTeam(newTeamName.trim(), '')
+      setNewTeamName('')
+    } catch {
+      toast.error('No se pudo crear el equipo')
+    }
   }
 
   const handleChangeRole = async (userId: string, role: string) => {
     if (!selectedTeam) return
-    await adminService.changeRole(userId, selectedTeam, role)
-    reload()
+    try {
+      await adminService.changeRole(userId, selectedTeam, role)
+      reload()
+    } catch {
+      toast.error('No se pudo cambiar el rol')
+    }
+  }
+
+  const copiarClave = async () => {
+    try {
+      await navigator.clipboard.writeText(generatedPassword)
+      toast.success('Clave copiada')
+    } catch {
+      toast.error('No se pudo copiar; selecciónala a mano')
+    }
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center px-3 sm:px-4 h-12 sm:h-14 border-b border-border bg-panel flex-shrink-0">
-        <h2 className="text-sm font-semibold text-fg-body">Administracion</h2>
-        <Badge variant="danger" className="ml-2">
-          Admin
-        </Badge>
-      </div>
+    <div className="flex flex-col h-full bg-shell">
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-2">
+            Administración
+            <Badge variant="danger">Admin</Badge>
+          </span>
+        }
+      />
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        {/* Crear usuario */}
-        <Card>
-          <h3 className="text-sm font-medium text-fg-body mb-4">Crear usuario</h3>
-          <div className="space-y-3">
-            <Input
-              label="Nombre completo"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="Nombre del usuario"
-            />
-            <Input
-              label="Email"
-              type="email"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-              placeholder="usuario@email.com"
-            />
-
-            <div>
-              <label className="text-sm font-medium text-fg-muted block mb-1.5">Rol</label>
-              <div className="flex gap-1 flex-wrap">
-                {roles.map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => setNewRole(r)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                      newRole === r
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-surface-2 text-fg-muted hover:bg-slate-600'
-                    }`}
-                  >
-                    {r}
-                  </button>
-                ))}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-3xl mx-auto px-3 sm:px-5 py-5 space-y-8">
+          {/* Crear usuario */}
+          <section className="space-y-3">
+            <SectionLabel>Crear usuario</SectionLabel>
+            <form
+              className="rounded-lg border border-border bg-panel p-4 space-y-3"
+              onSubmit={(e) => {
+                e.preventDefault()
+                void handleCreateUser()
+              }}
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input
+                  label="Nombre completo"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="Nombre y apellido"
+                  autoComplete="off"
+                />
+                <Input
+                  label="Email"
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="usuario@empresa.com"
+                  autoComplete="off"
+                />
+                <Select label="Rol" value={newRole} onChange={(e) => setNewRole(e.target.value)}>
+                  {roles.map((r) => (
+                    <option key={r} value={r}>
+                      {ROLE_LABEL[r]}
+                    </option>
+                  ))}
+                </Select>
+                <Select
+                  label="Equipo"
+                  value={selectedTeam ?? ''}
+                  onChange={(e) => setSelectedTeam(e.target.value || null)}
+                >
+                  <option value="">Sin equipo</option>
+                  {teams.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </Select>
               </div>
-            </div>
 
-            <div>
-              <label className="text-sm font-medium text-fg-muted block mb-1.5">
-                Equipo (opcional)
-              </label>
-              <select
-                value={selectedTeam ?? ''}
-                onChange={(e) => setSelectedTeam(e.target.value || null)}
-                className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-fg-body focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-              >
-                <option value="">Sin equipo</option>
-                {teams.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {error && <p className="text-xs text-red-400 light:text-red-600">{error}</p>}
-            {success && (
-              <div className="p-3 rounded-lg bg-emerald-900/30 border border-emerald-700/50 light:bg-emerald-50 light:border-emerald-200">
-                <p className="text-xs text-emerald-400 light:text-emerald-700">{success}</p>
-                {generatedPassword && (
-                  <p className="text-xs text-emerald-300 light:text-emerald-700 mt-1 font-mono">
-                    Clave temporal:{' '}
-                    <span className="font-bold select-all">{generatedPassword}</span>
-                  </p>
-                )}
-                <p className="text-[10px] text-emerald-600 mt-1">
-                  Debera cambiarla al iniciar sesion
+              {error && (
+                <p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-sm text-danger">
+                  {error}
                 </p>
+              )}
+              {success && (
+                <div role="status" className="rounded-md border border-border bg-surface-soft p-3">
+                  <p className="flex items-center gap-1.5 text-sm text-fg">
+                    <Icon name="checkCircle" size={15} className="text-success" />
+                    {success}
+                  </p>
+                  {generatedPassword && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="text-sm text-fg-muted">Clave temporal:</span>
+                      <code className="font-mono text-sm font-semibold text-fg select-all rounded-sm bg-panel border border-border px-1.5 py-0.5">
+                        {generatedPassword}
+                      </code>
+                      <IconButton
+                        icon="clipboard"
+                        size="xs"
+                        label="Copiar clave"
+                        onClick={copiarClave}
+                      />
+                    </div>
+                  )}
+                  <p className="text-xs text-fg-faint mt-1.5">
+                    Deberá cambiarla al iniciar sesión.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex justify-end">
+                <Button type="submit" loading={creando} disabled={!newEmail || !newName}>
+                  Crear usuario
+                </Button>
               </div>
-            )}
+            </form>
+          </section>
 
-            <Button onClick={handleCreateUser} className="w-full" disabled={!newEmail || !newName}>
-              Crear usuario
-            </Button>
-          </div>
-        </Card>
+          {/* Equipos y miembros */}
+          <section className="space-y-3">
+            <SectionLabel>Equipos</SectionLabel>
 
-        {/* Equipos y miembros */}
-        <Card>
-          <h3 className="text-sm font-medium text-fg-body mb-4">Equipos</h3>
+            <form
+              className="flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault()
+                void handleCreateTeam()
+              }}
+            >
+              <div className="flex-1">
+                <Input
+                  aria-label="Nombre del nuevo equipo"
+                  value={newTeamName}
+                  onChange={(e) => setNewTeamName(e.target.value)}
+                  placeholder="Nombre del nuevo equipo"
+                />
+              </div>
+              <Button type="submit" variant="secondary" icon="plus" disabled={!newTeamName.trim()}>
+                Equipo
+              </Button>
+            </form>
 
-          <div className="flex gap-2 mb-4">
-            <input
-              value={newTeamName}
-              onChange={(e) => setNewTeamName(e.target.value)}
-              placeholder="Nombre del nuevo equipo"
-              className="flex-1 text-base sm:text-xs rounded-lg border border-border-strong bg-surface px-3 py-2 text-fg-body placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-            />
-            <Button size="sm" onClick={handleCreateTeam} disabled={!newTeamName.trim()}>
-              + Equipo
-            </Button>
-          </div>
+            {teamsLoading ? (
+              <LoadingState />
+            ) : (
+              <div className="rounded-lg border border-border bg-panel divide-y divide-border">
+                {teams.map((team) => {
+                  const abierto = selectedTeam === team.id
+                  return (
+                    <div key={team.id}>
+                      <button
+                        type="button"
+                        aria-expanded={abierto}
+                        onClick={() => setSelectedTeam(abierto ? null : team.id)}
+                        className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-surface transition-colors"
+                      >
+                        <span className="flex-1 text-sm font-medium text-fg">{team.name}</span>
+                        <span className="text-xs text-fg-faint">
+                          {abierto ? 'Ocultar' : 'Gestionar'}
+                        </span>
+                        <Icon
+                          name="chevronDown"
+                          size={15}
+                          className={cx(
+                            'text-fg-faint transition-transform',
+                            abierto && 'rotate-180',
+                          )}
+                        />
+                      </button>
 
-          {teamsLoading ? (
-            <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" />
-          ) : (
-            <div className="space-y-2">
-              {teams.map((team) => (
-                <div key={team.id} className="border border-border-strong rounded-lg">
-                  <button
-                    onClick={() => setSelectedTeam(selectedTeam === team.id ? null : team.id)}
-                    className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-surface/50 transition-colors rounded-lg"
-                  >
-                    <span className="text-sm text-fg-body">{team.name}</span>
-                    <span className="text-[10px] text-slate-500">
-                      {selectedTeam === team.id ? 'Ocultar' : 'Gestionar'}
-                    </span>
-                  </button>
-
-                  {selectedTeam === team.id && (
-                    <div className="px-3 pb-3 border-t border-border-strong pt-2">
-                      {membersLoading ? (
-                        <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto my-2" />
-                      ) : (
-                        <div className="space-y-2">
-                          {members.map((m) => (
-                            <div key={m.user_id} className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <Avatar name={m.profile.full_name} size="sm" />
-                                <div>
-                                  <p className="text-xs text-fg-muted">{m.profile.full_name}</p>
-                                  <p className="text-[10px] text-slate-500">{m.profile.email}</p>
-                                </div>
-                              </div>
-                              <select
-                                value={m.role}
-                                onChange={(e) => handleChangeRole(m.user_id, e.target.value)}
-                                className="text-xs rounded border border-border-strong bg-surface px-2 py-1 text-fg-body focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-                              >
-                                {roles.map((r) => (
-                                  <option key={r} value={r}>
-                                    {r}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          ))}
-                          {members.length === 0 && (
-                            <p className="text-xs text-slate-500 py-2 text-center">Sin miembros</p>
+                      {abierto && (
+                        <div className="border-t border-border bg-surface-soft">
+                          {membersLoading ? (
+                            <LoadingState className="py-4" />
+                          ) : members.length === 0 ? (
+                            <p className="text-xs text-fg-faint px-3 py-3">Sin miembros</p>
+                          ) : (
+                            <ul className="divide-y divide-border">
+                              {members.map((m) => (
+                                <li
+                                  key={m.user_id}
+                                  className="flex items-center justify-between gap-3 px-3 py-2"
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <Avatar name={m.profile.full_name} size="sm" />
+                                    <div className="min-w-0">
+                                      <p className="text-sm text-fg truncate">
+                                        {m.profile.full_name}
+                                      </p>
+                                      <p className="text-xs text-fg-faint truncate">
+                                        {m.profile.email}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <Select
+                                    size="sm"
+                                    aria-label={`Rol de ${m.profile.full_name}`}
+                                    value={m.role}
+                                    onChange={(e) => handleChangeRole(m.user_id, e.target.value)}
+                                    className="w-36 shrink-0"
+                                  >
+                                    {roles.map((r) => (
+                                      <option key={r} value={r}>
+                                        {ROLE_LABEL[r]}
+                                      </option>
+                                    ))}
+                                  </Select>
+                                </li>
+                              ))}
+                            </ul>
                           )}
                         </div>
                       )}
                     </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+        </div>
       </div>
     </div>
   )

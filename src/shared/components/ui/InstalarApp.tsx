@@ -14,6 +14,7 @@
 // esta corriendo fuera del navegador.
 
 import { useEffect, useState } from 'react'
+import { Icon } from './Icon'
 
 /** El evento no esta en los tipos estandar de TypeScript porque no es de todos los navegadores. */
 interface PromptDeInstalacion extends Event {
@@ -30,6 +31,11 @@ const esIOS = () =>
   /iphone|ipad|ipod/i.test(window.navigator.userAgent) ||
   // iPadOS se declara como Mac; se distingue porque tiene pantalla tactil.
   (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1)
+
+// Enlace discreto al pie de la barra lateral: es una accion de una vez, no debe competir con
+// la navegacion.
+const BOTON =
+  'w-full inline-flex items-center gap-1.5 h-7 text-xs text-fg-muted hover:text-accent text-left transition-colors'
 
 export function InstalarApp({ className = '' }: { className?: string }) {
   const [evento, setEvento] = useState<PromptDeInstalacion | null>(null)
@@ -72,25 +78,28 @@ export function InstalarApp({ className = '' }: { className?: string }) {
     return (
       <div className={className}>
         <button
+          type="button"
           onClick={() => setVerPasosIOS((v) => !v)}
-          className="w-full text-[11px] text-indigo-400 hover:text-indigo-300 text-left"
+          aria-expanded={verPasosIOS}
+          className={BOTON}
         >
-          📲 Instalar Lumix
+          <Icon name="install" size={14} />
+          Instalar Lumix
         </button>
         {verPasosIOS && (
-          <div className="mt-1.5 rounded-lg bg-surface border border-border-strong p-2 text-[11px] text-fg-faint leading-relaxed">
-            <p className="text-fg-muted mb-1">En iPhone se agrega desde Safari:</p>
+          <div className="mt-1.5 rounded-md bg-surface border border-border p-2 text-xs text-fg-muted leading-relaxed">
+            <p className="text-fg mb-1">En iPhone se agrega desde Safari:</p>
             <p>
-              1. Toca <span className="text-fg-body">Compartir</span> (el cuadrado con la flecha,
-              abajo)
+              1. Toca <span className="font-medium text-fg">Compartir</span> (el cuadrado con la
+              flecha, abajo)
             </p>
             <p>
-              2. Elige <span className="text-fg-body">Agregar a inicio</span>
+              2. Elige <span className="font-medium text-fg">Agregar a inicio</span>
             </p>
             <p>
-              3. Toca <span className="text-fg-body">Agregar</span>
+              3. Toca <span className="font-medium text-fg">Agregar</span>
             </p>
-            <p className="mt-1 text-slate-500">Solo funciona en Safari, no en Chrome.</p>
+            <p className="mt-1 text-fg-faint">Solo funciona en Safari, no en Chrome.</p>
           </div>
         )}
       </div>
@@ -102,11 +111,9 @@ export function InstalarApp({ className = '' }: { className?: string }) {
   if (!evento) return null
 
   return (
-    <button
-      onClick={instalar}
-      className={`w-full text-[11px] text-indigo-400 hover:text-indigo-300 text-left ${className}`}
-    >
-      📲 Instalar Lumix
+    <button type="button" onClick={instalar} className={`${BOTON} ${className}`}>
+      <Icon name="install" size={14} />
+      Instalar Lumix
     </button>
   )
 }

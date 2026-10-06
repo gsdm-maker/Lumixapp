@@ -1,425 +1,143 @@
-import { useState, useEffect } from 'react'
-import { Card } from '@shared/components/ui/Card'
+import { useState } from 'react'
 import { Badge } from '@shared/components/ui/Badge'
 import { Button } from '@shared/components/ui/Button'
 import { Input } from '@shared/components/ui/Input'
 import { Modal } from '@shared/components/ui/Modal'
-import { Avatar } from '@shared/components/ui/Avatar'
+import { Icon } from '@shared/components/ui/Icon'
+import { PageHeader } from '@shared/components/ui/PageHeader'
+import { EmptyState } from '@shared/components/ui/EmptyState'
+import { SkeletonRows } from '@shared/components/ui/Skeleton'
 import { useAuth } from '@core/auth/hooks/useAuth'
-import { useCapabilities } from '@core/auth/hooks/useCapabilities'
-import { CAPABILITIES, ROLE_DEFAULTS } from '@core/auth/capabilities'
-import { useTeams, useTeamMembers, useGruposTrabajo } from '@features/teams/hooks/useTeams'
-import { teamsService } from '@infrastructure/supabase/teams.service'
-
-const MEMBER_ROLES = ['jefatura', 'colaborador', 'invitado']
+import { useToast } from '@shared/components/ui/Toast'
+import { useTeams } from '@features/teams/hooks/useTeams'
+import { cx } from '@shared/utils/cx'
+import { TeamDetail } from './TeamDetail'
 
 export function TeamsPage() {
   const { teams, loading, createTeam } = useTeams()
   const { profile } = useAuth()
-  const { isGlobalAdmin } = useCapabilities()
+  const toast = useToast()
   const isAdmin = profile?.role === 'admin'
   const [showCreate, setShowCreate] = useState(false)
   const [newName, setNewName] = useState('')
   const [newDesc, setNewDesc] = useState('')
+  const [creando, setCreando] = useState(false)
+  // Un equipo abierto a la vez: sus miembros, grupos y umbral se piden recien al abrirlo.
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null)
-  const {
-    members,
-    loading: membersLoading,
-    addMember,
-    removeMember,
-    changeRole,
-    updatePermissions,
-    changeGrupo,
-  } = useTeamMembers(selectedTeam ?? '')
-  const { grupos, crearGrupo, eliminarGrupo } = useGruposTrabajo(selectedTeam ?? '')
-  const [nuevoGrupo, setNuevoGrupo] = useState('')
-  const [inviteEmail, setInviteEmail] = useState('')
-  // Umbral del equipo seleccionado. Se guarda al instante y se refleja al tiro; si la base
-  // lo rechaza se revierte, para que el control nunca muestre algo que no quedo guardado.
-  const [umbral, setUmbral] = useState(2)
-  const [error, setError] = useState('')
-  // Confirmacion de 2 pasos para acciones destructivas sin modal (remover a alguien del
-  // equipo o borrar un grupo): antes disparaban al primer click, sin forma de arrepentirse.
-  const [confirmarRemover, setConfirmarRemover] = useState<string | null>(null)
-  const [confirmarGrupo, setConfirmarGrupo] = useState<string | null>(null)
-
-  // Puede gestionar el equipo seleccionado el admin global o la jefatura de ESE equipo.
-  // Se exige que la membresia sea del equipo seleccionado (evita datos obsoletos al cambiar
-  // de equipo, que mostraban los controles donde el usuario es solo colaborador).
-  const myMembership = members.find((m) => m.user_id === profile?.id && m.team_id === selectedTeam)
-  const canManageThis =
-    isGlobalAdmin || myMembership?.role === 'jefatura' || myMembership?.role === 'admin'
-  // Gestionar MIEMBROS (agregar/quitar/rol) tambien se puede conceder puntualmente via
-  // permiso, sin bajarle el rol a nadie -es del equipo SELECCIONADO, no del activo, por eso
-  // se mira myMembership.permissions y no useCapabilities() (que resuelve contra el equipo
-  // activo del usuario, que puede ser otro).
-  const puedeGestionarMiembros =
-    canManageThis || myMembership?.permissions?.['equipo.gestionar_miembros'] === true
-  // Lo mismo para configurar el equipo (umbral de sobrecarga y catalogo de grupos), permiso
-  // propio desde la migracion 049. Asignarle el grupo a un miembro sigue siendo de jefatura:
-  // es un UPDATE de team_members (policy 021).
-  const puedeConfigurar = canManageThis || myMembership?.permissions?.['equipo.configurar'] === true
-
-  // Al abrir un equipo se trae su umbral. La lista de equipos del hook no lo incluye, y
-  // pedirlo aca es una consulta chica que solo ocurre al desplegar el panel.
-  useEffect(() => {
-    if (!selectedTeam) return
-    let cancelado = false
-    teamsService
-      .getById(selectedTeam)
-      .then((t) => {
-        if (!cancelado) setUmbral(t?.umbral_sobrecarga ?? 2)
-      })
-      .catch(() => {})
-    return () => {
-      cancelado = true
-    }
-  }, [selectedTeam])
-
-  const cambiarUmbral = async (teamId: string, valor: number) => {
-    const anterior = umbral
-    setUmbral(valor)
-    try {
-      await teamsService.setUmbralSobrecarga(teamId, valor)
-    } catch {
-      setUmbral(anterior)
-      setError('No se pudo guardar el umbral')
-    }
-  }
 
   const handleCreate = async () => {
     if (!newName.trim()) return
-    await createTeam(newName, newDesc)
-    setNewName('')
-    setNewDesc('')
-    setShowCreate(false)
-  }
-
-  const handleInvite = async () => {
-    if (!inviteEmail.trim()) return
-    setError('')
+    setCreando(true)
     try {
-      await addMember(inviteEmail)
-      setInviteEmail('')
+      await createTeam(newName, newDesc)
+      setNewName('')
+      setNewDesc('')
+      setShowCreate(false)
     } catch {
-      setError('Usuario no encontrado')
+      toast.error('No se pudo crear el equipo')
+    } finally {
+      setCreando(false)
     }
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 h-14 border-b border-border bg-panel flex-shrink-0">
-        <h2 className="text-sm font-semibold text-fg-body">Equipos</h2>
-        {isAdmin && (
-          <Button size="sm" onClick={() => setShowCreate(true)}>
-            + Nuevo
-          </Button>
-        )}
-      </div>
+    <div className="flex flex-col h-full bg-shell">
+      <PageHeader
+        title="Equipos"
+        meta={!loading && teams.length > 0 ? `${teams.length}` : undefined}
+        actions={
+          isAdmin && (
+            <Button size="sm" icon="plus" onClick={() => setShowCreate(true)}>
+              Nuevo equipo
+            </Button>
+          )
+        }
+      />
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {loading ? (
-          <div className="flex justify-center py-8">
-            <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : teams.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-sm text-fg-faint">No tienes equipos</p>
-            <p className="text-xs text-slate-600 mt-1">Crea uno o pide que te inviten</p>
-          </div>
-        ) : (
-          teams.map((team) => (
-            <Card key={team.id} padding="md">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-sm font-medium text-fg-body">{team.name}</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {team.description || 'Sin descripcion'}
-                  </p>
-                </div>
-                {profile?.team_id === team.id && <Badge variant="success">Actual</Badge>}
-              </div>
-
-              {selectedTeam === team.id && (
-                <div className="mt-4 pt-3 border-t border-border-strong">
-                  {/* Ajustes del equipo. Solo quien lo administra: la RLS lo exige igual,
-                      pero mostrar un control que va a ser rechazado es peor que esconderlo. */}
-                  {puedeConfigurar && (
-                    <div className="mb-4 pb-3 border-b border-border-strong/60">
-                      <h4 className="text-xs font-medium text-fg-faint mb-2">Ajustes</h4>
-                      <label className="flex flex-wrap items-center gap-2 text-xs text-fg-muted">
-                        <span>Avisar cuando alguien ya tenga</span>
-                        <select
-                          value={umbral}
-                          onChange={(e) => cambiarUmbral(team.id, Number(e.target.value))}
-                          className="rounded border border-border-strong bg-surface px-2 py-1 text-xs text-fg-body"
-                        >
-                          <option value={0}>no avisar</option>
-                          {[1, 2, 3, 4, 5, 6, 8, 10].map((n) => (
-                            <option key={n} value={n}>
-                              {n}
-                            </option>
-                          ))}
-                        </select>
-                        <span>actividades para el mismo día</span>
-                      </label>
-                      <p className="text-[11px] text-slate-500 mt-1.5 leading-snug">
-                        {umbral === 0
-                          ? 'Lumix no avisará por carga en un mismo día.'
-                          : `Al asignar la actividad número ${umbral + 1} de un día a la misma persona, Lumix se detiene y pregunta qué hacer.`}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Grupos de trabajo (alias "foco"): catalogo por equipo, solo jefatura los
-                      crea/borra. Sirven para filtrar en Minuta/Actividades. */}
-                  {puedeConfigurar && (
-                    <div className="mb-4 pb-3 border-b border-border-strong/60">
-                      <h4 className="text-xs font-medium text-fg-faint mb-2">Grupos de trabajo</h4>
-                      <div className="flex flex-wrap gap-1.5 mb-2">
-                        {grupos.length === 0 && (
-                          <p className="text-[11px] text-slate-500">
-                            Sin grupos todavía — crea uno para poder asignarlo a las personas.
-                          </p>
-                        )}
-                        {grupos.map((g) =>
-                          confirmarGrupo === g.id ? (
-                            <span
-                              key={g.id}
-                              className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-red-500/10 text-[11px] text-red-400"
-                            >
-                              ¿Borrar "{g.nombre}"?
-                              <button
-                                onClick={() => {
-                                  eliminarGrupo(g.id)
-                                  setConfirmarGrupo(null)
-                                }}
-                                className="font-medium hover:text-red-300"
-                              >
-                                Sí
-                              </button>
-                              <button
-                                onClick={() => setConfirmarGrupo(null)}
-                                className="text-slate-500 hover:text-fg-muted"
-                              >
-                                No
-                              </button>
-                            </span>
-                          ) : (
-                            <span
-                              key={g.id}
-                              className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface text-[11px] text-fg-body"
-                            >
-                              {g.nombre}
-                              <button
-                                onClick={() => setConfirmarGrupo(g.id)}
-                                title="Eliminar grupo"
-                                className="text-slate-500 hover:text-red-400 light:hover:text-red-600"
-                              >
-                                ✕
-                              </button>
-                            </span>
-                          ),
-                        )}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-5xl mx-auto px-3 sm:px-5 py-4">
+          {loading ? (
+            <SkeletonRows rows={3} />
+          ) : teams.length === 0 ? (
+            <EmptyState
+              icon="users"
+              title="No tienes equipos"
+              description={
+                isAdmin ? 'Crea el primero con “Nuevo equipo”.' : 'Pide que te inviten a uno.'
+              }
+            />
+          ) : (
+            <div className="rounded-lg border border-border bg-panel divide-y divide-border">
+              {teams.map((team) => {
+                const abierto = selectedTeam === team.id
+                const actual = profile?.team_id === team.id
+                return (
+                  <section key={team.id} aria-labelledby={`team-${team.id}`}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTeam(abierto ? null : team.id)}
+                      aria-expanded={abierto}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h2 id={`team-${team.id}`} className="text-sm font-semibold text-fg">
+                            {team.name}
+                          </h2>
+                          {actual && <Badge variant="info">Equipo actual</Badge>}
+                        </div>
+                        <p className="text-xs text-fg-faint truncate mt-0.5">
+                          {team.description || 'Sin descripción'}
+                        </p>
                       </div>
-                      <div className="flex gap-2">
-                        <input
-                          value={nuevoGrupo}
-                          onChange={(e) => setNuevoGrupo(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && nuevoGrupo.trim()) {
-                              crearGrupo(nuevoGrupo)
-                              setNuevoGrupo('')
-                            }
-                          }}
-                          placeholder="Nuevo grupo (ej: Excelencia)"
-                          className="flex-1 text-base sm:text-xs rounded-lg border border-border-strong bg-surface px-3 py-1.5 text-fg-body placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                        />
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            crearGrupo(nuevoGrupo)
-                            setNuevoGrupo('')
-                          }}
-                          disabled={!nuevoGrupo.trim()}
-                        >
-                          + Grupo
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  <h4 className="text-xs font-medium text-fg-faint mb-3">Miembros</h4>
-
-                  {membersLoading ? (
-                    <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" />
-                  ) : (
-                    <div className="space-y-3 mb-3">
-                      {members.map((m) => {
-                        const perms = m.permissions ?? {}
-                        const roleDefaults = ROLE_DEFAULTS[m.role] ?? []
-                        return (
-                          <div
-                            key={m.user_id}
-                            className="rounded-lg bg-surface/40 border border-border-strong/60 p-2.5 space-y-2"
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <Avatar name={m.profile.full_name} size="sm" />
-                                <div className="min-w-0">
-                                  <p className="text-xs text-fg-muted truncate">
-                                    {m.profile.full_name}
-                                  </p>
-                                  <p className="text-[10px] text-slate-500 truncate">
-                                    {m.profile.email}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 flex-shrink-0">
-                                {canManageThis && m.user_id !== profile?.id ? (
-                                  <select
-                                    value={m.role}
-                                    onChange={(e) => changeRole(m.user_id, e.target.value)}
-                                    className="rounded border border-border-strong bg-surface px-1.5 py-1 text-[11px] text-fg-body"
-                                  >
-                                    {MEMBER_ROLES.map((r) => (
-                                      <option key={r} value={r}>
-                                        {r}
-                                      </option>
-                                    ))}
-                                  </select>
-                                ) : (
-                                  <Badge>{m.role}</Badge>
-                                )}
-                                {m.user_id !== profile?.id &&
-                                  (canManageThis ||
-                                    (puedeGestionarMiembros &&
-                                      (m.role === 'colaborador' || m.role === 'invitado'))) &&
-                                  (confirmarRemover === m.user_id ? (
-                                    <span className="flex items-center gap-1.5 text-[10px] text-red-400">
-                                      ¿Seguro?
-                                      <button
-                                        onClick={() => {
-                                          removeMember(m.user_id)
-                                          setConfirmarRemover(null)
-                                        }}
-                                        className="font-medium hover:text-red-300"
-                                      >
-                                        Sí
-                                      </button>
-                                      <button
-                                        onClick={() => setConfirmarRemover(null)}
-                                        className="text-slate-500 hover:text-fg-muted"
-                                      >
-                                        No
-                                      </button>
-                                    </span>
-                                  ) : (
-                                    <button
-                                      onClick={() => setConfirmarRemover(m.user_id)}
-                                      className="text-[10px] text-red-400 hover:text-red-300"
-                                    >
-                                      Remover
-                                    </button>
-                                  ))}
-                              </div>
-                            </div>
-
-                            {/* Grupo de trabajo: solo si el equipo ya tiene alguno creado. */}
-                            {canManageThis && grupos.length > 0 && (
-                              <div className="flex items-center gap-1.5 text-[11px]">
-                                <span className="text-slate-500">Grupo:</span>
-                                <select
-                                  value={m.grupo_id ?? ''}
-                                  onChange={(e) => changeGrupo(m.user_id, e.target.value || null)}
-                                  className="rounded border border-border-strong bg-surface px-1.5 py-1 text-[11px] text-fg-body"
-                                >
-                                  <option value="">Sin grupo</option>
-                                  {grupos.map((g) => (
-                                    <option key={g.id} value={g.id}>
-                                      {g.nombre}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                            )}
-
-                            {/* Permisos por flag (los que ya trae el rol van marcados y bloqueados) */}
-                            {canManageThis && (
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1 pt-1 border-t border-border-strong/50">
-                                {CAPABILITIES.map((cap) => {
-                                  const byRole = roleDefaults.includes(cap.key)
-                                  // Los modulos son la unica excepcion: se pueden REVOCAR aunque
-                                  // el rol los traiga por defecto (jefatura puede ocultarle un
-                                  // modulo puntual a alguien sin bajarle el rol). El resto de las
-                                  // capacidades sigue siendo solo aditivo, como siempre.
-                                  const esModulo = cap.key.startsWith('modulos.')
-                                  const editable = !byRole || esModulo
-                                  const checked =
-                                    perms[cap.key] === false
-                                      ? false
-                                      : byRole || perms[cap.key] === true
-                                  return (
-                                    <label
-                                      key={cap.key}
-                                      className={`flex items-center gap-1.5 text-[11px] ${editable ? 'text-fg-muted cursor-pointer' : 'text-slate-500'}`}
-                                      title={editable ? cap.key : 'Incluido por su rol'}
-                                    >
-                                      <input
-                                        type="checkbox"
-                                        checked={checked}
-                                        disabled={!editable}
-                                        onChange={(e) =>
-                                          updatePermissions(m.user_id, {
-                                            ...perms,
-                                            [cap.key]: e.target.checked,
-                                          })
-                                        }
-                                        className="accent-indigo-500"
-                                      />
-                                      {cap.label}
-                                    </label>
-                                  )
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-
-                  {puedeGestionarMiembros && (
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <input
-                        value={inviteEmail}
-                        onChange={(e) => setInviteEmail(e.target.value)}
-                        placeholder="Email para invitar..."
-                        className="flex-1 text-base sm:text-xs rounded-lg border border-border-strong bg-surface px-3 py-2 text-fg-body placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                      <span className="hidden sm:inline text-xs text-fg-muted">
+                        {abierto ? 'Ocultar' : 'Miembros y ajustes'}
+                      </span>
+                      <Icon
+                        name="chevronDown"
+                        size={16}
+                        className={cx(
+                          'text-fg-faint transition-transform',
+                          abierto && 'rotate-180',
+                        )}
                       />
-                      <Button size="sm" onClick={handleInvite}>
-                        Invitar
-                      </Button>
-                    </div>
-                  )}
-                  {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
-                </div>
-              )}
-
-              <button
-                onClick={() => setSelectedTeam(selectedTeam === team.id ? null : team.id)}
-                className="text-xs text-indigo-400 hover:text-indigo-300 mt-3"
-              >
-                {selectedTeam === team.id ? 'Ocultar miembros' : 'Ver / gestionar miembros'}
-              </button>
-            </Card>
-          ))
-        )}
+                    </button>
+                    {abierto && (
+                      <div className="px-4 pb-5 border-t border-border bg-surface-soft pt-4">
+                        <TeamDetail teamId={team.id} />
+                      </div>
+                    )}
+                  </section>
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Create team modal */}
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Crear equipo" size="sm">
-        <div className="space-y-4">
+      <Modal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        title="Crear equipo"
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowCreate(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreate} loading={creando} disabled={!newName.trim()}>
+              Crear equipo
+            </Button>
+          </>
+        }
+      >
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault()
+            void handleCreate()
+          }}
+        >
           <Input
             label="Nombre del equipo"
             placeholder="Ej: Equipo de Desarrollo"
@@ -427,15 +145,13 @@ export function TeamsPage() {
             onChange={(e) => setNewName(e.target.value)}
           />
           <Input
-            label="Descripcion (opcional)"
-            placeholder="Descripcion del equipo"
+            label="Descripción"
+            hint="Opcional"
+            placeholder="Para qué es este equipo"
             value={newDesc}
             onChange={(e) => setNewDesc(e.target.value)}
           />
-          <Button onClick={handleCreate} className="w-full" disabled={!newName.trim()}>
-            Crear equipo
-          </Button>
-        </div>
+        </form>
       </Modal>
     </div>
   )

@@ -150,7 +150,7 @@ export function validarFilas(
 
     const tema = (row['Tema'] ?? '').trim()
     if (!tema) errores.push('Falta el tema')
-    else if (tema.length > 300) errores.push('El tema es demasiado largo (max 300)')
+    else if (tema.length > 300) errores.push('El tema es demasiado largo (máx. 300)')
 
     // Estado
     const estadoRaw = (row['Estado'] ?? '').trim()
@@ -158,13 +158,13 @@ export function validarFilas(
     if (estadoRaw) {
       const encontrado = ESTADOS[normalizar(estadoRaw)]
       if (encontrado) estado = encontrado
-      else errores.push(`Estado no valido: "${estadoRaw}"`)
+      else errores.push(`Estado no válido: "${estadoRaw}"`)
     }
 
     // Plazo
     const plazoRaw = (row['Plazo'] ?? '').trim()
     const plazo = parsePlazo(plazoRaw)
-    if (plazo === 'invalida') errores.push(`Fecha no valida: "${plazoRaw}" (usa DD-MM-AAAA)`)
+    if (plazo === 'invalida') errores.push(`Fecha no válida: "${plazoRaw}" (usa DD-MM-AAAA)`)
 
     // Responsables
     const responsables: string[] = []
@@ -180,7 +180,7 @@ export function validarFilas(
       } else sinCalzar.push(n)
     }
     if (sinCalzar.length)
-      avisos.push(`No estan en el equipo: ${sinCalzar.join(', ')}. Quedan como texto, sin asignar.`)
+      avisos.push(`No están en el equipo: ${sinCalzar.join(', ')}. Quedan como texto, sin asignar.`)
 
     const temaNorm = normalizar(tema)
     const duplicado = !!tema && (yaEstan.has(temaNorm) || vistosEnElArchivo.has(temaNorm))

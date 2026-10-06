@@ -1,206 +1,66 @@
-import { useState, useEffect } from 'react'
+import { SIDE_PANEL_OFFSET } from '@shared/components/ui/SidePanel'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Badge } from '@shared/components/ui/Badge'
-import { Button } from '@shared/components/ui/Button'
-import { Modal } from '@shared/components/ui/Modal'
-import {
-  useActivities,
-  getDaysRemaining,
-  getDaysColor,
-  statusLabels,
-} from '@features/activities/hooks/useActivities'
 import { activitiesService } from '@infrastructure/supabase/activities.service'
-import { teamsService } from '@infrastructure/supabase/teams.service'
-import { profilesService } from '@infrastructure/supabase/profiles.service'
-import { notificationsService } from '@infrastructure/supabase/notifications.service'
-import { armarArbol } from '@features/activities/utils/arbol'
-import { minutesService } from '@infrastructure/supabase/minutes.service'
 import { useAuth } from '@core/auth/hooks/useAuth'
 import { useCapabilities } from '@core/auth/hooks/useCapabilities'
+import { Button } from '@shared/components/ui/Button'
+import { useConfirm } from '@shared/components/ui/ConfirmDialog'
+import { EmptyState } from '@shared/components/ui/EmptyState'
+import { PageHeader } from '@shared/components/ui/PageHeader'
+import { SkeletonRows } from '@shared/components/ui/Skeleton'
 import { useToast } from '@shared/components/ui/Toast'
 import { exportToCSV } from '@shared/utils/export'
 import { formatDateLocal, parseDateLocal } from '@shared/utils/date'
-import { DatePicker } from '@shared/components/ui/DatePicker'
-import type { Activity, ActivityStatus, MinuteItem, Profile } from '@shared/types'
-import type { BadgeVariant } from '@shared/components/ui/Badge'
-
-const statusFilters: { value: ActivityStatus | 'todas' | 'activas'; label: string }[] = [
-  { value: 'todas', label: 'Todas' },
-  { value: 'activas', label: 'Activas' },
-  { value: 'pendiente', label: 'Pendientes' },
-  { value: 'en_proceso', label: 'En proceso' },
-  { value: 'bloqueado', label: 'Bloqueadas' },
-  { value: 'completado', label: 'Completadas' },
-]
-
-const priorityColors: Record<number, string> = {
-  1: 'bg-red-500',
-  2: 'bg-amber-500',
-  3: 'bg-emerald-500',
-}
-
-const statusColors: Record<ActivityStatus, BadgeVariant> = {
-  pendiente: 'warning',
-  en_proceso: 'info',
-  bloqueado: 'danger',
-  falta_informacion: 'warning',
-  esperando_aprobacion: 'warning',
-  completado: 'success',
-}
+import { cx } from '@shared/utils/cx'
+import type { Activity, ActivityStatus } from '@shared/types'
+import { useActivities, statusLabels } from '@features/activities/hooks/useActivities'
+import { useAgrupacion } from '@features/activities/hooks/useVistasGuardadas'
+import { armarArbol } from '@features/activities/utils/arbol'
+import { agruparFilas } from '@features/activities/utils/urgencia'
+import { filaDomId, siguienteAccion } from '@features/activities/utils/ui'
+import { ActivitiesFilters } from './ActivitiesFilters'
+import { ActivitiesTable } from './ActivitiesTable'
+import { ActivityDetailPanel } from './ActivityDetailPanel'
+import { AssignActivityModal } from './AssignActivityModal'
+import { VistasRapidas } from './VistasRapidas'
 
 export function ActivitiesPage() {
-  const {
-    activities,
-    members,
-    loading,
-    filterStatus,
-    setFilterStatus,
-    changeStatus,
-    deleteActivity,
-    counts,
-    allActivities,
-    proyectoItems,
-    teamNames,
-    managedIds,
-    isManager,
-    filterTeam,
-    setFilterTeam,
-    filterMember,
-    setFilterMember,
-    filterGrupo,
-    setFilterGrupo,
-    gruposDisponibles,
-    dateType,
-    setDateType,
-    dateFrom,
-    setDateFrom,
-    dateTo,
-    setDateTo,
-    search,
-    setSearch,
-    reload,
-  } = useActivities()
-  const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null)
-  const [observation, setObservation] = useState('')
-  const [showBlockModal, setShowBlockModal] = useState(false)
-  const [editingPriority, setEditingPriority] = useState(false)
+  const act = useActivities()
+  const { activities, allActivities, members, teamNames, proyectoItems, loading } = act
   const { profile, user } = useAuth()
-  const { canAssignOthers, canDeleteActivities, canEditAllActivities, canManageProyectos } =
-    useCapabilities()
-  const [confirmDelete, setConfirmDelete] = useState<Activity | null>(null)
+  const { canAssignOthers } = useCapabilities()
+  const { agrupacion, setAgrupacion } = useAgrupacion(user?.id)
   const toast = useToast()
+  const confirm = useConfirm()
   const location = useLocation()
   const navigate = useNavigate()
 
-  // Delegacion: equipos que el usuario lidera (distintos del activo) + estado del formulario.
-  const [managedTeams, setManagedTeams] = useState<{ id: string; name: string }[]>([])
-  const [showDelegate, setShowDelegate] = useState(false)
-  const [delTeam, setDelTeam] = useState('')
-  const [delMembers, setDelMembers] = useState<Profile[]>([])
-  const [delMember, setDelMember] = useState('')
-  const [delPriority, setDelPriority] = useState(2)
-  const [delDue, setDelDue] = useState('')
-  const [delBusy, setDelBusy] = useState(false)
-  const [delToMinuta, setDelToMinuta] = useState(false)
-  const [children, setChildren] = useState<Activity[]>([])
-  const [childNames, setChildNames] = useState<Record<string, string>>({})
-
-  // Subtareas dentro del MISMO equipo (a diferencia de delegar, no exige liderar otro
-  // equipo: solo poder editar la actividad). Comparten la tabla y el mecanismo con
-  // delegar -misma parent_activity_id, mismo createWithMinuta- asi que un tema de minuta
-  // en cualquier nivel sigue alimentando Compromisos igual que hoy.
-  const [showSubtask, setShowSubtask] = useState(false)
-  const [subMembers, setSubMembers] = useState<Profile[]>([])
-  const [subTitle, setSubTitle] = useState('')
-  const [subMember, setSubMember] = useState('')
-  const [subPriority, setSubPriority] = useState(2)
-  const [subDue, setSubDue] = useState('')
-  // Solo cuando la actividad padre viene de un Proyecto: ahi la subtarea tambien se crea como
-  // item del proyecto, que se planifica con inicio y termino (igual que al asignar desde
-  // Proyectos), asi que el inicio es obligatorio.
-  const [subInicio, setSubInicio] = useState('')
-  const [subToMinuta, setSubToMinuta] = useState(false)
-  const [subBusy, setSubBusy] = useState(false)
-
+  const [selected, setSelected] = useState<Activity | null>(null)
   // Pila de "desde donde entre": permite bajar N niveles (proyecto -> subtarea ->
-  // sub-subtarea) y volver, reusando el mismo modal de detalle en cada nivel.
+  // sub-subtarea) y volver, reusando el mismo panel de detalle en cada nivel.
   const [parentStack, setParentStack] = useState<Activity[]>([])
-
-  // Asignacion normal (crear una actividad nueva en el equipo activo, opcionalmente a la minuta)
+  // Fila marcada con el teclado mientras el panel esta cerrado (Enter la abre).
+  const [cursorId, setCursorId] = useState<string | null>(null)
   const [showAssign, setShowAssign] = useState(false)
-  const [asgTitle, setAsgTitle] = useState('')
-  const [asgDesc, setAsgDesc] = useState('')
-  const [asgMember, setAsgMember] = useState('')
-  const [asgPriority, setAsgPriority] = useState(2)
-  const [asgDue, setAsgDue] = useState('')
-  const [asgToMinuta, setAsgToMinuta] = useState(false)
-  const [asgBusy, setAsgBusy] = useState(false)
 
-  // Editable si NO esta cerrada y sos el responsable, lideras el equipo de esa actividad, o
-  // tenes "editar actividades ajenas" en ese equipo (el permiso se resuelve contra el equipo
-  // activo, por eso solo vale para actividades de ese equipo; la RLS lo exige igual, 049).
-  const canEdit =
-    !!selectedActivity &&
-    selectedActivity.status !== 'completado' &&
-    (selectedActivity.responsible_id === profile?.id ||
-      managedIds.includes(selectedActivity.team_id) ||
-      (canEditAllActivities && selectedActivity.team_id === profile?.team_id))
+  const nombrePersona = (id: string) => members.find((m) => m.id === id)?.full_name || 'Sin asignar'
 
-  // Equipos que lidera (para delegar), excluyendo el equipo activo.
-  useEffect(() => {
-    if (!user) return
-    teamsService
-      .getManagedTeams(user.id)
-      .then((ts) => setManagedTeams(ts.filter((t) => t.id !== profile?.team_id)))
-      .catch(() => {})
-  }, [user, profile?.team_id])
+  // Misma forma de arbol que el proyecto: subtareas bajo la actividad de su item padre.
+  const filas = armarArbol(activities, proyectoItems)
+  const grupos = agruparFilas(filas, agrupacion, { nombrePersona, items: proyectoItems })
+  const orden = grupos.flatMap((g) => g.filas.map((f) => f.activity))
 
-  // Al cambiar la actividad seleccionada: cargar sus delegaciones (hijos). El reset del
-  // formulario se hace en openActivity (handler), para no llamar setState sincronico en el effect.
-  useEffect(() => {
-    if (!selectedActivity) return
-    let cancelled = false
-    activitiesService
-      .getByParent(selectedActivity.id)
-      .then(async (kids) => {
-        if (cancelled) return
-        setChildren(kids)
-        // Miembros del propio equipo (para agregar subtareas) + de los equipos de cada
-        // hija ya existente (para mostrar su nombre), en un solo set de nombres.
-        const teamIds = [...new Set([selectedActivity.team_id, ...kids.map((k) => k.team_id)])]
-        const names: Record<string, string> = {}
-        for (const tid of teamIds) {
-          const ms = await profilesService.getByTeam(tid)
-          ms.forEach((m) => (names[m.id] = m.full_name))
-          if (tid === selectedActivity.team_id && !cancelled) setSubMembers(ms)
-        }
-        if (!cancelled) setChildNames(names)
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [selectedActivity])
-
-  // Abrir el detalle de una actividad (resetea el estado de los paneles de delegar/subtarea).
   // keepStack=true cuando se navega DESDE otro nivel (bajar a una hija o volver a la
   // anterior): ahi la pila no se reinicia, solo cuando se abre una actividad de cero.
   const openActivity = (a: Activity, opts?: { keepStack?: boolean }) => {
     if (!opts?.keepStack) setParentStack([])
-    setSelectedActivity(a)
-    setObservation(a.observations || '')
-    setShowDelegate(false)
-    setDelTeam('')
-    setDelMembers([])
-    setDelMember('')
-    setShowSubtask(false)
-    setSubTitle('')
-    setSubMember('')
-    setChildren([])
+    setSelected(a)
+    setCursorId(a.id)
   }
 
   const openChild = (c: Activity) => {
-    if (selectedActivity) setParentStack((s) => [...s, selectedActivity])
+    if (selected) setParentStack((s) => [...s, selected])
     openActivity(c, { keepStack: true })
   }
 
@@ -209,6 +69,11 @@ export function ActivitiesPage() {
     if (!prev) return
     setParentStack((s) => s.slice(0, -1))
     openActivity(prev, { keepStack: true })
+  }
+
+  const closePanel = () => {
+    setSelected(null)
+    setParentStack([])
   }
 
   // Llegada desde una notificacion: abre esa actividad concreta.
@@ -233,1347 +98,298 @@ export function ActivitiesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state, location.pathname, navigate])
 
-  const loadDelMembers = async (teamId: string) => {
-    setDelTeam(teamId)
-    setDelMember('')
-    if (!teamId) return setDelMembers([])
-    try {
-      setDelMembers(await profilesService.getByTeam(teamId))
-    } catch {
-      setDelMembers([])
-    }
+  // Trae de nuevo la actividad abierta tras un cambio de estado (completed_at, etc.), sin
+  // cerrar el panel: antes el modal se cerraba en cada accion y habia que volver a abrirlo.
+  const refrescarAbierta = (id: string) => {
+    activitiesService
+      .getById(id)
+      .then((a) => {
+        if (a) setSelected((cur) => (cur?.id === id ? a : cur))
+      })
+      .catch(() => {})
   }
 
-  // Crea una actividad asignada a un miembro y, opcionalmente, un tema vinculado en la
-  // minuta de ese equipo (estado sincronizado). Notifica al responsable.
-  const createWithMinuta = async (o: {
-    teamId: string
-    memberId: string
-    title: string
-    description: string
-    priority: number
-    dueISO: string
-    addToMinuta: boolean
-    parentId?: string
-    observations?: string
-  }): Promise<Activity> => {
-    const act = await activitiesService.create({
-      title: o.title,
-      description: o.description,
-      responsible_id: o.memberId,
-      priority: o.priority,
-      status: 'pendiente',
-      due_date: o.dueISO,
-      dependencies: [],
-      observations: o.observations ?? '',
-      team_id: o.teamId,
-      created_by: user!.id,
-      parent_activity_id: o.parentId ?? null,
+  // Completar es reversible: se hace al tiro y el aviso ofrece Deshacer (vuelve al estado
+  // que tenia), en vez de pedir confirmacion antes.
+  const completar = async (a: Activity) => {
+    const anterior = a.status
+    const ok = await act.changeStatus(a.id, 'completado', { silent: true })
+    if (!ok) return
+    refrescarAbierta(a.id)
+    toast.success('Completada', {
+      action: {
+        label: 'Deshacer',
+        onClick: () => {
+          void act.changeStatus(a.id, anterior).then((bien) => bien && refrescarAbierta(a.id))
+        },
+      },
     })
-    try {
-      await notificationsService.send(o.memberId, {
-        title: o.parentId ? 'Actividad delegada' : 'Nueva actividad asignada',
-        body: `"${o.title}" - Entrega: ${formatDateLocal(o.dueISO)}`,
-        type: 'deadline_soon',
-        metadata: { activity_id: act.id },
-      })
-    } catch {
-      /* ignore */
-    }
-    if (o.addToMinuta) {
-      try {
-        await minutesService.create({
-          team_id: o.teamId,
-          tipo: 'minuta',
-          orden: 0,
-          tema: o.title,
-          para_todos: false,
-          responsables: [o.memberId],
-          responsables_text: '',
-          estado: 'en_desarrollo',
-          plazo: o.dueISO.split('T')[0],
-          comentarios: '',
-          linked_activity_ids: [act.id],
-          created_by: user!.id,
-        })
-      } catch {
-        /* ignore */
+  }
+
+  const cambiarEstado = async (a: Activity, status: ActivityStatus) => {
+    if (status === 'completado') return completar(a)
+    const ok = await act.changeStatus(a.id, status)
+    if (ok) refrescarAbierta(a.id)
+  }
+
+  const accionDeFila = (a: Activity) => {
+    const accion = siguienteAccion(a)
+    if (accion) void cambiarEstado(a, accion.status)
+  }
+
+  const eliminar = async (a: Activity) => {
+    const ok = await confirm({
+      title: 'Eliminar actividad',
+      message: (
+        <div className="space-y-2">
+          <p>
+            ¿Eliminar <span className="font-medium text-fg">"{a.title}"</span>?
+          </p>
+          <p className="text-xs text-fg-faint">
+            No se puede deshacer. Si estaba vinculada a un tema de la minuta, el tema queda sin ese
+            vínculo. Las actividades delegadas a partir de esta no se borran.
+          </p>
+        </div>
+      ),
+      confirmLabel: 'Eliminar',
+      tone: 'danger',
+    })
+    if (!ok) return
+    if (selected?.id === a.id) closePanel()
+    await act.deleteActivity(a.id)
+  }
+
+  // Teclado (idea 8): flechas para recorrer la lista (con el panel abierto, el panel la
+  // sigue), Enter para abrir. Esc lo maneja el propio panel. Un solo listener con los datos
+  // frescos en un ref, para no re-suscribirlo en cada render.
+  const teclado = useRef({ orden, selected, cursorId, openActivity })
+  useLayoutEffect(() => {
+    teclado.current = { orden, selected, cursorId, openActivity }
+  })
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
+      if (!['ArrowDown', 'ArrowUp', 'Enter'].includes(e.key)) return
+      // Con un dialogo encima (confirmar, asignar, guardar vista) el teclado es de el.
+      if (document.querySelector('[aria-modal="true"]')) return
+      const t = e.target as HTMLElement | null
+      if (t?.closest('input, textarea, select, [contenteditable="true"]')) return
+      const {
+        orden: lista,
+        selected: abierta,
+        cursorId: cursor,
+        openActivity: abrir,
+      } = teclado.current
+      if (lista.length === 0) return
+
+      if (e.key === 'Enter') {
+        // Enter sobre un boton es de ese boton.
+        if (t?.closest('button, a, [role="radio"]')) return
+        const fila = lista.find((a) => a.id === cursor)
+        if (fila && !abierta) {
+          e.preventDefault()
+          abrir(fila)
+        }
+        return
       }
+
+      e.preventDefault()
+      const actual = abierta?.id ?? cursor
+      const idx = lista.findIndex((a) => a.id === actual)
+      const sig =
+        idx === -1
+          ? lista[0]
+          : lista[Math.max(0, Math.min(lista.length - 1, idx + (e.key === 'ArrowDown' ? 1 : -1)))]
+      if (abierta) abrir(sig)
+      else setCursorId(sig.id)
+      document.getElementById(filaDomId(sig.id))?.scrollIntoView({ block: 'nearest' })
     }
-    return act
-  }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
 
-  const delegate = async () => {
-    if (!user || !selectedActivity || !delTeam || !delMember) return
-    setDelBusy(true)
-    try {
-      const due = delDue ? new Date(delDue).toISOString() : selectedActivity.due_date
-      const child = await createWithMinuta({
-        teamId: delTeam,
-        memberId: delMember,
-        title: selectedActivity.title,
-        description: selectedActivity.description,
-        priority: delPriority,
-        dueISO: due,
-        addToMinuta: delToMinuta,
-        parentId: selectedActivity.id,
-        observations: 'Delegada desde otro equipo',
-      })
-      setChildren((prev) => [...prev, child])
-      const nm = delMembers.find((m) => m.id === delMember)?.full_name
-      if (nm) setChildNames((prev) => ({ ...prev, [delMember]: nm }))
-      setShowDelegate(false)
-      toast.success(delToMinuta ? 'Delegada y agregada a la minuta' : 'Actividad delegada')
-    } catch {
-      toast.error('No se pudo delegar')
-    } finally {
-      setDelBusy(false)
-    }
-  }
+  const exportar = () =>
+    exportToCSV(
+      activities.map((a) => ({
+        Titulo: a.title,
+        Descripcion: a.description,
+        Prioridad: a.priority,
+        Estado: statusLabels[a.status],
+        Entrega: formatDateLocal(a.due_date),
+        Creado: formatDateLocal(a.created_at),
+        Cerrado: a.completed_at ? formatDateLocal(a.completed_at) : '-',
+        'Dias para cerrar': a.completed_at
+          ? Math.ceil(
+              (parseDateLocal(a.completed_at).getTime() - parseDateLocal(a.created_at).getTime()) /
+                86400000,
+            )
+          : '-',
+        Observaciones: a.observations,
+      })),
+      'actividades',
+    )
 
-  // Subtarea del mismo proyecto/actividad, dentro del MISMO equipo: a diferencia de
-  // delegar, cualquiera que pueda editar la actividad la puede usar (no exige liderar
-  // otro equipo), y el titulo es propio -no el de la actividad padre-.
-  const createSubtask = async () => {
-    if (!user || !selectedActivity || !subMember || !subTitle.trim()) return
-    if (itemPadre) return createSubtaskProyecto(itemPadre)
-    setSubBusy(true)
-    try {
-      const due = subDue ? new Date(subDue).toISOString() : selectedActivity.due_date
-      const child = await createWithMinuta({
-        teamId: selectedActivity.team_id,
-        memberId: subMember,
-        title: subTitle.trim(),
-        description: '',
-        priority: subPriority,
-        dueISO: due,
-        addToMinuta: subToMinuta,
-        parentId: selectedActivity.id,
-        observations: `Subtarea de: ${selectedActivity.title}`,
-      })
-      setChildren((prev) => [...prev, child])
-      const nm = subMembers.find((m) => m.id === subMember)?.full_name
-      if (nm) setChildNames((prev) => ({ ...prev, [subMember]: nm }))
-      setShowSubtask(false)
-      setSubTitle('')
-      setSubMember('')
-      toast.success(subToMinuta ? 'Subtarea creada y agregada a la minuta' : 'Subtarea creada')
-    } catch {
-      toast.error('No se pudo crear la subtarea')
-    } finally {
-      setSubBusy(false)
-    }
-  }
-
-  // Subtarea de una actividad que viene de un Proyecto: se crea como item hijo en el proyecto
-  // (Lista, Tablero y Cronograma la muestran) vinculado a su actividad, igual que si se
-  // hubiera asignado desde Proyectos. SIN parent_activity_id a proposito: ese campo dispara
-  // el cierre automatico del padre (migracion 025), y en Proyectos cada actividad se cierra
-  // por su cuenta. La relacion padre-hija se lee del arbol del proyecto (ver utils/arbol.ts).
-  const createSubtaskProyecto = async (padre: MinuteItem) => {
-    if (!user || !selectedActivity || subFechasInvalidas) return
-    setSubBusy(true)
-    try {
-      let raiz = padre
-      while (raiz.parent_item_id) {
-        const p = proyectoItems.find((i) => i.id === raiz.parent_item_id)
-        if (!p) break
-        raiz = p
-      }
-      const child = await createWithMinuta({
-        teamId: selectedActivity.team_id,
-        memberId: subMember,
-        title: subTitle.trim(),
-        description: '',
-        priority: subPriority,
-        dueISO: new Date(subDue + 'T00:00:00').toISOString(),
-        addToMinuta: subToMinuta,
-        observations: `Origen: Proyecto: ${raiz.tema}`,
-      })
-      try {
-        await minutesService.create({
-          team_id: padre.team_id,
-          tipo: 'proyecto',
-          orden: proyectoItems.filter((i) => i.team_id === padre.team_id).length,
-          tema: subTitle.trim(),
-          para_todos: false,
-          responsables: [subMember],
-          responsables_text: '',
-          estado: 'en_desarrollo',
-          plazo: subDue,
-          fecha_inicio: subInicio,
-          prioridad: subPriority,
-          comentarios: '',
-          linked_activity_ids: [child.id],
-          created_by: user.id,
-          parent_item_id: padre.id,
-        })
-      } catch (err) {
-        // Sin el item, la actividad quedaria suelta y fuera del proyecto: se deshace.
-        await activitiesService.remove(child.id).catch(() => {})
-        throw err
-      }
-      const nm = subMembers.find((m) => m.id === subMember)?.full_name
-      if (nm) setChildNames((prev) => ({ ...prev, [subMember]: nm }))
-      setShowSubtask(false)
-      setSubTitle('')
-      setSubMember('')
-      setSubInicio('')
-      reload()
-      toast.success(
-        subToMinuta
-          ? 'Subtarea creada en el proyecto y en la minuta'
-          : 'Subtarea creada en el proyecto',
-      )
-    } catch {
-      toast.error('No se pudo crear la subtarea')
-    } finally {
-      setSubBusy(false)
-    }
-  }
-
-  const openAssign = () => {
-    setAsgTitle('')
-    setAsgDesc('')
-    setAsgMember('')
-    setAsgPriority(2)
-    setAsgDue('')
-    setAsgToMinuta(false)
-    setShowAssign(true)
-  }
-
-  const assignActivity = async () => {
-    if (!user || !profile?.team_id || !asgTitle.trim() || !asgMember) return
-    setAsgBusy(true)
-    try {
-      await createWithMinuta({
-        teamId: profile.team_id,
-        memberId: asgMember,
-        title: asgTitle.trim(),
-        description: asgDesc.trim(),
-        priority: asgPriority,
-        dueISO: asgDue ? new Date(asgDue).toISOString() : new Date().toISOString(),
-        addToMinuta: asgToMinuta,
-      })
-      setShowAssign(false)
-      reload()
-      toast.success(asgToMinuta ? 'Asignada y agregada a la minuta' : 'Actividad asignada')
-    } catch {
-      toast.error('No se pudo asignar')
-    } finally {
-      setAsgBusy(false)
-    }
-  }
-
-  // Misma forma de arbol que el proyecto: subtareas bajo la actividad de su item padre.
-  const filas = armarArbol(activities, proyectoItems)
-
-  // Item del proyecto al que esta vinculada la actividad abierta (null si no viene de uno).
-  const itemPadre = selectedActivity
-    ? (proyectoItems.find((i) => i.linked_activity_ids.includes(selectedActivity.id)) ?? null)
-    : null
-  // Fechas YYYY-MM-DD: comparar como texto ordena igual que comparar fechas.
-  const subFechasInvertidas = !!subInicio && !!subDue && subInicio > subDue
-  const subFechasInvalidas = !!itemPadre && (!subInicio || !subDue || subFechasInvertidas)
-  // Crear el item en el proyecto exige proyectos.gestionar (o jefatura/admin) en la RLS
-  // (puede_escribir_hoja, migracion 049). Sin eso el insert fallaria despues de crear la
-  // actividad: mejor no ofrecerlo.
-  const puedeAgregarSubtarea = !itemPadre || canManageProyectos
-  // Subtareas a listar en el detalle: las de parent_activity_id (delegadas / creadas antes)
-  // + las actividades de los items hijos en el proyecto, sin repetir.
-  const hijosProyecto = itemPadre
-    ? proyectoItems
-        .filter((i) => i.parent_item_id === itemPadre.id)
-        .flatMap((i) => i.linked_activity_ids)
-        .map((id) => allActivities.find((a) => a.id === id))
-        .filter((a): a is Activity => !!a)
-    : []
-  const subtareas = [
-    ...children,
-    ...hijosProyecto.filter((h) => !children.some((c) => c.id === h.id)),
-  ]
+  const equipoMeta = act.filterTeam === 'todas' ? 'Todos los equipos' : teamNames[act.filterTeam]
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 sm:px-4 h-12 sm:h-14 border-b border-border bg-panel flex-shrink-0">
-        <h2 className="text-sm font-semibold text-fg-body">Actividades</h2>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() =>
-              exportToCSV(
-                activities.map((a) => ({
-                  Titulo: a.title,
-                  Descripcion: a.description,
-                  Prioridad: a.priority,
-                  Estado: statusLabels[a.status],
-                  Entrega: formatDateLocal(a.due_date),
-                  Creado: formatDateLocal(a.created_at),
-                  Cerrado: a.completed_at ? formatDateLocal(a.completed_at) : '-',
-                  'Dias para cerrar': a.completed_at
-                    ? Math.ceil(
-                        (parseDateLocal(a.completed_at).getTime() -
-                          parseDateLocal(a.created_at).getTime()) /
-                          86400000,
-                      )
-                    : '-',
-                  Observaciones: a.observations,
-                })),
-                'actividades',
-              )
-            }
-            className="px-2 py-1 rounded text-[10px] text-fg-faint hover:text-emerald-400 hover:bg-surface transition-colors"
-            title="Exportar a Excel"
-          >
-            <svg
-              className="w-3.5 h-3.5 inline mr-1"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            Excel
-          </button>
-          {canAssignOthers && (
-            <Button size="sm" onClick={openAssign}>
-              + Asignar
-            </Button>
-          )}
-          <span className="text-xs text-slate-500">{counts.todas} total</span>
-        </div>
-      </div>
-
-      {/* Filters: items-center evita que las filas se estiren para igualar el input de fecha
-          nativo -en el celular puede renderizar mas alto de lo esperado, y sin esto agrandaba
-          toda la barra (bug real reportado por Sebastian: "la parte de arriba se pierde"). */}
-      <div className="flex items-center gap-1 px-2 sm:px-4 py-2 border-b border-border bg-surface-soft/50 overflow-x-auto flex-shrink-0 flex-nowrap">
-        {statusFilters.map((f) => (
-          <button
-            key={f.value}
-            onClick={() => setFilterStatus(f.value)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-              filterStatus === f.value
-                ? 'bg-indigo-600/20 text-indigo-400'
-                : 'text-fg-faint hover:text-fg-body hover:bg-surface'
-            }`}
-          >
-            {f.label}
-            <span className="ml-1.5 text-slate-600">
-              {f.value === 'todas' ? counts.todas : counts[f.value]}
-            </span>
-          </button>
-        ))}
-        {Object.keys(teamNames).length > 1 && (
-          <select
-            value={filterTeam}
-            onChange={(e) => setFilterTeam(e.target.value)}
-            className="px-2 py-1.5 rounded-lg text-xs bg-surface border border-border-strong text-fg-muted focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-          >
-            <option value="todas">Todos los equipos</option>
-            {Object.entries(teamNames).map(([id, name]) => (
-              <option key={id} value={id}>
-                {name}
-              </option>
-            ))}
-          </select>
-        )}
-        {isManager && (
-          <select
-            value={filterMember}
-            onChange={(e) => setFilterMember(e.target.value)}
-            className="px-2 py-1.5 rounded-lg text-xs bg-surface border border-border-strong text-fg-muted focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-          >
-            <option value="todas">Cualquier responsable</option>
-            {members.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.full_name}
-              </option>
-            ))}
-          </select>
-        )}
-        {/* Grupo de trabajo (alias "foco"): solo tiene sentido con UN equipo elegido, ya
-            que el grupo es un catalogo por equipo (migracion 043). */}
-        {isManager && filterTeam !== 'todas' && gruposDisponibles.length > 0 && (
-          <select
-            value={filterGrupo}
-            onChange={(e) => setFilterGrupo(e.target.value)}
-            className="px-2 py-1.5 rounded-lg text-xs bg-surface border border-border-strong text-fg-muted focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-          >
-            <option value="todas">Cualquier grupo</option>
-            {gruposDisponibles.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.nombre}
-              </option>
-            ))}
-          </select>
-        )}
-        <div className="w-px bg-surface-2 mx-1" />
-        <select
-          value={dateType}
-          onChange={(e) => setDateType(e.target.value as typeof dateType)}
-          className="px-2 py-1.5 rounded-lg text-xs bg-surface border border-border-strong text-fg-muted focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-        >
-          <option value="entrega">Entrega</option>
-          <option value="creadas">Creadas</option>
-          <option value="cerradas">Cerradas</option>
-        </select>
-        <input
-          type="date"
-          value={dateFrom}
-          onChange={(e) => setDateFrom(e.target.value)}
-          className="px-2 py-1.5 rounded-lg text-xs bg-surface border border-border-strong text-fg-muted focus:outline-none focus:ring-1 focus:ring-indigo-500/50 w-[120px]"
-        />
-        <input
-          type="date"
-          value={dateTo}
-          onChange={(e) => setDateTo(e.target.value)}
-          className="px-2 py-1.5 rounded-lg text-xs bg-surface border border-border-strong text-fg-muted focus:outline-none focus:ring-1 focus:ring-indigo-500/50 w-[120px]"
-        />
-        {(dateFrom || dateTo) && (
-          <button
-            onClick={() => {
-              setDateFrom('')
-              setDateTo('')
-            }}
-            className="px-2 py-1.5 rounded-lg text-xs text-fg-faint hover:text-fg-body hover:bg-surface"
-          >
-            Limpiar
-          </button>
-        )}
-        <div className="flex-1" />
-        <div className="relative min-w-[160px] max-w-xs w-full sm:w-auto">
-          <svg
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"
-            />
-          </svg>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar actividad..."
-            className="w-full rounded-lg bg-surface border border-border-strong pl-8 pr-7 py-1.5 text-base sm:text-xs text-fg-body placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch('')}
-              aria-label="Limpiar busqueda"
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-fg-muted text-sm"
-            >
-              ×
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Activity list */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : activities.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <svg
-              className="w-12 h-12 text-slate-700 mb-3"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1}
-                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-              />
-            </svg>
-            {/* El listado ahora parte filtrado por el equipo activo. Si el filtro deja la
-                lista vacia pero SI hay actividades en otros equipos, decirlo: "escribe en el
-                chat para crear una" mandaria a crear algo que ya existe al lado. */}
-            {allActivities.length > 0 && filterTeam !== 'todas' ? (
-              <>
-                <p className="text-sm text-fg-faint">
-                  No hay actividades en {teamNames[filterTeam] ?? 'este equipo'}
-                </p>
-                <button
-                  onClick={() => setFilterTeam('todas')}
-                  className="text-xs text-indigo-400 hover:text-indigo-300 underline mt-1"
-                >
-                  Ver las de todos los equipos ({allActivities.length})
-                </button>
-              </>
-            ) : (
-              <>
-                <p className="text-sm text-fg-faint">No hay actividades</p>
-                <p className="text-xs text-slate-600 mt-1">Escribe en el chat para crear una</p>
-              </>
-            )}
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-border-strong text-slate-500">
-                  <th className="text-left py-2 px-3 font-medium">Actividad</th>
-                  <th className="text-left py-2 px-3 font-medium hidden md:table-cell">
-                    Responsable
-                  </th>
-                  <th className="text-left py-2 px-3 font-medium hidden md:table-cell">
-                    Prioridad
-                  </th>
-                  <th className="text-left py-2 px-3 font-medium">Entrega</th>
-                  <th className="text-left py-2 px-3 font-medium hidden sm:table-cell">Creado</th>
-                  <th className="text-left py-2 px-3 font-medium hidden sm:table-cell">Cerrado</th>
-                  <th className="text-left py-2 px-3 font-medium">Estado</th>
-                  <th className="text-right py-2 px-2 sm:px-3 font-medium whitespace-nowrap">
-                    Accion
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filas.map((fila) => {
-                  const { activity, depth, nivelSuperior } = fila
-                  const days = getDaysRemaining(activity.due_date)
-                  return (
-                    <tr
-                      key={activity.id}
-                      onClick={() => openActivity(activity)}
-                      className="border-b border-border hover:bg-surface/30 cursor-pointer transition-colors"
-                    >
-                      <td className="py-2.5 px-3">
-                        <div
-                          className="flex items-center gap-1.5"
-                          style={{ paddingLeft: depth * 16 }}
-                        >
-                          {depth > 0 && <span className="text-slate-600 flex-shrink-0">↳</span>}
-                          {activity.observations && (
-                            <span
-                              title={activity.observations}
-                              className="text-amber-400 flex-shrink-0"
-                            >
-                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path
-                                  fillRule="evenodd"
-                                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
-                            </span>
-                          )}
-                          <div className="min-w-0">
-                            <span className="text-fg-body whitespace-normal break-words block">
-                              {activity.title}
-                            </span>
-                            {(nivelSuperior || teamNames[activity.team_id]) && (
-                              <span className="text-[10px] text-slate-500">
-                                {nivelSuperior ?? teamNames[activity.team_id]}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-2.5 px-3 hidden md:table-cell">
-                        <span className="text-xs text-fg-faint truncate max-w-[100px] block">
-                          {members.find((m) => m.id === activity.responsible_id)?.full_name ||
-                            'Sin asignar'}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-3 hidden md:table-cell">
-                        <div className="flex gap-0.5">
-                          {[1, 2, 3].map((p) => (
-                            <div
-                              key={p}
-                              className={`w-1.5 h-3 rounded-sm ${p >= activity.priority ? priorityColors[p] : 'bg-surface-2'}`}
-                            />
-                          ))}
-                        </div>
-                      </td>
-                      <td className="py-2.5 px-3">
-                        <span className={getDaysColor(days)}>
-                          {formatDateLocal(activity.due_date, 'short')}
-                        </span>
-                        {(activity.plazo_change_count ?? 0) > 0 && (
-                          <span
-                            className="block text-[10px] text-amber-400"
-                            title="Veces que se movio la fecha de entrega desde que se creo"
-                          >
-                            movida {activity.plazo_change_count}x
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-500 hidden sm:table-cell">
-                        {formatDateLocal(activity.created_at, 'short')}
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-500 hidden sm:table-cell">
-                        {activity.completed_at
-                          ? formatDateLocal(activity.completed_at, 'short')
-                          : '-'}
-                      </td>
-                      <td className="py-2.5 px-3">
-                        <Badge variant={statusColors[activity.status]}>
-                          {statusLabels[activity.status]}
-                        </Badge>
-                      </td>
-                      <td className="py-2.5 px-3 text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex gap-1 justify-end">
-                          {activity.status === 'pendiente' && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => changeStatus(activity.id, 'en_proceso')}
-                            >
-                              Iniciar
-                            </Button>
-                          )}
-                          {activity.status === 'en_proceso' && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => changeStatus(activity.id, 'completado')}
-                              >
-                                ✓
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => changeStatus(activity.id, 'bloqueado')}
-                              >
-                                ⏸
-                              </Button>
-                            </>
-                          )}
-                          {activity.status === 'bloqueado' && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => changeStatus(activity.id, 'en_proceso')}
-                            >
-                              ▶
-                            </Button>
-                          )}
-                          {/* Eliminar solo aparece con permiso, y siempre pide confirmacion:
-                              es la unica accion de esta pantalla que no se puede revertir. */}
-                          {canDeleteActivities && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              title="Eliminar actividad"
-                              onClick={() => setConfirmDelete(activity)}
-                              className="text-slate-500 hover:text-red-400"
-                            >
-                              🗑
-                            </Button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Confirmacion de borrado. Se nombra la actividad y se advierte lo que arrastra:
-          borrar es lo unico irreversible de esta pantalla. */}
-      <Modal
-        open={!!confirmDelete}
-        onClose={() => setConfirmDelete(null)}
-        title="Eliminar actividad"
-      >
-        {confirmDelete && (
-          <div className="space-y-4">
-            <p className="text-sm text-fg-muted">
-              ¿Seguro que quieres eliminar{' '}
-              <span className="text-fg font-medium">"{confirmDelete.title}"</span>?
-            </p>
-            <p className="text-xs text-slate-500 leading-snug">
-              No se puede deshacer. Si estaba vinculada a un tema de la minuta, el tema queda sin
-              ese vínculo. Las actividades delegadas a partir de esta no se borran.
-            </p>
-            <div className="flex justify-end gap-2">
-              <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(null)}>
-                Cancelar
-              </Button>
-              <Button
-                size="sm"
-                variant="danger"
-                onClick={() => {
-                  const id = confirmDelete.id
-                  setConfirmDelete(null)
-                  deleteActivity(id)
-                }}
-              >
-                Eliminar
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* Detail modal */}
-      <Modal
-        open={!!selectedActivity}
-        onClose={() => {
-          setSelectedActivity(null)
-          setEditingPriority(false)
-          setParentStack([])
-        }}
-        title={selectedActivity?.title}
-        size="md"
-      >
-        {selectedActivity && (
-          <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-            {parentStack.length > 0 && (
-              <button
-                onClick={goBackToParent}
-                className="text-[11px] text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1"
-              >
-                ← Volver a "{parentStack[parentStack.length - 1].title}"
-              </button>
-            )}
-            <div>
-              <p className="text-xs text-slate-500 mb-1">Descripcion</p>
-              {canEdit ? (
-                <textarea
-                  defaultValue={selectedActivity.description || ''}
-                  onBlur={async (e) => {
-                    if (e.target.value !== (selectedActivity.description || '')) {
-                      await activitiesService.update(selectedActivity.id, {
-                        description: e.target.value,
-                      })
-                      setSelectedActivity({ ...selectedActivity, description: e.target.value })
-                      reload()
-                    }
-                  }}
-                  rows={2}
-                  className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-fg-body focus:outline-none focus:ring-2 focus:ring-indigo-500/50 resize-none"
-                  placeholder="Sin descripcion"
-                />
-              ) : (
-                <p className="text-sm text-fg-muted">
-                  {selectedActivity.description || 'Sin descripcion'}
-                </p>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs text-slate-500 mb-1">Estado</p>
-                <Badge variant={statusColors[selectedActivity.status]}>
-                  {statusLabels[selectedActivity.status]}
-                </Badge>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 mb-1">Prioridad</p>
-                {canEdit && editingPriority ? (
-                  <div className="flex gap-1">
-                    {[1, 2, 3].map((p) => (
-                      <button
-                        key={p}
-                        onClick={async () => {
-                          await activitiesService.update(selectedActivity.id, { priority: p })
-                          setSelectedActivity({ ...selectedActivity, priority: p })
-                          reload()
-                          setEditingPriority(false)
-                        }}
-                        className={`w-6 h-6 rounded text-xs font-bold transition-colors ${
-                          p === 1
-                            ? 'bg-red-700 hover:bg-red-600'
-                            : p === 2
-                              ? 'bg-amber-700 hover:bg-amber-600'
-                              : 'bg-emerald-700 hover:bg-emerald-600'
-                        } text-white`}
-                      >
-                        {p}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div
-                    className="flex items-center gap-1"
-                    onClick={() => canEdit && setEditingPriority(true)}
-                  >
-                    {[1, 2, 3].map((p) => (
-                      <div
-                        key={p}
-                        className={`w-2 h-4 rounded-sm ${p >= selectedActivity.priority ? priorityColors[p] : 'bg-surface-2'} ${canEdit ? 'cursor-pointer' : ''}`}
-                      />
-                    ))}
-                    <span className="text-xs text-fg-faint ml-1">
-                      {selectedActivity.priority}/3
-                    </span>
-                  </div>
-                )}
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 mb-1">Fecha creacion</p>
-                <p className="text-sm text-fg-muted">
-                  {formatDateLocal(selectedActivity.created_at)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 mb-1">Fecha entrega</p>
-                {canEdit ? (
-                  <DatePicker
-                    value={selectedActivity.due_date.split('T')[0]}
-                    onChange={async (v) => {
-                      if (!v) return
-                      const newDate = new Date(v).toISOString()
-                      await activitiesService.update(selectedActivity.id, { due_date: newDate })
-                      setSelectedActivity({ ...selectedActivity, due_date: newDate })
-                      reload()
-                    }}
-                  />
-                ) : (
-                  <p
-                    className={`text-sm ${getDaysColor(getDaysRemaining(selectedActivity.due_date))}`}
-                  >
-                    {formatDateLocal(selectedActivity.due_date)}
-                  </p>
-                )}
-                {(selectedActivity.plazo_change_count ?? 0) > 0 && (
-                  <span className="block text-[10px] text-amber-400 mt-0.5">
-                    cambiada {selectedActivity.plazo_change_count}{' '}
-                    {selectedActivity.plazo_change_count === 1 ? 'vez' : 'veces'}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {canEdit && (
-              <div>
-                <p className="text-xs text-slate-500 mb-1">Horas estimadas</p>
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4, 5, 8, 12].map((h) => (
-                    <button
-                      key={h}
-                      onClick={async () => {
-                        await activitiesService.update(selectedActivity.id, { estimated_hours: h })
-                        setSelectedActivity({ ...selectedActivity, estimated_hours: h })
-                        reload()
-                      }}
-                      className={`w-7 h-7 rounded text-xs font-medium transition-colors ${
-                        (selectedActivity.estimated_hours ?? 3) === h
-                          ? 'bg-indigo-600 text-white'
-                          : 'bg-surface-2 text-fg-muted hover:bg-slate-600'
-                      }`}
-                    >
-                      {h}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {selectedActivity.observations || observation ? (
-              <div>
-                <p className="text-xs text-slate-500 mb-1">Observaciones</p>
-                <textarea
-                  value={observation}
-                  onChange={(e) => setObservation(e.target.value)}
-                  onBlur={async () => {
-                    if (observation !== (selectedActivity.observations || '')) {
-                      await activitiesService.update(selectedActivity.id, {
-                        observations: observation,
-                      })
-                      reload()
-                    }
-                  }}
-                  placeholder="Agregar observacion..."
-                  rows={2}
-                  className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-fg-body placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 resize-none"
-                />
-              </div>
-            ) : (
-              <button
-                onClick={() => setObservation(' ')}
-                className="text-xs text-slate-500 hover:text-fg-faint"
-              >
-                + Agregar observacion
-              </button>
-            )}
-
-            {/* Subtareas: proyectos con varios niveles (ej. "Revisar capacidad" -> "ver
-                faena" -> "ajustar capacidad de faena"). Mismo equipo, cualquiera que pueda
-                editar la actividad. Cada hija se abre con su propio detalle -y sus propias
-                hijas-, asi que la profundidad no tiene limite fijo en la UI. */}
-            {canEdit && (
-              <div className="pt-2 border-t border-border-strong">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-slate-500">Subtareas</p>
-                  {!showSubtask && puedeAgregarSubtarea && (
-                    <button
-                      onClick={() => {
-                        setShowSubtask(true)
-                        setSubPriority(selectedActivity.priority)
-                        setSubDue(selectedActivity.due_date.split('T')[0])
-                        setSubInicio('')
-                      }}
-                      className="text-[11px] text-indigo-400 hover:text-indigo-300 font-medium"
-                    >
-                      + Agregar subtarea
-                    </button>
-                  )}
-                </div>
-                {!puedeAgregarSubtarea && (
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    Esta actividad es de un proyecto: sus subtareas las agrega quien gestiona
-                    proyectos.
-                  </p>
-                )}
-
-                {subtareas.length > 0 && (
-                  <div className="mt-2 space-y-1">
-                    {subtareas.map((c) => (
-                      <button
-                        key={c.id}
-                        onClick={() => openChild(c)}
-                        className="w-full flex items-start justify-between gap-2 text-left text-[11px] px-2 py-1.5 rounded-lg bg-surface/60 hover:bg-surface"
-                      >
-                        <span className="text-fg-muted whitespace-normal break-words">
-                          {c.title}
-                          <span className="text-slate-500">
-                            {' · '}
-                            {childNames[c.responsible_id] || 'Miembro'}
-                            {c.team_id !== selectedActivity.team_id &&
-                              ` · ${managedTeams.find((t) => t.id === c.team_id)?.name || 'otro equipo'}`}
-                          </span>
-                        </span>
-                        <Badge variant={c.status === 'completado' ? 'success' : 'info'}>
-                          {statusLabels[c.status]}
-                        </Badge>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {showSubtask && (
-                  <div className="mt-2 space-y-2 rounded-lg bg-surface-soft/60 border border-indigo-500/20 p-3">
-                    <div>
-                      <p className="text-[11px] text-slate-500 mb-1">Titulo de la subtarea</p>
-                      <input
-                        type="text"
-                        value={subTitle}
-                        onChange={(e) => setSubTitle(e.target.value)}
-                        placeholder="Ej: Ver faena"
-                        className="w-full rounded border border-border-strong bg-surface px-2 py-1 text-xs text-fg-body"
-                      />
-                    </div>
-                    <div>
-                      <p className="text-[11px] text-slate-500 mb-1">Asignar a</p>
-                      <select
-                        value={subMember}
-                        onChange={(e) => setSubMember(e.target.value)}
-                        className="w-full rounded border border-border-strong bg-surface px-2 py-1 text-xs text-fg-body"
-                      >
-                        <option value="">Elegir persona…</option>
-                        {subMembers.map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.full_name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="flex gap-3">
-                      <div>
-                        <p className="text-[11px] text-slate-500 mb-1">Prioridad</p>
-                        <div className="flex gap-1">
-                          {[1, 2, 3].map((p) => (
-                            <button
-                              key={p}
-                              onClick={() => setSubPriority(p)}
-                              className={`w-7 h-7 rounded text-xs font-bold text-white ${
-                                subPriority === p
-                                  ? p === 1
-                                    ? 'bg-red-600'
-                                    : p === 2
-                                      ? 'bg-amber-600'
-                                      : 'bg-emerald-600'
-                                  : 'bg-surface-2'
-                              }`}
-                            >
-                              {p}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      {!itemPadre && (
-                        <div className="flex-1">
-                          <p className="text-[11px] text-slate-500 mb-1">Fecha entrega</p>
-                          <DatePicker value={subDue || null} onChange={(v) => setSubDue(v ?? '')} />
-                        </div>
-                      )}
-                    </div>
-                    {itemPadre && (
-                      <div>
-                        <div className="flex gap-3">
-                          <div className="flex-1">
-                            <p className="text-[11px] text-slate-500 mb-1">Inicio</p>
-                            <DatePicker
-                              value={subInicio || null}
-                              onChange={(v) => setSubInicio(v ?? '')}
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-[11px] text-slate-500 mb-1">Término (entrega)</p>
-                            <DatePicker
-                              value={subDue || null}
-                              onChange={(v) => setSubDue(v ?? '')}
-                            />
-                          </div>
-                        </div>
-                        <p
-                          className={`text-[11px] mt-1 ${subFechasInvalidas ? 'text-amber-400' : 'text-slate-500'}`}
-                        >
-                          {subFechasInvertidas
-                            ? 'El inicio no puede ser posterior al término'
-                            : subFechasInvalidas
-                              ? 'Define inicio y término para poder crearla'
-                              : 'También quedará como subtarea en el proyecto'}
-                        </p>
-                      </div>
-                    )}
-                    <label className="flex items-center gap-2 text-[11px] text-fg-muted cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={subToMinuta}
-                        onChange={(e) => setSubToMinuta(e.target.checked)}
-                        className="accent-indigo-500"
-                      />
-                      Tambien llevar a la minuta del equipo
-                    </label>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        disabled={subBusy || !subMember || !subTitle.trim() || subFechasInvalidas}
-                        onClick={createSubtask}
-                      >
-                        {subBusy ? 'Creando...' : 'Crear subtarea'}
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setShowSubtask(false)}>
-                        Cancelar
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Delegar a mi equipo: la misma tarea, pero para que la haga OTRO equipo que
-                lidero (no una subtarea nueva, sino el mismo trabajo bajado de nivel). */}
-            {managedTeams.length > 0 && (
-              <div className="pt-2 border-t border-border-strong">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-slate-500">Delegar a mi equipo</p>
-                  {!showDelegate && (
-                    <button
-                      onClick={() => {
-                        setShowDelegate(true)
-                        setDelPriority(selectedActivity.priority)
-                        setDelDue(selectedActivity.due_date.split('T')[0])
-                      }}
-                      className="text-[11px] text-indigo-400 hover:text-indigo-300 font-medium"
-                    >
-                      → Delegar
-                    </button>
-                  )}
-                </div>
-
-                {showDelegate && (
-                  <div className="mt-2 space-y-2 rounded-lg bg-surface-soft/60 border border-indigo-500/20 p-3">
-                    <div>
-                      <p className="text-[11px] text-slate-500 mb-1">Equipo</p>
-                      <select
-                        value={delTeam}
-                        onChange={(e) => loadDelMembers(e.target.value)}
-                        className="w-full rounded border border-border-strong bg-surface px-2 py-1 text-xs text-fg-body"
-                      >
-                        <option value="">Elegir equipo…</option>
-                        {managedTeams.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    {delTeam && (
-                      <div>
-                        <p className="text-[11px] text-slate-500 mb-1">Asignar a</p>
-                        <select
-                          value={delMember}
-                          onChange={(e) => setDelMember(e.target.value)}
-                          className="w-full rounded border border-border-strong bg-surface px-2 py-1 text-xs text-fg-body"
-                        >
-                          <option value="">Elegir persona…</option>
-                          {delMembers.map((m) => (
-                            <option key={m.id} value={m.id}>
-                              {m.full_name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                    <div className="flex gap-3">
-                      <div>
-                        <p className="text-[11px] text-slate-500 mb-1">Prioridad</p>
-                        <div className="flex gap-1">
-                          {[1, 2, 3].map((p) => (
-                            <button
-                              key={p}
-                              onClick={() => setDelPriority(p)}
-                              className={`w-7 h-7 rounded text-xs font-bold text-white ${
-                                delPriority === p
-                                  ? p === 1
-                                    ? 'bg-red-600'
-                                    : p === 2
-                                      ? 'bg-amber-600'
-                                      : 'bg-emerald-600'
-                                  : 'bg-surface-2'
-                              }`}
-                            >
-                              {p}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-[11px] text-slate-500 mb-1">Fecha entrega</p>
-                        <DatePicker value={delDue || null} onChange={(v) => setDelDue(v ?? '')} />
-                      </div>
-                    </div>
-                    <label className="flex items-center gap-2 text-[11px] text-fg-muted cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={delToMinuta}
-                        onChange={(e) => setDelToMinuta(e.target.checked)}
-                        className="accent-indigo-500"
-                      />
-                      Tambien llevar a la minuta del equipo
-                    </label>
-                    <div className="flex gap-2">
-                      <Button size="sm" disabled={delBusy || !delMember} onClick={delegate}>
-                        {delBusy ? 'Delegando...' : 'Delegar'}
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setShowDelegate(false)}>
-                        Cancelar
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Status actions in modal */}
-            <div className="flex gap-2 pt-2 border-t border-border-strong">
-              {selectedActivity.status === 'pendiente' && (
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    changeStatus(selectedActivity.id, 'en_proceso')
-                    reload()
-                    setSelectedActivity(null)
-                  }}
-                >
-                  Iniciar actividad
-                </Button>
-              )}
-              {selectedActivity.status === 'en_proceso' && (
-                <>
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      changeStatus(selectedActivity.id, 'completado')
-                      reload()
-                      setSelectedActivity(null)
-                    }}
-                  >
-                    Marcar como completada
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onClick={() => {
-                      setShowBlockModal(true)
-                    }}
-                  >
-                    Bloquear
-                  </Button>
-                </>
-              )}
-              {showBlockModal && selectedActivity && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-                  <div className="bg-panel rounded-xl border border-border-strong p-6 max-w-sm w-full mx-4">
-                    <h3 className="text-sm font-semibold text-fg-body mb-2">Motivo del bloqueo</h3>
-                    <textarea
-                      value={observation}
-                      onChange={(e) => setObservation(e.target.value)}
-                      placeholder="Ej: Falta informacion del cliente..."
-                      rows={3}
-                      className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-fg-body placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 resize-none mb-3"
-                    />
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        onClick={async () => {
-                          if (observation.trim()) {
-                            await activitiesService.update(selectedActivity.id, {
-                              observations: observation.trim(),
-                            })
-                          }
-                          await changeStatus(selectedActivity.id, 'bloqueado')
-                          setShowBlockModal(false)
-                          reload()
-                          setSelectedActivity(null)
-                        }}
-                      >
-                        Bloquear
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setShowBlockModal(false)}>
-                        Cancelar
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {selectedActivity.status === 'bloqueado' && (
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    changeStatus(selectedActivity.id, 'en_proceso')
-                    reload()
-                    setSelectedActivity(null)
-                  }}
-                >
-                  Desbloquear
-                </Button>
-              )}
-              {selectedActivity.status === 'completado' && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    changeStatus(selectedActivity.id, 'pendiente')
-                    reload()
-                    setSelectedActivity(null)
-                  }}
-                >
-                  Reabrir
-                </Button>
-              )}
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* Asignar actividad (nueva) al equipo actual */}
-      <Modal
-        open={showAssign}
-        onClose={() => setShowAssign(false)}
-        title="Asignar actividad"
-        size="sm"
-      >
-        <div className="space-y-3">
-          <div>
-            <p className="text-[11px] text-slate-500 mb-1">Titulo</p>
-            <input
-              value={asgTitle}
-              onChange={(e) => setAsgTitle(e.target.value)}
-              placeholder="Que hay que hacer..."
-              className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-fg-body focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-            />
-          </div>
-          <div>
-            <p className="text-[11px] text-slate-500 mb-1">Descripcion (opcional)</p>
-            <textarea
-              value={asgDesc}
-              onChange={(e) => setAsgDesc(e.target.value)}
-              rows={2}
-              className="w-full resize-none rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-fg-body focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-            />
-          </div>
-          <div>
-            <p className="text-[11px] text-slate-500 mb-1">Asignar a</p>
-            <select
-              value={asgMember}
-              onChange={(e) => setAsgMember(e.target.value)}
-              className="w-full rounded border border-border-strong bg-surface px-2 py-1.5 text-xs text-fg-body"
-            >
-              <option value="">Elegir persona…</option>
-              {members.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.full_name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex gap-3">
-            <div>
-              <p className="text-[11px] text-slate-500 mb-1">Prioridad</p>
-              <div className="flex gap-1">
-                {[1, 2, 3].map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => setAsgPriority(p)}
-                    className={`w-7 h-7 rounded text-xs font-bold text-white ${
-                      asgPriority === p
-                        ? p === 1
-                          ? 'bg-red-600'
-                          : p === 2
-                            ? 'bg-amber-600'
-                            : 'bg-emerald-600'
-                        : 'bg-surface-2'
-                    }`}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex-1">
-              <p className="text-[11px] text-slate-500 mb-1">Fecha entrega</p>
-              <DatePicker value={asgDue || null} onChange={(v) => setAsgDue(v ?? '')} />
-            </div>
-          </div>
-          <label className="flex items-center gap-2 text-[11px] text-fg-muted cursor-pointer">
-            <input
-              type="checkbox"
-              checked={asgToMinuta}
-              onChange={(e) => setAsgToMinuta(e.target.checked)}
-              className="accent-indigo-500"
-            />
-            Tambien llevar a la minuta del equipo
-          </label>
-          <div className="flex gap-2 pt-1">
+    <div className="flex flex-col h-full bg-panel">
+      <PageHeader
+        title="Actividades"
+        meta={[equipoMeta, activities.length].filter((x) => x !== undefined).join(' · ')}
+        actions={
+          <>
             <Button
               size="sm"
-              disabled={asgBusy || !asgTitle.trim() || !asgMember}
-              onClick={assignActivity}
+              variant="secondary"
+              icon="download"
+              title="Exportar a Excel"
+              onClick={exportar}
             >
-              {asgBusy ? 'Asignando...' : 'Asignar'}
+              <span className="hidden sm:inline">Exportar</span>
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setShowAssign(false)}>
-              Cancelar
-            </Button>
+            {canAssignOthers && (
+              <Button size="sm" icon="plus" onClick={() => setShowAssign(true)}>
+                Asignar
+              </Button>
+            )}
+          </>
+        }
+      >
+        <VistasRapidas
+          userId={user?.id}
+          profileId={profile?.id}
+          teamId={profile?.team_id}
+          filtros={act.filtros}
+          aplicar={act.aplicarFiltros}
+        />
+      </PageHeader>
+
+      <ActivitiesFilters
+        filtros={act.filtros}
+        counts={act.counts}
+        setFilterStatus={act.setFilterStatus}
+        setFilterTeam={act.setFilterTeam}
+        setFilterMember={act.setFilterMember}
+        setFilterGrupo={act.setFilterGrupo}
+        setFilterPlazo={act.setFilterPlazo}
+        setDateType={act.setDateType}
+        setDateFrom={act.setDateFrom}
+        setDateTo={act.setDateTo}
+        search={act.search}
+        setSearch={act.setSearch}
+        teamNames={teamNames}
+        members={members}
+        isManager={act.isManager}
+        gruposDisponibles={act.gruposDisponibles}
+        agrupacion={agrupacion}
+        setAgrupacion={setAgrupacion}
+      />
+
+      {/* Con el panel abierto en pantallas grandes, la lista deja su espacio en vez de quedar
+          tapada (el panel mide 400px, ver SidePanel). */}
+      <div className={cx('flex-1 overflow-y-auto', selected && SIDE_PANEL_OFFSET)}>
+        {loading ? (
+          <div className="px-3 sm:px-5 py-3">
+            <SkeletonRows rows={8} />
           </div>
-        </div>
-      </Modal>
+        ) : activities.length === 0 ? (
+          <ListaVacia
+            hayOtras={allActivities.length > 0}
+            filtroEquipo={act.filterTeam !== 'todas' ? teamNames[act.filterTeam] : null}
+            sinEnEquipo={
+              act.filterTeam !== 'todas' && !allActivities.some((a) => a.team_id === act.filterTeam)
+            }
+            total={allActivities.length}
+            verTodosLosEquipos={() => act.setFilterTeam('todas')}
+          />
+        ) : (
+          <ActivitiesTable
+            grupos={grupos}
+            plano={agrupacion === 'ninguno'}
+            selectedId={selected?.id ?? cursorId}
+            nombrePersona={nombrePersona}
+            teamNames={teamNames}
+            onOpen={(a) => openActivity(a)}
+            onAccion={accionDeFila}
+          />
+        )}
+      </div>
+
+      <ActivityDetailPanel
+        activity={selected}
+        parentStack={parentStack}
+        onBack={goBackToParent}
+        onOpenChild={openChild}
+        onClose={closePanel}
+        onUpdated={setSelected}
+        proyectoItems={proyectoItems}
+        allActivities={allActivities}
+        managedIds={act.managedIds}
+        teamNames={teamNames}
+        nombrePersona={nombrePersona}
+        reload={act.reload}
+        cambiarEstado={cambiarEstado}
+        eliminar={eliminar}
+      />
+
+      {/* Montado solo mientras esta abierto: el formulario parte limpio cada vez. */}
+      {showAssign && (
+        <AssignActivityModal
+          open
+          onClose={() => setShowAssign(false)}
+          userId={user?.id}
+          teamId={profile?.team_id}
+          members={members}
+          onAssigned={act.reload}
+        />
+      )}
     </div>
+  )
+}
+
+function ListaVacia({
+  hayOtras,
+  filtroEquipo,
+  sinEnEquipo,
+  total,
+  verTodosLosEquipos,
+}: {
+  hayOtras: boolean
+  filtroEquipo: string | null | undefined
+  sinEnEquipo: boolean
+  total: number
+  verTodosLosEquipos: () => void
+}) {
+  if (!hayOtras) {
+    return (
+      <EmptyState
+        icon="checkCircle"
+        title="No hay actividades"
+        description="Escribe en el chat para crear una."
+      />
+    )
+  }
+  // El listado parte filtrado por el equipo activo. Si ese equipo no tiene nada pero SI hay
+  // actividades en otros, decirlo: "escribe en el chat para crear una" mandaria a crear algo
+  // que ya existe al lado.
+  if (sinEnEquipo) {
+    return (
+      <EmptyState
+        icon="checkCircle"
+        title={`No hay actividades en ${filtroEquipo ?? 'este equipo'}`}
+        action={
+          <Button size="sm" variant="secondary" onClick={verTodosLosEquipos}>
+            Ver las de todos los equipos ({total})
+          </Button>
+        }
+      />
+    )
+  }
+  return (
+    <EmptyState
+      icon="filter"
+      title="Ninguna actividad coincide con los filtros"
+      description="Quita alguna ficha de filtro o cambia el estado."
+    />
   )
 }

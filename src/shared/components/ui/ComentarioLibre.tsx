@@ -17,7 +17,7 @@ export function ComentarioLibre({
   value,
   canEdit,
   onSave,
-  textClassName = 'text-[10px] text-slate-500',
+  textClassName = 'text-xs text-fg-faint',
   // Se APEGA a las clases base (no las reemplaza): permite que un caller (ej. la tarjeta del
   // Tablero de Proyectos) le quite el borde/fondo propio para meterlo dentro de un contenedor
   // con su propio estilo tipo "globo de chat", sin bifurcar el componente.
@@ -46,12 +46,12 @@ export function ComentarioLibre({
       onBlur={(e) => {
         if (e.target.value !== value) onSave(e.target.value)
       }}
-      placeholder="Agregar comentario..."
+      placeholder="Agregar comentario…"
       rows={filas}
       spellCheck={false}
       // text-base (16px) SIEMPRE, no solo al enfocar: si cambiara entre ver/editar, Safari
       // haria zoom automatico igual al primer toque, y ademas se notaria el salto de tamaño.
-      className={`w-full resize-y rounded border border-border-strong bg-field px-1.5 py-1 text-base sm:text-[10px] text-fg-body placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/40 ${className}`}
+      className={`w-full resize-y rounded-md border border-border-strong bg-field px-1.5 py-1 text-base sm:text-xs text-fg-body placeholder:text-fg-faint focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 ${className}`}
     />
   )
 }

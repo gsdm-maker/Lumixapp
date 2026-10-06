@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Icon } from './Icon'
 
 /**
  * Texto de solo lectura + lapiz para editar.
@@ -85,7 +86,7 @@ export function EditableText({
         // cualquier text-xs/sm que traiga textClassName, pensado para la vista de solo
         // lectura) -Safari/iOS hace zoom automatico al enfocar un campo con letra menor a
         // 16px, y este componente se usa en muchos lugares (tema, subtarea, comentarios).
-        className={`w-full resize-none overflow-hidden rounded border border-indigo-500/40 bg-field px-1.5 py-1 !text-base focus:outline-none focus:ring-1 focus:ring-indigo-500/60 ${textClassName}`}
+        className={`w-full resize-none overflow-hidden rounded-md border border-accent bg-field px-1.5 py-1 !text-base focus:outline-none focus:ring-2 focus:ring-accent/20 ${textClassName}`}
       />
     )
   }
@@ -97,7 +98,7 @@ export function EditableText({
   return (
     <div className="flex items-start gap-1.5 w-full">
       <Tag className={`whitespace-pre-wrap break-words flex-1 ${textClassName}`}>
-        {value || <span className="text-slate-600">{emptyLabel}</span>}
+        {value || <span className="text-fg-faint">{emptyLabel}</span>}
       </Tag>
       {canEdit && (
         <button
@@ -108,9 +109,9 @@ export function EditableText({
           }}
           title="Editar"
           aria-label="Editar"
-          className="flex-shrink-0 mt-0.5 text-slate-500 hover:text-indigo-400 transition-colors"
+          className="shrink-0 mt-0.5 p-0.5 -m-0.5 rounded text-fg-faint hover:text-accent hover:bg-surface transition-colors"
         >
-          ✎
+          <Icon name="pencil" size={13} />
         </button>
       )}
     </div>

@@ -119,7 +119,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
         className={cx(
           CAMPO,
           'appearance-none pl-2.5 pr-8 cursor-pointer',
-          size === 'sm' ? 'h-8 !text-sm' : 'h-10 sm:h-9',
+          size === 'sm' ? 'h-8' : 'h-10 sm:h-9',
         )}
         {...props}
       >

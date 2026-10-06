@@ -82,9 +82,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         const mismoUsuario = prev?.userId === user!.id
         if (mismoUsuario && count > prev!.count) {
           const nuevas = count - prev!.count
-          toast.info(
-            `🔔 ${nuevas} notificacion${nuevas === 1 ? '' : 'es'} nueva${nuevas === 1 ? '' : 's'}`,
-          )
+          toast.info(nuevas === 1 ? '1 notificación nueva' : `${nuevas} notificaciones nuevas`)
         }
         lastSeenRef.current = { userId: user!.id, count }
       } catch (err) {

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { teamsService, type GrupoTrabajo } from '@infrastructure/supabase/teams.service'
 import { useAuth } from '@core/auth/hooks/useAuth'
 
-interface Team {
+export interface Team {
   id: string
   name: string
   description: string | null
@@ -10,7 +10,7 @@ interface Team {
   created_at: string
 }
 
-interface Member {
+export interface TeamMember {
   id: string
   team_id: string
   user_id: string
@@ -55,7 +55,7 @@ export function useTeams() {
 }
 
 export function useTeamMembers(teamId: string) {
-  const [members, setMembers] = useState<Member[]>([])
+  const [members, setMembers] = useState<TeamMember[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {

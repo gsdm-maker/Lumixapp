@@ -18,6 +18,12 @@ interface SidePanelProps {
 const WIDTH = { md: 'sm:w-[400px]', lg: 'sm:w-[480px]' }
 
 /**
+ * Margen para que una lista deje espacio al panel abierto en escritorio (ancho `md`). Vive aca
+ * para que el ancho del panel y el hueco de la lista no se desincronicen.
+ */
+export const SIDE_PANEL_OFFSET = 'lg:pr-[400px]'
+
+/**
  * Panel de detalle a la derecha (idea 8 y 13 de la propuesta UI/UX).
  *
  * En pantallas anchas NO oscurece ni bloquea la lista de atras: se puede seguir clickeando
@@ -57,11 +63,22 @@ export function SidePanel({
         <div className="flex items-start gap-3 px-5 pt-4 pb-3 border-b border-border">
           <div className="flex-1 min-w-0">
             {eyebrow && <div className="text-xs text-fg-faint mb-1 truncate">{eyebrow}</div>}
-            {title && (
-              <h2 id={titleId} className="text-lg font-semibold text-fg leading-snug">
-                {title}
-              </h2>
-            )}
+            {title &&
+              (typeof title === 'string' ? (
+                <h2 id={titleId} className="text-lg font-semibold text-fg leading-snug">
+                  {title}
+                </h2>
+              ) : (
+                // Titulo editable (EditableText es un <div>): no puede ir dentro de un <h2>.
+                <div
+                  id={titleId}
+                  role="heading"
+                  aria-level={2}
+                  className="text-lg font-semibold text-fg leading-snug"
+                >
+                  {title}
+                </div>
+              ))}
           </div>
           <IconButton
             icon="x"

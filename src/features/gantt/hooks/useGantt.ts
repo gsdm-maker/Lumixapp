@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { activitiesService } from '@infrastructure/supabase/activities.service'
 import { profilesService } from '@infrastructure/supabase/profiles.service'
 import { useAuth } from '@core/auth/hooks/useAuth'
@@ -53,10 +53,14 @@ export function useGantt() {
   const { isColaborador } = useCapabilities()
   const teamId = profile?.team_id ?? ''
 
-  const referenceDate = new Date()
-  referenceDate.setDate(referenceDate.getDate() + weekOffset * 7)
-
-  const days = getWeekDays(referenceDate)
+  // Memo por semana: antes `days` era un arreglo nuevo en cada render y el efecto lo leia sin
+  // declararlo (exhaustive-deps). Asi el efecto puede depender de `days` sin recargar en cada
+  // render: solo cambia cuando cambia la semana, igual que antes con weekOffset.
+  const days = useMemo(() => {
+    const referenceDate = new Date()
+    referenceDate.setDate(referenceDate.getDate() + weekOffset * 7)
+    return getWeekDays(referenceDate)
+  }, [weekOffset])
   const weekLabel = getWeekLabel(days)
 
   useEffect(() => {
@@ -133,7 +137,7 @@ export function useGantt() {
     return () => {
       cancelled = true
     }
-  }, [weekOffset, teamId, user, refreshKey])
+  }, [days, isColaborador, teamId, user, refreshKey])
 
   const prevWeek = () => setWeekOffset((w) => w - 1)
   const nextWeek = () => setWeekOffset((w) => w + 1)
@@ -152,25 +156,4 @@ export function useGantt() {
     weekOffset,
     reload,
   }
-}
-
-export function getLoadColor(percentage: number): string {
-  if (percentage > 100) return 'bg-red-600'
-  if (percentage >= 90) return 'bg-red-500'
-  if (percentage >= 70) return 'bg-amber-500'
-  return 'bg-emerald-500'
-}
-
-export function getLoadBgColor(percentage: number): string {
-  if (percentage > 100) return 'bg-red-600/60 border-red-500/30'
-  if (percentage >= 90) return 'bg-red-500/40 border-red-400/20'
-  if (percentage >= 70) return 'bg-amber-500/40 border-amber-400/20'
-  return 'bg-indigo-600/40 border-indigo-500/20'
-}
-
-export function getLoadTextColor(percentage: number): string {
-  if (percentage > 100) return 'text-red-400'
-  if (percentage >= 90) return 'text-red-400'
-  if (percentage >= 70) return 'text-amber-400'
-  return 'text-fg-faint'
 }

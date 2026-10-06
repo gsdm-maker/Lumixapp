@@ -36,7 +36,7 @@ export const estadoLabels: Record<MinuteEstado, string> = {
   pendiente: 'Pendiente',
   en_desarrollo: 'En desarrollo',
   resuelto: 'Resuelto',
-  definir: 'Definir en reunion',
+  definir: 'Definir en reunión',
 }
 
 // Estado propio de Ingesta (migracion 045, reformulacion pedida por Sebastian): una solicitud
@@ -305,6 +305,12 @@ export function useMinuta(tipo: HojaTipo = 'minuta') {
         todos: base.length,
       }
 
+  // Cola del modo reunion: lo mismo que la vista "Por asignar" (con los filtros de persona,
+  // grupo, busqueda y semana ya aplicados), pero independiente de la pestaña que este abierta
+  // -la reunion recorre siempre lo que hay por conversar, aunque se haya entrado desde
+  // "Todos"-. Solo Minuta: Ingesta no se conversa en reunion.
+  const porConversar = esIngesta ? [] : base.filter((it) => paraConversar(it) && !resuelto(it))
+
   const addItem = async (
     tema: string,
     parentItemId: string | null = null,
@@ -541,6 +547,7 @@ export function useMinuta(tipo: HojaTipo = 'minuta') {
     items: visible,
     allItems: decorated,
     counts,
+    porConversar,
     members,
     loading,
     view,

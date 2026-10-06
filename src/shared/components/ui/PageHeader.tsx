@@ -31,7 +31,14 @@ export function PageHeader({
       <div className="flex items-center gap-3 min-h-12 px-3 sm:px-5 py-2">
         {leading}
         <div className="flex items-baseline gap-2 min-w-0 flex-1">
-          <h1 className="text-lg font-semibold text-fg truncate">{title}</h1>
+          {/* Un titulo editable (EditableText) es un <div>: no puede ir dentro de un <h1>. */}
+          {typeof title === 'string' ? (
+            <h1 className="text-lg font-semibold text-fg truncate">{title}</h1>
+          ) : (
+            <div role="heading" aria-level={1} className="text-lg font-semibold text-fg min-w-0">
+              {title}
+            </div>
+          )}
           {meta && <span className="text-xs text-fg-faint truncate hidden sm:inline">{meta}</span>}
         </div>
         {actions && <div className="flex items-center gap-1.5 shrink-0">{actions}</div>}

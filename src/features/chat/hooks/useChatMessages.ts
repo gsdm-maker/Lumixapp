@@ -193,12 +193,14 @@ function toLocalDate(value: string): Date {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00`) : new Date(value)
 }
 
-// Normaliza para comparar nombres sin tildes ni mayusculas
-function normalizeName(s: string): string {
+// Normaliza para comparar nombres sin tildes ni mayusculas. Exportada (igual que
+// findMentionedMembers) para la vista previa del chat: lo que se adelanta antes de enviar tiene
+// que calzar con lo que despues hace Lumix, asi que usa las mismas reglas y no unas propias.
+export function normalizeName(s: string): string {
   return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()
 }
 
-type Member = { id: string; full_name: string; avatar_url: string | null }
+export type Member = { id: string; full_name: string; avatar_url: string | null }
 
 // Devuelve los miembros que mejor calzan con el nombre buscado.
 // - 1 resultado => asignacion directa
@@ -313,7 +315,7 @@ const NAME_STOPWORDS = new Set([
 ])
 
 // Detecta si la pregunta menciona a uno (o varios) miembros del equipo.
-function findMentionedMembers(question: string, members: Member[]): Member[] {
+export function findMentionedMembers(question: string, members: Member[]): Member[] {
   const qTokens = normalizeName(question)
     .split(/\s+/)
     .filter((t) => t.length > 2 && !NAME_STOPWORDS.has(t))
@@ -1500,7 +1502,18 @@ export function useChatMessages() {
       // al viernes"), asi que es el que tiene que saber de que actividad habla. Sin esto la
       // respuesta no encuentra objetivo y termina creando una actividad nueva con el texto
       // de la instruccion, que es exactamente lo que hay que evitar.
-      await aiSay(reply, null, { activity_id: activity.id, title: cleanTitle })
+      //
+      // Lleva tambien la foto de la actividad (responsable, fecha, estado, prioridad) para que
+      // el chat la dibuje como objeto de trabajo bajo el mensaje que la pidio, con acciones
+      // directas. Los mensajes viejos no la traen y se siguen mostrando como texto.
+      await aiSay(reply, null, {
+        activity_id: activity.id,
+        title: cleanTitle,
+        responsibleName: opts.responsibleName,
+        dueDate: activity.due_date,
+        status: activity.status,
+        priority: activity.priority,
+      })
       if (assignedToOther) {
         await aiSay(`📨 Notificacion enviada a ${opts.responsibleName}`)
       }

@@ -2,10 +2,13 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@shared/components/ui/Button'
 import { Input } from '@shared/components/ui/Input'
-import { Card } from '@shared/components/ui/Card'
 import { Badge } from '@shared/components/ui/Badge'
 import { Avatar } from '@shared/components/ui/Avatar'
-import { LumixIcon } from '@shared/components/ui/LumixIcon'
+import { Icon } from '@shared/components/ui/Icon'
+import { Modal } from '@shared/components/ui/Modal'
+import { PageHeader } from '@shared/components/ui/PageHeader'
+import { SectionLabel } from '@shared/components/ui/Indicators'
+import { NovedadesDialog } from '@shared/components/ui/NovedadesModal'
 import { useAuth } from '@core/auth/hooks/useAuth'
 import { useTheme } from '@core/theme/ThemeContext'
 import { ACCENTS } from '@core/theme/apariencia'
@@ -15,7 +18,10 @@ import { profilesService } from '@infrastructure/supabase/profiles.service'
 import { normalizeFullName } from '@shared/utils/name'
 import { APP_VERSION, APP_VERSION_DATE } from '@shared/changelog'
 import { useToast } from '@shared/components/ui/Toast'
+import { cx } from '@shared/utils/cx'
 
+// Avatares de emoji: se mantienen para quien ya eligio uno, pero el selector vive en un
+// dialogo chico ("Cambiar avatar") en vez de una grilla de 41 emojis abierta en la pagina.
 const EMOJI_OPTIONS = [
   '😀',
   '😎',
@@ -67,6 +73,21 @@ const ROLE_LABELS: Record<string, string> = {
   invitado: 'Invitado',
 }
 
+// Lo que hace Lumix, como lista de texto (antes eran mosaicos con un emoji cada uno).
+const CAPACIDADES: { title: string; desc: string }[] = [
+  { title: 'Actividades', desc: 'Crea, asigna y gestiona tareas con lenguaje natural.' },
+  { title: 'Minuta', desc: 'Dicta temas para la reunión semanal, con subtareas.' },
+  {
+    title: 'Proyectos',
+    desc: 'Inicia iniciativas de varias semanas, con Lista, Tablero y Cronograma.',
+  },
+  { title: 'Bitácora', desc: 'Registra errores con severidad detectada automáticamente.' },
+  { title: 'Consultas', desc: 'Pregunta por el estado del equipo, la carga o los pendientes.' },
+  { title: 'Modificaciones', desc: 'Completa, mueve, reasigna o cambia prioridades.' },
+  { title: 'Modo masivo', desc: 'Crea varias actividades de una vez desde una lista.' },
+  { title: 'Alertas', desc: 'Detecta sobrecarga y avisa cuando alguien tiene mucho.' },
+]
+
 export function ProfilePage() {
   const { profile, user, signOut } = useAuth()
   const { preference, setPreference, accent, setAccent } = useTheme()
@@ -74,7 +95,10 @@ export function ProfilePage() {
   const toast = useToast()
   const [fullName, setFullName] = useState(profile?.full_name ?? '')
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url ?? '')
-  const [showEmoji, setShowEmoji] = useState(false)
+  const [avatarOpen, setAvatarOpen] = useState(false)
+  const [avatarDraft, setAvatarDraft] = useState('')
+  const [savingAvatar, setSavingAvatar] = useState(false)
+  const [novedadesOpen, setNovedadesOpen] = useState(false)
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordError, setPasswordError] = useState('')
@@ -98,17 +122,39 @@ export function ProfilePage() {
     }
   }
 
+  const openAvatar = () => {
+    setAvatarDraft(avatarUrl)
+    setAvatarOpen(true)
+  }
+
+  // El avatar se guarda al confirmar el dialogo (antes quedaba pendiente hasta tocar
+  // "Guardar" en el nombre, y era facil perderlo).
+  const saveAvatar = async () => {
+    if (!user) return
+    setSavingAvatar(true)
+    try {
+      await profilesService.update(user.id, { avatar_url: avatarDraft || null })
+      setAvatarUrl(avatarDraft)
+      setAvatarOpen(false)
+      toast.success('Avatar actualizado')
+    } catch {
+      toast.error('No se pudo guardar el avatar')
+    } finally {
+      setSavingAvatar(false)
+    }
+  }
+
   const changePassword = async (e: React.FormEvent) => {
     e.preventDefault()
     setPasswordError('')
     setPasswordSuccess('')
 
     if (newPassword.length < 6) {
-      setPasswordError('La contrasena debe tener al menos 6 caracteres')
+      setPasswordError('La contraseña debe tener al menos 6 caracteres')
       return
     }
     if (newPassword !== confirmPassword) {
-      setPasswordError('Las contrasenas no coinciden')
+      setPasswordError('Las contraseñas no coinciden')
       return
     }
 
@@ -116,7 +162,7 @@ export function ProfilePage() {
     if (error) {
       setPasswordError(error.message)
     } else {
-      setPasswordSuccess('Contrasena actualizada')
+      setPasswordSuccess('Contraseña actualizada')
       setNewPassword('')
       setConfirmPassword('')
       setShowPassword(false)
@@ -128,277 +174,246 @@ export function ProfilePage() {
     navigate('/login')
   }
 
+  const nombre = profile?.full_name ?? 'Usuario'
+
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-3 sm:px-4 h-12 sm:h-14 border-b border-border bg-panel flex-shrink-0">
-        <h2 className="text-sm font-semibold text-fg-body">Perfil</h2>
-      </div>
+    <div className="flex flex-col h-full bg-shell">
+      <PageHeader title="Perfil" />
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {/* Avatar */}
-        <Card padding="md">
-          <div className="flex items-center gap-4">
-            <button onClick={() => setShowEmoji((v) => !v)} className="flex-shrink-0">
-              {avatarUrl ? (
-                <span className="text-4xl">{avatarUrl}</span>
-              ) : (
-                <Avatar
-                  name={profile?.full_name ?? 'Usuario'}
-                  src={profile?.avatar_url}
-                  size="lg"
-                />
-              )}
-            </button>
-            <div>
-              <p className="text-sm font-medium text-fg-body">{profile?.full_name}</p>
-              <Badge variant="info" className="mt-1">
-                {ROLE_LABELS[profile?.role ?? 'colaborador'] ?? profile?.role}
-              </Badge>
-              <p className="text-xs text-slate-500 mt-0.5">{profile?.email}</p>
-            </div>
-          </div>
-
-          {showEmoji && (
-            <div className="mt-3 pt-3 border-t border-border">
-              <p className="text-xs text-fg-faint mb-2">Elegi un emoji como avatar</p>
-              <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
-                {EMOJI_OPTIONS.map((emoji) => (
-                  <button
-                    key={emoji}
-                    onClick={() => {
-                      setAvatarUrl(emoji)
-                      setShowEmoji(false)
-                    }}
-                    className="w-8 h-8 flex items-center justify-center rounded hover:bg-surface-2 text-lg transition-colors"
-                  >
-                    {emoji}
-                  </button>
-                ))}
-                {avatarUrl && (
-                  <button
-                    onClick={() => setAvatarUrl('')}
-                    className="w-8 h-8 flex items-center justify-center rounded hover:bg-red-900/50 text-xs text-red-400 light:text-red-600 light:hover:bg-red-100 transition-colors"
-                    title="Quitar emoji"
-                  >
-                    ✕
-                  </button>
-                )}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-2xl mx-auto px-3 sm:px-5 py-5 space-y-6">
+          {/* Identidad */}
+          <section className="flex flex-wrap items-center gap-4">
+            <Avatar name={nombre} src={avatarUrl || null} size="lg" />
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-lg font-semibold text-fg truncate">{profile?.full_name}</p>
+                <Badge>{ROLE_LABELS[profile?.role ?? 'colaborador'] ?? profile?.role}</Badge>
               </div>
+              <p className="text-sm text-fg-muted truncate">{profile?.email}</p>
             </div>
-          )}
-        </Card>
-
-        {/* Nombre */}
-        <Card padding="md">
-          <p className="text-xs text-fg-faint mb-2">Nombre completo</p>
-          <div className="flex gap-2">
-            <Input
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="Tu nombre"
-              className="flex-1"
-            />
-            <Button size="sm" onClick={saveProfile} disabled={saving}>
-              {saving ? '...' : 'Guardar'}
+            <Button variant="secondary" size="sm" onClick={openAvatar}>
+              Cambiar avatar
             </Button>
-          </div>
-        </Card>
+          </section>
 
-        {/* Cambiar password */}
-        <Card padding="md">
-          <button
-            onClick={() => setShowPassword((v) => !v)}
-            className="w-full text-left text-sm font-medium text-fg-body flex items-center justify-between"
-          >
-            Cambiar contrasena
-            <svg
-              className={`w-4 h-4 text-fg-faint transition-transform ${showPassword ? 'rotate-180' : ''}`}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+          {/* Datos personales */}
+          <section className="space-y-2 pt-5 border-t border-border">
+            <SectionLabel>Datos personales</SectionLabel>
+            <form
+              className="flex items-end gap-2"
+              onSubmit={(e) => {
+                e.preventDefault()
+                void saveProfile()
+              }}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
-          </button>
-
-          {showPassword && (
-            <form onSubmit={changePassword} className="mt-3 space-y-3 pt-3 border-t border-border">
-              {passwordError && (
-                <p className="text-xs text-red-400 light:text-red-600 bg-red-900/30 border border-red-700/50 light:bg-red-50 light:border-red-200 rounded-lg px-3 py-2">
-                  {passwordError}
-                </p>
-              )}
-              {passwordSuccess && (
-                <p className="text-xs text-emerald-400 light:text-emerald-700 bg-emerald-900/30 border border-emerald-700/50 light:bg-emerald-50 light:border-emerald-200 rounded-lg px-3 py-2">
-                  {passwordSuccess}
-                </p>
-              )}
-              <Input
-                label="Nueva contrasena"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Minimo 6 caracteres"
-              />
-              <Input
-                label="Confirmar contrasena"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Repeti la contrasena"
-              />
-              <Button type="submit" size="sm" className="w-full">
-                Actualizar contrasena
+              <div className="flex-1">
+                <Input
+                  label="Nombre completo"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Tu nombre"
+                  autoComplete="name"
+                />
+              </div>
+              <Button type="submit" variant="secondary" loading={saving}>
+                Guardar
               </Button>
             </form>
-          )}
-        </Card>
+          </section>
 
-        {/* Apariencia: tema (claro por defecto desde el rediseno) y color de acento. */}
-        <Card padding="md">
-          <p className="text-sm font-medium text-fg mb-3">Apariencia</p>
-          <div className="grid gap-3">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="w-14 text-xs text-fg-faint">Tema</span>
-              <SegmentedControl
-                label="Tema"
-                value={preference}
-                onChange={setPreference}
-                options={[
-                  { value: 'light', label: 'Claro' },
-                  { value: 'dark', label: 'Oscuro' },
-                  { value: 'system', label: 'Sistema' },
-                ]}
+          {/* Cambiar contrasena: plegada, se usa poco. */}
+          <section className="pt-5 border-t border-border">
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-expanded={showPassword}
+              className="w-full flex items-center justify-between text-left text-sm font-medium text-fg hover:text-accent"
+            >
+              Cambiar contraseña
+              <Icon
+                name="chevronDown"
+                size={16}
+                className={cx('text-fg-faint transition-transform', showPassword && 'rotate-180')}
               />
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="w-14 text-xs text-fg-faint">Acento</span>
-              <div role="radiogroup" aria-label="Color de acento" className="flex gap-1.5">
-                {ACCENTS.map((a) => (
-                  <button
-                    key={a.value}
-                    type="button"
-                    role="radio"
-                    aria-checked={accent === a.value}
-                    onClick={() => setAccent(a.value)}
-                    className={`inline-flex items-center gap-1.5 h-7 px-2 rounded-md border text-xs transition-colors ${
-                      accent === a.value
-                        ? 'border-fg text-fg'
-                        : 'border-border-strong text-fg-muted hover:border-fg-faint'
-                    }`}
+            </button>
+            {passwordSuccess && !showPassword && (
+              <p role="status" className="mt-2 text-sm text-success">
+                {passwordSuccess}
+              </p>
+            )}
+
+            {showPassword && (
+              <form onSubmit={changePassword} className="mt-3 space-y-3 max-w-sm">
+                {passwordError && (
+                  <p
+                    role="alert"
+                    className="rounded-md bg-danger-soft px-3 py-2 text-sm text-danger"
                   >
-                    <span
-                      className="w-3 h-3 rounded-sm"
-                      style={{ background: a.swatch }}
-                      aria-hidden="true"
-                    />
-                    {a.label}
-                  </button>
-                ))}
+                    {passwordError}
+                  </p>
+                )}
+                <Input
+                  label="Nueva contraseña"
+                  type="password"
+                  autoComplete="new-password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                />
+                <Input
+                  label="Confirmar contraseña"
+                  type="password"
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Repite la contraseña"
+                />
+                <Button type="submit">Actualizar contraseña</Button>
+              </form>
+            )}
+          </section>
+
+          {/* Apariencia: tema (claro por defecto desde el rediseno) y color de acento. */}
+          <section className="space-y-3 pt-5 border-t border-border">
+            <SectionLabel>Apariencia</SectionLabel>
+            <div className="grid gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="w-14 text-xs text-fg-faint">Tema</span>
+                <SegmentedControl
+                  label="Tema"
+                  value={preference}
+                  onChange={setPreference}
+                  options={[
+                    { value: 'light', label: 'Claro' },
+                    { value: 'dark', label: 'Oscuro' },
+                    { value: 'system', label: 'Sistema' },
+                  ]}
+                />
               </div>
-            </div>
-          </div>
-          <p className="text-xs text-fg-faint mt-3">Se guarda en este dispositivo.</p>
-        </Card>
-
-        {/* Sobre Lumix */}
-        <Card padding="lg">
-          <div className="flex items-center gap-3 mb-4">
-            <LumixIcon size="md" />
-            <div>
-              <p className="text-base font-semibold text-fg">Lumix</p>
-              <p className="text-xs text-slate-500">Tu asistente conversacional</p>
-            </div>
-          </div>
-
-          <p className="text-sm text-fg-muted leading-relaxed mb-4">
-            Lumix transforma tus conversaciones en acciones. Escribi en lenguaje natural lo que
-            necesitas y el se encarga del resto. Sin formularios, sin menus, solo chat.
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
-            {[
-              {
-                icon: '📋',
-                title: 'Actividades',
-                desc: 'Crea, asigna y gestiona tareas con lenguaje natural',
-              },
-              {
-                icon: '🗓️',
-                title: 'Minuta',
-                desc: 'Dicta temas para la reunion semanal, con subtareas',
-              },
-              {
-                icon: '🚀',
-                title: 'Proyectos',
-                desc: 'Inicia iniciativas de varias semanas, con Lista/Tablero/Cronograma',
-              },
-              {
-                icon: '🐛',
-                title: 'Bitacora',
-                desc: 'Registra errores con severidad detectada automaticamente',
-              },
-              {
-                icon: '💬',
-                title: 'Consultas',
-                desc: 'Pregunta por el estado del equipo, carga o pendientes',
-              },
-              {
-                icon: '✏️',
-                title: 'Modificaciones',
-                desc: 'Completa, mueve, reasigna o cambia prioridades',
-              },
-              {
-                icon: '📦',
-                title: 'Modo masivo',
-                desc: 'Crea varias actividades de una vez desde una lista',
-              },
-              {
-                icon: '⚠️',
-                title: 'Alertas',
-                desc: 'Detecta sobrecarga y avisa cuando alguien tiene mucho',
-              },
-            ].map((item) => (
-              <div
-                key={item.title}
-                className="flex items-start gap-2.5 p-2.5 rounded-lg bg-surface-soft border border-border"
-              >
-                <span className="text-lg flex-shrink-0">{item.icon}</span>
-                <div>
-                  <p className="text-xs font-medium text-fg-body">{item.title}</p>
-                  <p className="text-[11px] text-fg-faint leading-relaxed">{item.desc}</p>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="w-14 text-xs text-fg-faint">Acento</span>
+                <div role="radiogroup" aria-label="Color de acento" className="flex gap-1.5">
+                  {ACCENTS.map((a) => (
+                    <button
+                      key={a.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={accent === a.value}
+                      onClick={() => setAccent(a.value)}
+                      className={`inline-flex items-center gap-1.5 h-7 px-2 rounded-md border text-xs transition-colors ${
+                        accent === a.value
+                          ? 'border-fg text-fg'
+                          : 'border-border-strong text-fg-muted hover:border-fg-faint'
+                      }`}
+                    >
+                      <span
+                        className="w-3 h-3 rounded-sm"
+                        style={{ background: a.swatch }}
+                        aria-hidden="true"
+                      />
+                      {a.label}
+                    </button>
+                  ))}
                 </div>
               </div>
+            </div>
+            <p className="text-xs text-fg-faint mt-3">Se guarda en este dispositivo.</p>
+            <p className="text-xs text-fg-faint">Se guarda en este dispositivo.</p>
+          </section>
+
+          {/* Sobre Lumix: lista de texto, sin mosaicos de emoji. */}
+          <section className="space-y-3 pt-5 border-t border-border">
+            <SectionLabel>Sobre Lumix</SectionLabel>
+            <p className="text-sm text-fg-muted leading-relaxed">
+              Lumix transforma tus conversaciones en acciones. Escribe en lenguaje natural lo que
+              necesitas y se encarga del resto. Escribe “ayuda” en el chat para ver ejemplos.
+            </p>
+            <dl className="grid grid-cols-1 sm:grid-cols-[8rem_1fr] gap-x-4 sm:gap-y-1.5 text-sm">
+              {CAPACIDADES.map((c) => (
+                <div key={c.title} className="contents">
+                  <dt className="font-medium text-fg">{c.title}</dt>
+                  <dd className="text-fg-muted mb-2 sm:mb-0">{c.desc}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1">
+              <p className="text-xs text-fg-faint">
+                Versión {APP_VERSION} · actualizada el {APP_VERSION_DATE}
+              </p>
+              <Button variant="ghost" size="xs" onClick={() => setNovedadesOpen(true)}>
+                Ver novedades
+              </Button>
+            </div>
+          </section>
+
+          {/* Cerrar sesion: accion secundaria, no un bloque rojo a lo ancho. */}
+          <section className="pt-5 border-t border-border">
+            <Button
+              variant="ghost"
+              icon="logout"
+              onClick={handleLogout}
+              className="!text-danger hover:!bg-danger-soft"
+            >
+              Cerrar sesión
+            </Button>
+          </section>
+        </div>
+      </div>
+
+      <Modal
+        open={avatarOpen}
+        onClose={() => setAvatarOpen(false)}
+        title="Cambiar avatar"
+        description="Tus iniciales o un emoji."
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setAvatarOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={saveAvatar} loading={savingAvatar}>
+              Guardar
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={() => setAvatarDraft('')}
+            aria-pressed={!avatarDraft}
+            className={cx(
+              'w-full flex items-center gap-3 rounded-md border px-3 py-2 text-left text-sm',
+              !avatarDraft
+                ? 'border-accent bg-accent-soft text-fg'
+                : 'border-border-strong text-fg-muted hover:bg-surface',
+            )}
+          >
+            <Avatar name={nombre} size="sm" />
+            Usar mis iniciales
+          </button>
+          <div role="group" aria-label="Emojis" className="grid grid-cols-8 gap-1">
+            {EMOJI_OPTIONS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => setAvatarDraft(emoji)}
+                aria-pressed={avatarDraft === emoji}
+                aria-label={`Avatar ${emoji}`}
+                className={cx(
+                  'h-9 flex items-center justify-center rounded-md text-lg transition-colors',
+                  avatarDraft === emoji ? 'bg-accent-soft ring-2 ring-accent' : 'hover:bg-surface',
+                )}
+              >
+                {emoji}
+              </button>
             ))}
           </div>
+        </div>
+      </Modal>
 
-          <div className="rounded-lg bg-indigo-600/10 border border-indigo-500/20 p-3">
-            <p className="text-xs text-indigo-300 light:text-indigo-700">
-              <span className="font-medium">Tip:</span> Escribi{' '}
-              <code className="px-1 py-0.5 rounded bg-indigo-600/20 text-indigo-300 light:text-indigo-700 text-[11px]">
-                ayuda
-              </code>{' '}
-              en el chat para ver ejemplos de todo lo que podes hacer.
-            </p>
-          </div>
-          <p className="text-[11px] text-slate-500 text-center mt-3">
-            Version {APP_VERSION} · actualizado el {APP_VERSION_DATE}
-          </p>
-        </Card>
-
-        {/* Cerrar sesion */}
-        <button
-          onClick={handleLogout}
-          className="w-full px-4 py-3 rounded-xl bg-red-900/20 border border-red-700/30 text-sm text-red-400 hover:bg-red-900/30 light:bg-red-50 light:border-red-200 light:text-red-600 light:hover:bg-red-100 transition-colors"
-        >
-          Cerrar sesion
-        </button>
-      </div>
+      <NovedadesDialog open={novedadesOpen} onClose={() => setNovedadesOpen(false)} />
     </div>
   )
 }

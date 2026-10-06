@@ -8,6 +8,25 @@ import { useAuth } from '@core/auth/hooks/useAuth'
 import { parseDateLocal } from '@shared/utils/date'
 import { useToast } from '@shared/components/ui/Toast'
 import type { Activity, ActivityStatus, MinuteItem, Profile } from '@shared/types'
+import { enPlazo, type FiltroPlazo } from '@features/activities/utils/urgencia'
+
+export type FiltroEstado = ActivityStatus | 'todas' | 'activas'
+export type TipoFecha = 'creadas' | 'cerradas' | 'entrega'
+
+/**
+ * Combinacion completa de filtros de la lista. Existe como objeto (y no solo como estados
+ * sueltos) para poder guardarla como "vista" y volver a aplicarla de una vez.
+ */
+export interface FiltrosActividades {
+  status: FiltroEstado
+  team: string
+  member: string
+  grupo: string
+  plazo: FiltroPlazo
+  dateType: TipoFecha
+  dateFrom: string
+  dateTo: string
+}
 
 // Actividades PERSONALES + de los equipos que lidero (cross-equipo). Privacidad:
 // veo TODAS las mias (en cualquier equipo) y, de terceros, solo en equipos donde soy jefe.
@@ -20,8 +39,11 @@ export function useActivities() {
   const [teamNames, setTeamNames] = useState<Record<string, string>>({})
   const [managedIds, setManagedIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
-  const [filterStatus, setFilterStatus] = useState<ActivityStatus | 'todas' | 'activas'>('activas')
-  const [dateType, setDateType] = useState<'creadas' | 'cerradas' | 'entrega'>('entrega')
+  const [filterStatus, setFilterStatus] = useState<FiltroEstado>('activas')
+  // Plazo relativo ("vencidas", "esta semana"): a diferencia del rango de fechas, sigue
+  // valiendo manana, por eso es lo que usan las vistas rapidas.
+  const [filterPlazo, setFilterPlazo] = useState<FiltroPlazo>('todos')
+  const [dateType, setDateType] = useState<TipoFecha>('entrega')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   // Arranca en el equipo activo del selector de arriba, no en "todas".
@@ -173,6 +195,12 @@ export function useActivities() {
     countBase = countBase.filter(datePredicate)
   }
 
+  if (filterPlazo !== 'todos') {
+    const porPlazo = (a: Activity) => enPlazo(a, filterPlazo)
+    filtered = filtered.filter(porPlazo)
+    countBase = countBase.filter(porPlazo)
+  }
+
   if (search.trim()) {
     const q = search.trim().toLowerCase()
     const matches = (a: Activity) =>
@@ -198,7 +226,15 @@ export function useActivities() {
     }
   }
 
-  const changeStatus = async (id: string, newStatus: ActivityStatus) => {
+  /**
+   * Cambia el estado y recarga. Devuelve si funciono. `silent` evita el aviso generico para
+   * que quien llama muestre el suyo (ej. "Completada" con Deshacer).
+   */
+  const changeStatus = async (
+    id: string,
+    newStatus: ActivityStatus,
+    opts?: { silent?: boolean },
+  ): Promise<boolean> => {
     try {
       await activitiesService.update(id, { status: newStatus })
       if (newStatus === 'bloqueado') {
@@ -222,10 +258,36 @@ export function useActivities() {
         }
       }
       await load()
-      toast.success('Estado actualizado')
+      if (!opts?.silent) toast.success('Estado actualizado')
+      return true
     } catch {
       toast.error('No se pudo actualizar el estado')
+      return false
     }
+  }
+
+  const filtros: FiltrosActividades = {
+    status: filterStatus,
+    team: filterTeam,
+    member: filterMember,
+    grupo: filterGrupo,
+    plazo: filterPlazo,
+    dateType,
+    dateFrom,
+    dateTo,
+  }
+
+  // Aplica una vista guardada de una vez. El grupo se respeta aunque cambie el equipo: el
+  // effect de grupos solo lo limpia cuando el equipo pasa a "todas".
+  const aplicarFiltros = (f: FiltrosActividades) => {
+    setFilterStatus(f.status)
+    setFilterTeam(f.team)
+    setFilterMember(f.member)
+    setFilterGrupo(f.team === 'todas' ? 'todas' : f.grupo)
+    setFilterPlazo(f.plazo)
+    setDateType(f.dateType)
+    setDateFrom(f.dateFrom)
+    setDateTo(f.dateTo)
   }
 
   filtered = [...filtered].sort((a, b) => {
@@ -235,7 +297,7 @@ export function useActivities() {
     return a.priority - b.priority
   })
 
-  const allStatuses: (ActivityStatus | 'todas' | 'activas')[] = [
+  const allStatuses: FiltroEstado[] = [
     'todas',
     'activas',
     'pendiente',
@@ -246,10 +308,7 @@ export function useActivities() {
     'completado',
   ]
 
-  const counts: Record<ActivityStatus | 'todas' | 'activas', number> = {} as Record<
-    ActivityStatus | 'todas' | 'activas',
-    number
-  >
+  const counts = {} as Record<FiltroEstado, number>
   for (const s of allStatuses) {
     if (s === 'activas') {
       counts[s] = countBase.filter((a) => a.status !== 'completado').length
@@ -278,7 +337,11 @@ export function useActivities() {
     setFilterMember,
     filterGrupo,
     setFilterGrupo,
+    filterPlazo,
+    setFilterPlazo,
     gruposDisponibles,
+    filtros,
+    aplicarFiltros,
     search,
     setSearch,
     dateType,
@@ -299,10 +362,11 @@ export function getDaysRemaining(dueDate: string): number {
   return Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 }
 
+// Tokens semanticos (no colores de Tailwind): asi el Cronograma, que tambien lo usa, sigue
+// el tema claro/oscuro sin cambios propios.
 export function getDaysColor(days: number): string {
-  if (days < 0) return 'text-red-400'
-  if (days === 0) return 'text-amber-400'
-  if (days <= 2) return 'text-amber-300'
+  if (days < 0) return 'text-danger'
+  if (days <= 2) return 'text-warning'
   return 'text-fg-faint'
 }
 
@@ -311,6 +375,6 @@ export const statusLabels: Record<ActivityStatus, string> = {
   en_proceso: 'En proceso',
   bloqueado: 'Bloqueado',
   falta_informacion: 'Falta info',
-  esperando_aprobacion: 'Esperando aprobacion',
+  esperando_aprobacion: 'Esperando aprobación',
   completado: 'Completado',
 }

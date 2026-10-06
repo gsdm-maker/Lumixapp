@@ -2,27 +2,55 @@
 //
 // DECISIONES DE DISEÑO, Y POR QUE
 //
-// 1. Marcar hecho es UN clic sobre una casilla grande. En una reunion de 5 minutos con el
-//    equipo mirando, cualquier cosa que exija abrir un modal rompe el ritmo.
-// 2. El numero grande arriba es el % de cumplimiento con la meta de 90% al lado. Es la
-//    unica metrica de la reunion; si no esta a la vista, la conversacion se dispersa.
-// 3. Agrupado por persona, porque la pregunta que se hace es "a ti te tocaba esto".
+// 1. Marcar hecho es UN clic sobre una casilla. En una reunion de 5 minutos con el equipo
+//    mirando, cualquier cosa que exija abrir un modal rompe el ritmo.
+// 2. El % de cumplimiento con la meta de 90% al lado es la unica metrica de la reunion; vive
+//    en UNA linea de resumen arriba (antes era un bloque grande), junto a lo que lleva mas de
+//    dos semanas abierto, que es lo primero que hay que conversar.
+// 3. Agrupado por persona, porque la pregunta que se hace es "a ti te tocaba esto". Una sola
+//    tabla plana con filas de encabezado por persona, sin tarjetas dentro de tarjetas.
 // 4. Las acciones de lo no cumplido -mover una semana, llevar a minuta- aparecen SOLO en
 //    las filas no cumplidas, y solo para quien conduce. No se ofrece nada mas: en EOS lo no
 //    hecho se arrastra o se discute, no se justifica en el momento.
 
 import { useState } from 'react'
-import { Avatar } from '@shared/components/ui/Avatar'
+import { Button, IconButton } from '@shared/components/ui/Button'
+import { EmptyState } from '@shared/components/ui/EmptyState'
+import { ProgressBar } from '@shared/components/ui/Indicators'
+import { PageHeader } from '@shared/components/ui/PageHeader'
+import { SegmentedControl } from '@shared/components/ui/SegmentedControl'
 import { SkeletonRows } from '@shared/components/ui/Skeleton'
-import { ComentarioLibre } from '@shared/components/ui/ComentarioLibre'
 import { useToast } from '@shared/components/ui/Toast'
 import { useCapabilities } from '@core/auth/hooks/useCapabilities'
 import {
+  semanaDe,
   useCompromisos,
   type Compromiso,
-  type GrupoPersona,
 } from '@features/compromisos/hooks/useCompromisos'
-import { formatDateLocal } from '@shared/utils/date'
+import {
+  CompromisosTabla,
+  type AccionesCompromiso,
+} from '@features/compromisos/components/CompromisosTabla'
+import { tonoAvance } from '@features/compromisos/utils/filaCompromiso'
+import { CerrarSemanaModal } from '@features/compromisos/components/CerrarSemanaModal'
+
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+
+/** Numero de semana ISO 8601 (la que usa el calendario de la empresa: semana 1 = la del 4 de enero). */
+function semanaISO(lunes: Date): number {
+  const jueves = new Date(lunes)
+  jueves.setDate(lunes.getDate() + 3)
+  const primerJueves = new Date(jueves.getFullYear(), 0, 4)
+  primerJueves.setDate(primerJueves.getDate() + 3 - ((primerJueves.getDay() + 6) % 7))
+  return 1 + Math.round((jueves.getTime() - primerJueves.getTime()) / (7 * 86_400_000))
+}
+
+/** "5–11 oct", o "29 sep – 5 oct" si la semana cruza de mes. */
+function rangoCorto(desde: Date, hasta: Date): string {
+  return desde.getMonth() === hasta.getMonth()
+    ? `${desde.getDate()}–${hasta.getDate()} ${MESES[hasta.getMonth()]}`
+    : `${desde.getDate()} ${MESES[desde.getMonth()]} – ${hasta.getDate()} ${MESES[hasta.getMonth()]}`
+}
 
 export function CompromisosPage() {
   const {
@@ -49,8 +77,7 @@ export function CompromisosPage() {
   const toast = useToast()
 
   // Arranca TODO PLEGADO: la primera mirada es el tablero del equipo -quien va como- y
-  // recien despues se abre a la persona de la que se esta hablando. Al reves, con todo
-  // desplegado, hay que hacer scroll para saber si alguien va mal.
+  // recien despues se abre a la persona de la que se esta hablando.
   const [abiertos, setAbiertos] = useState<Set<string>>(new Set())
   const alternar = (id: string) =>
     setAbiertos((cur) => {
@@ -60,9 +87,8 @@ export function CompromisosPage() {
       return n
     })
 
-  // "Por grupo" agrega un nivel de plegado propio (grupo → personas). Solo se ofrece si el
-  // equipo realmente tiene grupos con gente asignada -si no, ni se muestra el selector, y la
-  // pantalla se comporta exactamente como siempre (por persona, sin nada nuevo que aprender).
+  // "Por grupo" agrega un nivel de plegado propio (grupo -> personas). Solo se ofrece si el
+  // equipo realmente tiene grupos con gente asignada.
   const [vista, setVista] = useState<'persona' | 'grupo'>('persona')
   const [gruposAbiertos, setGruposAbiertos] = useState<Set<string>>(new Set())
   const alternarGrupo = (id: string) =>
@@ -75,515 +101,226 @@ export function CompromisosPage() {
 
   // Modo "vencidos sin cerrar": cambia la ventana semanal por TODO lo vencido y abierto, de
   // cualquier semana. Sin esto, lo que nadie movio ni cumplio quedaba escondido en su semana
-  // y solo se veia retrocediendo con ‹ -la trampa que reporto Sebastian-.
+  // y solo se veia retrocediendo con la flecha -la trampa que reporto Sebastian-.
   const [verVencidos, setVerVencidos] = useState(false)
+  const [cerrando, setCerrando] = useState(false)
   const lista = verVencidos ? vencidosPorPersona : porPersona
+  const porGrupoActivo = !verVencidos && vista === 'grupo' && porGrupo.length > 0
 
   // Si solo hay una persona -un colaborador viendo lo suyo- plegar no aporta nada.
   const soloUno = lista.length === 1
-  const estaAbierto = (id: string) => soloUno || abiertos.has(id)
-  const todoAbierto = lista.length > 0 && lista.every((g) => abiertos.has(g.id))
+  const estaAbierta = (id: string) => soloUno || abiertos.has(id)
+  const todoAbierto =
+    lista.length > 0 &&
+    lista.every((g) => abiertos.has(g.id)) &&
+    (!porGrupoActivo || porGrupo.every((g) => gruposAbiertos.has(g.id ?? 'sin-grupo')))
+  const expandirTodo = () => {
+    if (todoAbierto) {
+      setAbiertos(new Set())
+      setGruposAbiertos(new Set())
+    } else {
+      setAbiertos(new Set(lista.map((g) => g.id)))
+      setGruposAbiertos(new Set(porGrupo.map((g) => g.id ?? 'sin-grupo')))
+    }
+  }
 
-  // La MISMA escala arriba y por persona: si el equipo va en ambar y una persona en verde,
-  // tiene que significar lo mismo en los dos lugares.
-  const colorDe = (pct: number | null) =>
-    pct === null
-      ? 'text-fg-faint'
-      : pct >= resumen.meta
-        ? 'text-emerald-400'
-        : pct >= 60
-          ? 'text-amber-400'
-          : 'text-red-400'
+  // Regla de EOS: nada deberia quedar mas de dos semanas dando vueltas. Se cuenta sobre TODO
+  // lo vencido (no solo esta semana): lo de la semana en curso nunca lleva dos semanas.
+  const vencidosLista = vencidosPorPersona.flatMap((g) => g.compromisos)
+  const masDeDosSemanas = vencidosLista.filter((c) => c.diasVencida > 14).length
+  const abiertosSemana = porPersona
+    .flatMap((g) => g.compromisos)
+    .filter((c) => c.status !== 'completado')
 
-  const barraDe = (pct: number | null) =>
-    pct === null
-      ? 'bg-surface-2'
-      : pct >= resumen.meta
-        ? 'bg-emerald-500'
-        : pct >= 60
-          ? 'bg-amber-500'
-          : 'bg-red-500'
+  const { desde, hasta } = semanaDe(offset)
 
-  const alMarcar = (c: Compromiso) =>
-    marcar(c.id, c.status !== 'completado').catch(() => toast.error('No se pudo guardar'))
-
-  const alMover = (c: Compromiso) =>
-    moverUnaSemana(c)
-      .then(() => toast.success('Movido a la próxima semana'))
-      .catch(() => toast.error('No se pudo mover'))
-
-  const alDiscutir = (c: Compromiso) =>
-    llevarAMinuta(c)
-      .then(() => toast.success('Agregado a la minuta para conversarlo'))
-      .catch(() => toast.error('No se pudo agregar a la minuta'))
-
-  const alGuardarComentario = (c: Compromiso, next: string) => {
-    if (!c.temaId) return
-    guardarComentario(c.temaId, next).catch(() => toast.error('No se pudo guardar el comentario'))
+  const acciones: AccionesCompromiso = {
+    conduce,
+    alMarcar: (c) =>
+      marcar(c.id, c.status !== 'completado').catch(() => toast.error('No se pudo guardar')),
+    alMover: (c) =>
+      moverUnaSemana(c)
+        .then(() => toast.success('Movido a la próxima semana'))
+        .catch(() => toast.error('No se pudo mover')),
+    alDiscutir: (c) =>
+      llevarAMinuta(c)
+        .then(() => toast.success('Agregado a la minuta para conversarlo'))
+        .catch(() => toast.error('No se pudo agregar a la minuta')),
+    alGuardarComentario: (c: Compromiso, next: string) => {
+      if (!c.temaId) return
+      guardarComentario(c.temaId, next).catch(() => toast.error('No se pudo guardar el comentario'))
+    },
   }
 
   return (
     <div className="flex flex-col h-full">
-      {/* Cabecera: semana + cumplimiento */}
-      <div className="flex-shrink-0 border-b border-border bg-panel px-3 sm:px-4 py-3">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          {verVencidos ? (
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                onClick={() => setVerVencidos(false)}
-                className="px-2 py-1 rounded-md text-xs text-fg-faint hover:text-fg-body hover:bg-surface-2 transition-colors"
-              >
-                ← Volver a la semana
-              </button>
-              <h2 className="text-sm font-semibold text-fg-body">
-                Compromisos vencidos sin cerrar
-              </h2>
-              <span className="text-xs text-fg-faint">
-                {totalVencidos} en total, de cualquier semana
+      <PageHeader
+        title={verVencidos ? 'Vencidos sin cerrar' : 'Compromisos'}
+        meta={verVencidos ? `${totalVencidos} en total, de cualquier semana` : undefined}
+        leading={
+          verVencidos ? (
+            <IconButton
+              icon="arrowLeft"
+              label="Volver a la semana"
+              onClick={() => setVerVencidos(false)}
+            />
+          ) : undefined
+        }
+        actions={
+          <>
+            {conduce && !verVencidos && resumen.total > 0 && (
+              <Button size="sm" variant="secondary" onClick={() => setCerrando(true)}>
+                Cerrar semana
+              </Button>
+            )}
+            <IconButton icon="refresh" label="Actualizar" onClick={reload} />
+          </>
+        }
+      >
+        {!verVencidos && (
+          // Una sola linea de resumen (idea 10): semana, %, cuantos, y lo que lleva mas de dos
+          // semanas. Antes era un bloque de tres filas con barra a todo el ancho.
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+            <div className="inline-flex items-center">
+              <IconButton
+                icon="chevronLeft"
+                size="xs"
+                label="Semana anterior"
+                onClick={() => setOffset(offset - 1)}
+              />
+              <span className="px-1 text-fg-body whitespace-nowrap tabular-nums" title={etiqueta}>
+                Semana {semanaISO(desde)} · {rangoCorto(desde, hasta)}
               </span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-semibold text-fg-body">Compromisos</h2>
-              <div className="inline-flex items-center rounded-lg bg-surface p-0.5">
-                <button
-                  onClick={() => setOffset(offset - 1)}
-                  className="px-2 py-1 rounded-md text-fg-faint hover:text-fg-body hover:bg-surface-2 transition-colors"
-                  aria-label="Semana anterior"
-                >
-                  ‹
-                </button>
-                <span className="px-2 text-xs text-fg-muted whitespace-nowrap">{etiqueta}</span>
-                <button
-                  onClick={() => setOffset(offset + 1)}
-                  className="px-2 py-1 rounded-md text-fg-faint hover:text-fg-body hover:bg-surface-2 transition-colors"
-                  aria-label="Semana siguiente"
-                >
-                  ›
-                </button>
-              </div>
+              <IconButton
+                icon="chevronRight"
+                size="xs"
+                label="Semana siguiente"
+                onClick={() => setOffset(offset + 1)}
+              />
               {!esSemanaActual && (
-                <button
-                  onClick={() => setOffset(0)}
-                  className="text-[11px] text-indigo-400 hover:text-indigo-300 underline"
-                >
-                  Volver a esta semana
-                </button>
+                <Button size="xs" variant="ghost" onClick={() => setOffset(0)}>
+                  Esta semana
+                </Button>
               )}
             </div>
-          )}
-
-          {!verVencidos && resumen.total > 0 && (
-            <div className="flex items-baseline gap-2">
-              <span
-                className={`text-2xl font-semibold tabular-nums ${colorDe(resumen.porcentaje)}`}
-              >
-                {resumen.porcentaje}%
-              </span>
-              <span className="text-xs text-fg-faint">
-                {resumen.cumplidos} de {resumen.total} cumplidos
-              </span>
-              <span className="text-[10px] text-slate-600">meta {resumen.meta}%</span>
-            </div>
-          )}
-        </div>
-
-        {!verVencidos && resumen.total > 0 && (
-          <div className="mt-2 h-1 w-full rounded-full bg-surface overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all ${barraDe(resumen.porcentaje)}`}
-              style={{ width: `${resumen.porcentaje}%` }}
-            />
-          </div>
-        )}
-
-        <div className="mt-2 flex items-center gap-3 flex-wrap">
-          {/* Siempre visible y con el numero adelante: aunque nadie lo apriete, el equipo ve
-              cuanto quedo atras. Si no hay nada, se muestra tranquilo en vez de desaparecer,
-              para que se note que esta al dia y no que el boton se fue. */}
-          {!verVencidos &&
-            !loading &&
-            (totalVencidos > 0 ? (
-              <button
-                onClick={() => {
-                  setVerVencidos(true)
-                  setVista('persona')
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-500/50 bg-red-500/15 text-xs font-semibold text-red-400 hover:bg-red-500/25 transition-colors"
-              >
-                ⚠ Ver {totalVencidos} compromiso{totalVencidos === 1 ? '' : 's'} vencido
-                {totalVencidos === 1 ? '' : 's'} sin cerrar
-              </button>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs text-emerald-500">
-                ✓ Sin compromisos vencidos
-              </span>
-            ))}
-          {lista.length > 1 && (
-            <button
-              onClick={() => setAbiertos(todoAbierto ? new Set() : new Set(lista.map((g) => g.id)))}
-              className="text-[11px] text-slate-500 hover:text-fg-muted"
-            >
-              {todoAbierto ? 'Contraer todo' : 'Expandir todo'}
-            </button>
-          )}
-          {/* Solo aparece si el equipo tiene grupos de trabajo con gente asignada. */}
-          {!verVencidos && porGrupo.length > 0 && (
-            <div className="inline-flex items-center rounded-lg bg-surface p-0.5 text-[11px]">
-              <button
-                onClick={() => setVista('persona')}
-                className={`px-2 py-1 rounded-md transition-colors ${
-                  vista === 'persona'
-                    ? 'bg-surface-2 text-fg-body'
-                    : 'text-fg-faint hover:text-fg-muted'
-                }`}
-              >
-                Por persona
-              </button>
-              <button
-                onClick={() => setVista('grupo')}
-                className={`px-2 py-1 rounded-md transition-colors ${
-                  vista === 'grupo'
-                    ? 'bg-surface-2 text-fg-body'
-                    : 'text-fg-faint hover:text-fg-muted'
-                }`}
-              >
-                Por grupo
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-3">
-        {loading ? (
-          <SkeletonRows />
-        ) : verVencidos && lista.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <p className="text-sm text-fg-faint">No hay compromisos vencidos sin cerrar</p>
-            <p className="text-xs text-slate-600 mt-1">Todo lo comprometido está al día.</p>
-          </div>
-        ) : lista.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <p className="text-sm text-fg-faint">No hay compromisos para esta semana</p>
-            {/* Importante ser preciso: puede haber actividades del equipo esa semana y aun
-                asi no haber compromisos. Solo cuenta lo que se asigno desde la minuta. */}
-            <p className="text-xs text-slate-600 mt-1 max-w-sm leading-snug">
-              Aquí solo aparece lo asignado desde la minuta con entrega entre el {etiqueta}. Las
-              actividades creadas por el chat o el listado no son compromisos del equipo.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {!verVencidos && vista === 'grupo' && porGrupo.length > 0
-              ? porGrupo.map((grupo) => {
-                  const grupoAbierto = gruposAbiertos.has(grupo.id ?? 'sin-grupo')
-                  const totalGrupo = grupo.personas.reduce((s, p) => s + p.total, 0)
-                  const cumplidosGrupo = grupo.personas.reduce((s, p) => s + p.cumplidos, 0)
-                  const pctGrupo = totalGrupo
-                    ? Math.round((cumplidosGrupo / totalGrupo) * 100)
-                    : null
-                  return (
-                    <div key={grupo.id ?? 'sin-grupo'} className="space-y-2">
-                      <button
-                        onClick={() => alternarGrupo(grupo.id ?? 'sin-grupo')}
-                        aria-expanded={grupoAbierto}
-                        className="w-full flex items-center gap-2 text-left"
-                      >
-                        <svg
-                          className={`w-3 h-3 text-slate-500 flex-shrink-0 transition-transform ${
-                            grupoAbierto ? 'rotate-90' : ''
-                          }`}
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                        >
-                          <path d="M7 5l6 5-6 5V5z" />
-                        </svg>
-                        <span className="text-xs font-semibold text-fg-body">{grupo.nombre}</span>
-                        <span className="text-[11px] text-slate-500">
-                          {grupo.personas.length} persona{grupo.personas.length === 1 ? '' : 's'}
-                        </span>
-                        {pctGrupo !== null && (
-                          <span className={`text-[11px] font-medium ${colorDe(pctGrupo)}`}>
-                            {pctGrupo}%
-                          </span>
-                        )}
-                      </button>
-                      {grupoAbierto && (
-                        <div className="space-y-3 pl-1">
-                          {grupo.personas.map((g) => (
-                            <PersonaCard
-                              key={g.id}
-                              g={g}
-                              abierta={estaAbierto(g.id)}
-                              soloUno={soloUno}
-                              onToggle={() => alternar(g.id)}
-                              conduce={conduce}
-                              colorDe={colorDe}
-                              barraDe={barraDe}
-                              alMarcar={alMarcar}
-                              alMover={alMover}
-                              alDiscutir={alDiscutir}
-                              alGuardarComentario={alGuardarComentario}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })
-              : lista.map((g) => (
-                  <PersonaCard
-                    key={g.id}
-                    g={g}
-                    abierta={estaAbierto(g.id)}
-                    soloUno={soloUno}
-                    onToggle={() => alternar(g.id)}
-                    soloVencidos={verVencidos}
-                    conduce={conduce}
-                    colorDe={colorDe}
-                    barraDe={barraDe}
-                    alMarcar={alMarcar}
-                    alMover={alMover}
-                    alDiscutir={alDiscutir}
-                    alGuardarComentario={alGuardarComentario}
+            {resumen.total > 0 && (
+              <>
+                <span className="inline-flex items-baseline gap-1.5">
+                  <span className="text-2xl font-semibold text-fg tabular-nums">
+                    {resumen.porcentaje}%
+                  </span>
+                  <span className="text-fg-muted">cumplido · meta {resumen.meta}%</span>
+                  <ProgressBar
+                    value={resumen.porcentaje ?? 0}
+                    tone={tonoAvance(resumen.porcentaje, resumen.meta)}
+                    className="w-20 self-center ml-1"
+                    label="Cumplimiento de la semana"
                   />
-                ))}
-
-            <button
-              onClick={reload}
-              className="w-full text-[11px] text-slate-600 hover:text-fg-faint py-2"
-            >
-              Actualizar
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-/** Una persona plegable con sus compromisos: el mismo bloque, se use plano (por persona) o
- *  anidado dentro de un grupo (por grupo). */
-function PersonaCard({
-  g,
-  abierta,
-  soloUno,
-  onToggle,
-  soloVencidos = false,
-  conduce,
-  colorDe,
-  barraDe,
-  alMarcar,
-  alMover,
-  alDiscutir,
-  alGuardarComentario,
-}: {
-  g: GrupoPersona
-  abierta: boolean
-  soloUno: boolean
-  onToggle: () => void
-  /** Lista de vencidos sin cerrar: el % de la persona seria siempre 0, asi que no se muestra. */
-  soloVencidos?: boolean
-  conduce: boolean
-  colorDe: (pct: number | null) => string
-  barraDe: (pct: number | null) => string
-  alMarcar: (c: Compromiso) => void
-  alMover: (c: Compromiso) => void
-  alDiscutir: (c: Compromiso) => void
-  alGuardarComentario: (c: Compromiso, next: string) => void
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-surface-soft/60">
-      {/* Cabecera plegable: el resumen de la persona, con la misma lectura que el general de
-          arriba. De un vistazo se ve quien va bien sin abrir nada. */}
-      <button
-        onClick={onToggle}
-        aria-expanded={abierta}
-        disabled={soloUno}
-        className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left rounded-xl transition-colors ${
-          soloUno ? '' : 'hover:bg-surface-2/50'
-        } ${abierta ? 'border-b border-border rounded-b-none' : ''}`}
-      >
-        {!soloUno && (
-          <svg
-            className={`w-3 h-3 text-slate-500 flex-shrink-0 transition-transform ${
-              abierta ? 'rotate-90' : ''
-            }`}
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path d="M7 5l6 5-6 5V5z" />
-          </svg>
-        )}
-        <Avatar name={g.nombre} src={g.avatar} size="sm" />
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-fg-body truncate">{g.nombre}</span>
-            {g.vencidos > 0 && (
-              <span className="text-[10px] text-red-400 whitespace-nowrap">
-                {g.vencidos} vencida{g.vencidos === 1 ? '' : 's'}
+                </span>
+                <span className="text-fg-muted tabular-nums">
+                  {resumen.cumplidos} de {resumen.total}
+                </span>
+              </>
+            )}
+            {masDeDosSemanas > 0 && (
+              <span className="text-danger">
+                {masDeDosSemanas} abierto{masDeDosSemanas === 1 ? '' : 's'} hace más de 2 semanas
               </span>
             )}
           </div>
-          {!soloVencidos && (
-            <div className="mt-1 h-1 w-full max-w-[180px] rounded-full bg-surface overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${barraDe(g.porcentaje)}`}
-                style={{ width: `${g.porcentaje ?? 0}%` }}
-              />
-            </div>
-          )}
-        </div>
-
-        {!soloVencidos && (
-          <div className="flex items-baseline gap-1.5 flex-shrink-0">
-            <span className={`text-base font-semibold tabular-nums ${colorDe(g.porcentaje)}`}>
-              {g.porcentaje}%
-            </span>
-            <span className="text-[11px] tabular-nums text-slate-500">
-              {g.cumplidos}/{g.total}
-            </span>
-          </div>
         )}
-      </button>
+      </PageHeader>
 
-      <ul className={`divide-y divide-slate-800/60 ${abierta ? '' : 'hidden'}`}>
-        {g.compromisos.map((c) => {
-          const hecha = c.status === 'completado'
-          return (
-            <li
-              key={c.id}
-              className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-3 px-3 py-2.5"
+      <div className="shrink-0 flex flex-wrap items-center gap-2 px-3 sm:px-5 py-2 border-b border-border bg-panel">
+        {/* Siempre visible y con el numero adelante: aunque nadie lo apriete, el equipo ve
+            cuanto quedo atras. Si no hay nada, lo dice tranquilo en vez de desaparecer. */}
+        {!verVencidos &&
+          !loading &&
+          (totalVencidos > 0 ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon="alert"
+              className="text-danger hover:text-danger"
+              onClick={() => {
+                setVerVencidos(true)
+                setVista('persona')
+              }}
             >
-              <div className="flex items-start gap-3 flex-1 min-w-0">
-                {/* Casilla grande: el gesto principal de la reunion */}
-                <button
-                  onClick={() => alMarcar(c)}
-                  aria-label={hecha ? 'Marcar como no hecha' : 'Marcar como hecha'}
-                  className={`mt-0.5 w-5 h-5 rounded-md border flex-shrink-0 flex items-center justify-center transition-colors ${
-                    hecha
-                      ? 'bg-emerald-500 border-emerald-500 text-white'
-                      : 'border-slate-600 hover:border-emerald-500 hover:bg-emerald-500/10'
-                  }`}
-                >
-                  {hecha && (
-                    <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
-                      <path
-                        fillRule="evenodd"
-                        d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 111.4-1.4l3.8 3.8 6.8-6.8a1 1 0 011.4 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  )}
-                </button>
+              Ver {totalVencidos} compromiso{totalVencidos === 1 ? '' : 's'} vencido
+              {totalVencidos === 1 ? '' : 's'} sin cerrar
+            </Button>
+          ) : (
+            <span className="text-xs text-fg-faint">Sin compromisos vencidos</span>
+          ))}
+        <div className="flex-1" />
+        {!verVencidos && porGrupo.length > 0 && (
+          <SegmentedControl
+            label="Agrupar"
+            value={vista}
+            onChange={setVista}
+            options={[
+              { value: 'persona', label: 'Por persona' },
+              { value: 'grupo', label: 'Por grupo' },
+            ]}
+          />
+        )}
+        {lista.length > 1 && (
+          <Button size="sm" variant="ghost" onClick={expandirTodo}>
+            {todoAbierto ? 'Contraer todo' : 'Expandir todo'}
+          </Button>
+        )}
+      </div>
 
-                <div className="min-w-0 flex-1">
-                  <p
-                    className={`text-xs leading-snug ${
-                      hecha ? 'text-slate-500 light:text-slate-400 line-through' : 'text-fg-body'
-                    }`}
-                  >
-                    {c.title}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2 mt-1 text-[10px]">
-                    <span className="text-slate-500">{formatDateLocal(c.due_date)}</span>
-                    {/* Se marca cuando NO es un tema suelto de minuta (el caso comun, sin
-                      etiqueta): subtema de minuta, o actividad de la hoja Proyectos. */}
-                    {c.origen === 'subtema' && (
-                      <span className="text-amber-400" title="Compromiso de un subtema de minuta">
-                        📁 {c.origenProyecto}
-                      </span>
-                    )}
-                    {c.origen === 'proyecto' && (
-                      <span className="text-sky-400" title="Compromiso de un proyecto">
-                        🗂 Proyecto: {c.origenProyecto}
-                      </span>
-                    )}
-                    {/* Cuantas veces se movio la fecha (migracion 035, trigger en la base). Un
-                      compromiso movido varias veces no es un atraso mas: es señal de que hay
-                      otra conversacion pendiente. */}
-                    {(c.plazo_change_count ?? 0) > 0 && (
-                      <span
-                        className="text-amber-400"
-                        title="Veces que se movio la fecha de entrega desde que se creo"
-                      >
-                        movida {c.plazo_change_count}x
-                      </span>
-                    )}
-                    {hecha && c.aTiempo && <span className="text-emerald-500">a tiempo</span>}
-                    {hecha && !c.aTiempo && <span className="text-amber-500">fuera de plazo</span>}
-                    {!hecha && c.diasVencida > 0 && (
-                      <span className="text-red-400">
-                        vencida hace {c.diasVencida} día{c.diasVencida === 1 ? '' : 's'}
-                      </span>
-                    )}
-                    {/* Regla de EOS: nada deberia quedar mas de dos semanas dando vueltas. Lo
-                      que pasa ese limite es lo primero que hay que conversar. */}
-                    {!hecha && c.diasVencida > 14 && (
-                      <span
-                        className="px-1.5 py-px rounded-full bg-red-500/20 text-red-400 font-semibold"
-                        title="Lleva más de dos semanas vencido: conviene conversarlo en la minuta"
-                      >
-                        +2 semanas
-                      </span>
-                    )}
+      <div className="flex-1 min-h-0 overflow-auto bg-panel">
+        {loading ? (
+          <div className="p-3 sm:px-5">
+            <SkeletonRows />
+          </div>
+        ) : verVencidos && lista.length === 0 ? (
+          <EmptyState
+            icon="check"
+            title="No hay compromisos vencidos sin cerrar"
+            description="Todo lo comprometido está al día."
+          />
+        ) : lista.length === 0 ? (
+          // Importante ser preciso: puede haber actividades del equipo esa semana y aun asi no
+          // haber compromisos. Solo cuenta lo que se asigno desde la minuta o un proyecto.
+          <EmptyState
+            icon="calendar"
+            title="No hay compromisos para esta semana"
+            description={`Aquí solo aparece lo asignado desde la minuta o un proyecto con entrega entre el ${etiqueta}. Las actividades creadas por el chat o el listado no son compromisos del equipo.`}
+          />
+        ) : (
+          <CompromisosTabla
+            personas={lista}
+            grupos={porGrupoActivo ? porGrupo : null}
+            soloVencidos={verVencidos}
+            meta={resumen.meta}
+            estaAbierta={estaAbierta}
+            alternar={alternar}
+            grupoAbierto={(id) => gruposAbiertos.has(id)}
+            alternarGrupo={alternarGrupo}
+            plegable={!soloUno}
+            acciones={acciones}
+          />
+        )}
+      </div>
 
-                    {/* Solo en lo no cumplido, y solo para quien conduce: arrastrar o discutir. */}
-                    {!hecha && conduce && (
-                      <>
-                        <button
-                          onClick={() => alMover(c)}
-                          className="text-slate-500 hover:text-fg-muted underline"
-                        >
-                          mover 1 semana
-                        </button>
-                        {/* Una vez escalado, la fila lo dice y el boton desaparece. Antes no
-                          cambiaba nada al apretarlo y se creaban temas repetidos. */}
-                        {c.enMinuta ? (
-                          <span
-                            className="text-amber-400"
-                            title="Queda para conversar en la minuta"
-                          >
-                            ↑ en minuta
-                          </span>
-                        ) : (
-                          <button
-                            onClick={() => alDiscutir(c)}
-                            className="text-slate-500 hover:text-amber-400 underline"
-                            title="Si hay un bloqueo de fondo, va a la minuta para conversarlo"
-                          >
-                            llevar a minuta
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-              {/* Comentarios: antes no se mostraban en esta hoja en absoluto (a pedido de
-                Sebastian se agrega, editable solo para quien conduce). Al costado en pantallas
-                grandes (con un divisor sutil), abajo en mobile -no entra al lado en un celular
-                angosto-. Se oculta si esta vacio y nadie puede editarlo, para no ensuciar la
-                vista rapida de la reunion cuando no hay nada que decir.
-                Textarea SIEMPRE editable (no lapiz): Sebastian reporto que el toque-y-agranda
-                de EditableText (pasa a 16px al entrar en modo edicion, para evitar el zoom
-                automatico de iOS) se sentia como un salto raro. Manteniendo el mismo tamaño
-                SIEMPRE (nunca cambia entre ver y editar) no hay salto que notar. */}
-              {!!c.temaId && (conduce || c.comentariosTema) && (
-                <div className="pl-8 sm:pl-3 sm:border-l sm:border-border sm:w-1/2 sm:flex-shrink-0">
-                  <ComentarioLibre
-                    value={c.comentariosTema}
-                    canEdit={conduce}
-                    onSave={(next) => alGuardarComentario(c, next)}
-                  />
-                </div>
-              )}
-            </li>
-          )
-        })}
-      </ul>
+      {cerrando && (
+        <CerrarSemanaModal
+          open
+          onClose={() => setCerrando(false)}
+          etiqueta={`Semana ${semanaISO(desde)} · ${rangoCorto(desde, hasta)}`}
+          abiertos={abiertosSemana}
+          porcentaje={resumen.porcentaje}
+          cumplidos={resumen.cumplidos}
+          total={resumen.total}
+          moverUnaSemana={moverUnaSemana}
+          llevarAMinuta={llevarAMinuta}
+          onListo={reload}
+        />
+      )}
     </div>
   )
 }

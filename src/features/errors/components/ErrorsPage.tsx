@@ -1,13 +1,24 @@
 import { Badge } from '@shared/components/ui/Badge'
 import { Button } from '@shared/components/ui/Button'
 import { EditableText } from '@shared/components/ui/EditableText'
-import { useErrors, errorStatusLabels } from '@features/errors/hooks/useErrors'
+import { PageHeader } from '@shared/components/ui/PageHeader'
+import { FilterBar, FilterSpacer, SearchInput } from '@shared/components/ui/FilterBar'
+import { SegmentedControl } from '@shared/components/ui/SegmentedControl'
+import { Select } from '@shared/components/ui/Input'
+import { EmptyState } from '@shared/components/ui/EmptyState'
+import { SkeletonRows } from '@shared/components/ui/Skeleton'
+import { useErrors } from '@features/errors/hooks/useErrors'
+import { ErrorStatusSelect } from '@features/errors/components/ErrorStatusSelect'
 import { useCapabilities } from '@core/auth/hooks/useCapabilities'
 import { exportToCSV } from '@shared/utils/export'
-import { formatDateLocal } from '@shared/utils/date'
-import type { ErrorStatus } from '@shared/types'
+import { formatDateLocal, parseDateLocal } from '@shared/utils/date'
+import { ERROR_SEVERITY, ERROR_STATUS } from '@shared/utils/estados'
+import { cx } from '@shared/utils/cx'
+import type { AppError, ErrorSeverity, ErrorStatus } from '@shared/types'
 
-const statusFilters: { value: ErrorStatus | 'todas' | 'activos'; label: string }[] = [
+type Filtro = ErrorStatus | 'todas' | 'activos'
+
+const statusFilters: { value: Filtro; label: string }[] = [
   { value: 'todas', label: 'Todos' },
   { value: 'activos', label: 'Activos' },
   { value: 'abierto', label: 'Abiertos' },
@@ -16,20 +27,49 @@ const statusFilters: { value: ErrorStatus | 'todas' | 'activos'; label: string }
   { value: 'cerrado', label: 'Cerrados' },
 ]
 
-// Estado como "pill" coloreada y clickeable -un solo control que ES el estado, en vez de un
-// badge de solo lectura + una columna de botones aparte. Mismo patron que Linear/Jira: la
-// pastilla coloreada abre directo las opciones, sin un control separado para cambiarla.
-const statusPillClasses: Record<ErrorStatus, string> = {
-  abierto: 'bg-red-600/20 text-red-400',
-  en_revision: 'bg-amber-600/20 text-amber-400',
-  resuelto: 'bg-emerald-600/20 text-emerald-400',
-  cerrado: 'bg-slate-600/30 text-slate-400',
+// Severidad como franja delgada a la izquierda de la fila (idea 22): se ve de un vistazo en
+// la lista sin agregar otra columna de color. Baja no lleva franja: es el caso normal.
+const SEVERITY_STRIPE: Record<ErrorSeverity, string> = {
+  critica: 'bg-danger',
+  alta: 'bg-danger',
+  media: 'bg-warning',
+  baja: '',
 }
 
-// Pantalla simplificada a pedido de Sebastian: todo en pantalla, sin modal, columnas exactas
-// (Transaccion o query / Comentario / Quien lo levanto / Fecha de creacion / Estado / Fecha de
-// cierre) -mismo espiritu que Ingesta. Severidad y "Responsable" por area quedaron fuera de
-// esta vista (las columnas siguen en la base, sin usarse aca).
+const SEVERITY_TEXT: Record<ErrorSeverity, string> = {
+  critica: 'text-danger font-medium',
+  alta: 'text-danger',
+  media: 'text-warning',
+  baja: 'text-fg-faint',
+}
+
+const DIA = 86400000
+
+/**
+ * Cuanto lleva abierto. Mientras siga activo cuenta hasta hoy ("hace 12 d"); ya resuelto o
+ * cerrado, muestra cuanto duro abierto. Es la traza que mas se pregunta en la reunion.
+ */
+function antiguedad(e: AppError): { text: string; className: string } {
+  const inicio = parseDateLocal(e.date).getTime()
+  if (e.status === 'resuelto' || e.status === 'cerrado') {
+    const fin = e.closed_at ?? e.resolved_at
+    if (!fin) return { text: '—', className: 'text-fg-faint' }
+    const d = Math.max(0, Math.round((parseDateLocal(fin).getTime() - inicio) / DIA))
+    return { text: `${d} d abierto`, className: 'text-fg-faint' }
+  }
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+  const d = Math.max(0, Math.round((hoy.getTime() - inicio) / DIA))
+  return {
+    text: d === 0 ? 'hoy' : `hace ${d} d`,
+    className: d >= 14 ? 'text-warning font-medium' : 'text-fg-muted',
+  }
+}
+
+// Columnas exactas pedidas por Sebastian (Transaccion o query / Comentario / Quien lo levanto
+// / Fecha de creacion / Estado / Fecha de cierre), todo en pantalla y sin modal, mismo
+// espiritu que Ingesta. Se suman solo la severidad como franja y "Abierto hace" (idea 22).
+// "Responsable" por area sigue en la base, sin usarse aca.
 export function ErrorsPage() {
   const {
     errors,
@@ -54,256 +94,273 @@ export function ErrorsPage() {
   const { canManageErrors } = useCapabilities()
 
   const memberName = (id: string) => members.find((m) => m.id === id)?.full_name || 'Desconocido'
+  // La bitacora esta vacia de verdad (y no solo por los filtros): cambia el mensaje del vacio.
+  // El rango de fechas solo filtra cuando estan las dos puntas (ver useErrors).
+  const bitacoraVacia = counts.todas === 0 && !search.trim() && !(dateFrom && dateTo)
+
+  const exportar = () =>
+    exportToCSV(
+      errors.map((e) => ({
+        'Transacción o query': e.title,
+        Comentario: e.description,
+        Severidad: ERROR_SEVERITY[e.severity]?.label ?? e.severity,
+        'Quién lo levantó': memberName(e.created_by),
+        'Fecha de creación': e.date,
+        Estado: ERROR_STATUS[e.status].label,
+        'Fecha de cierre': e.closed_at ? formatDateLocal(e.closed_at) : '-',
+      })),
+      'errores',
+    )
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 sm:px-4 h-12 sm:h-14 border-b border-border bg-panel flex-shrink-0">
-        <h2 className="text-sm font-semibold text-fg-body">Bitacora de Errores</h2>
-        {isInvitado && (
-          <Badge variant="info" className="text-[10px]">
-            Invitado
-          </Badge>
-        )}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() =>
-              exportToCSV(
-                errors.map((e) => ({
-                  'Transaccion o query': e.title,
-                  Comentario: e.description,
-                  'Quien lo levanto': memberName(e.created_by),
-                  'Fecha de creacion': e.date,
-                  Estado: errorStatusLabels[e.status],
-                  'Fecha de cierre': e.closed_at ? formatDateLocal(e.closed_at) : '-',
-                })),
-                'errores',
-              )
-            }
-            className="px-2 py-1 rounded text-[10px] text-fg-faint hover:text-emerald-400 hover:bg-surface transition-colors"
-            title="Exportar a Excel"
-          >
-            <svg
-              className="w-3.5 h-3.5 inline mr-1"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+    <div className="flex flex-col h-full bg-shell">
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-2">
+            Bitácora de errores
+            {isInvitado && <Badge variant="info">Invitado</Badge>}
+          </span>
+        }
+        meta={`${counts.todas} en total`}
+        actions={
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              icon="download"
+              onClick={exportar}
+              disabled={errors.length === 0}
+              title="Exportar a Excel"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            Excel
-          </button>
-          {canManageErrors && (
-            <Button size="sm" onClick={() => createError('')}>
-              + Nuevo error
+              <span className="hidden sm:inline">Exportar</span>
+            </Button>
+            {canManageErrors && (
+              <Button size="sm" icon="plus" onClick={() => createError('')}>
+                Nuevo error
+              </Button>
+            )}
+          </>
+        }
+      />
+
+      <FilterBar>
+        <div className="max-w-full overflow-x-auto">
+          <SegmentedControl
+            label="Filtrar por estado"
+            value={filterStatus}
+            onChange={setFilterStatus}
+            options={statusFilters.map((f) => ({ ...f, count: counts[f.value] }))}
+          />
+        </div>
+        <FilterSpacer />
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Select
+            size="sm"
+            aria-label="Tipo de fecha"
+            value={dateType}
+            onChange={(e) => setDateType(e.target.value as typeof dateType)}
+            className="w-32"
+          >
+            <option value="reportadas">Reportadas</option>
+            <option value="cerradas">Cerradas</option>
+          </Select>
+          <DateInput label="Desde" value={dateFrom} onChange={setDateFrom} />
+          <DateInput label="Hasta" value={dateTo} onChange={setDateTo} />
+          {(dateFrom || dateTo) && (
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => {
+                setDateFrom('')
+                setDateTo('')
+              }}
+            >
+              Limpiar
             </Button>
           )}
-          <span className="text-xs text-slate-500">{counts.todas} total</span>
         </div>
-      </div>
+        <FilterSpacer grow />
+        <SearchInput value={search} onChange={setSearch} placeholder="Buscar error…" />
+      </FilterBar>
 
-      {/* Filters */}
-      <div className="flex gap-1 px-2 sm:px-4 pt-2 border-b-0 bg-surface-soft/50 overflow-x-auto flex-shrink-0 flex-nowrap">
-        {statusFilters.map((f) => (
-          <button
-            key={f.value}
-            onClick={() => setFilterStatus(f.value)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-              filterStatus === f.value
-                ? 'bg-indigo-600/20 text-indigo-400'
-                : 'text-fg-faint hover:text-fg-body hover:bg-surface'
-            }`}
-          >
-            {f.label}
-            <span className="ml-1.5 text-slate-600">{counts[f.value]}</span>
-          </button>
-        ))}
-      </div>
-      <div className="flex items-center gap-1 px-2 sm:px-4 pb-2 border-b border-border bg-surface-soft/50 overflow-x-auto flex-nowrap flex-shrink-0">
-        <select
-          value={dateType}
-          onChange={(e) => setDateType(e.target.value as typeof dateType)}
-          className="px-2 py-1.5 rounded-lg text-xs bg-surface border border-border-strong text-fg-muted focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-        >
-          <option value="reportadas">Reportadas</option>
-          <option value="cerradas">Cerradas</option>
-        </select>
-        <input
-          type="date"
-          value={dateFrom}
-          onChange={(e) => setDateFrom(e.target.value)}
-          className="px-2 py-1.5 rounded-lg text-xs bg-surface border border-border-strong text-fg-muted focus:outline-none focus:ring-1 focus:ring-indigo-500/50 w-[120px]"
-        />
-        <input
-          type="date"
-          value={dateTo}
-          onChange={(e) => setDateTo(e.target.value)}
-          className="px-2 py-1.5 rounded-lg text-xs bg-surface border border-border-strong text-fg-muted focus:outline-none focus:ring-1 focus:ring-indigo-500/50 w-[120px]"
-        />
-        {(dateFrom || dateTo) && (
-          <button
-            onClick={() => {
-              setDateFrom('')
-              setDateTo('')
-            }}
-            className="px-2 py-1.5 rounded-lg text-xs text-fg-faint hover:text-fg-body hover:bg-surface"
-          >
-            Limpiar
-          </button>
-        )}
-        <div className="flex-1" />
-        <div className="relative min-w-[160px] max-w-xs w-full sm:w-auto">
-          <svg
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"
-            />
-          </svg>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar error..."
-            className="w-full rounded-lg bg-surface border border-border-strong pl-8 pr-7 py-1.5 text-base sm:text-xs text-fg-body placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch('')}
-              aria-label="Limpiar busqueda"
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-fg-muted text-sm"
-            >
-              ×
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Tabla editable inline (sin modal, mismo criterio que Ingesta) */}
-      <div className="flex-1 overflow-auto p-3 sm:p-4">
+      <div className="flex-1 overflow-auto">
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+          <div className="p-4">
+            <SkeletonRows />
           </div>
         ) : errors.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <svg
-              className="w-12 h-12 text-slate-700 mb-3"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1}
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <p className="text-sm text-fg-faint">No hay errores registrados</p>
-            {canManageErrors && (
-              <p className="text-xs text-slate-600 mt-1">Toca "+ Nuevo error" para empezar</p>
-            )}
-          </div>
+          <EmptyState
+            icon="bug"
+            title={bitacoraVacia ? 'No hay errores registrados' : 'Ningún error coincide'}
+            description={
+              bitacoraVacia
+                ? canManageErrors
+                  ? 'Registra el primero con “Nuevo error” o escribiéndolo en el chat.'
+                  : undefined
+                : 'Prueba con otro estado, otras fechas u otra búsqueda.'
+            }
+          />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-border-strong text-slate-500">
-                  <th className="text-left py-2 px-3 font-medium min-w-[160px]">
-                    Transaccion o query
-                  </th>
-                  <th className="text-left py-2 px-3 font-medium min-w-[180px]">Comentario</th>
-                  <th className="text-left py-2 px-3 font-medium hidden md:table-cell">
-                    Quien lo levanto
-                  </th>
-                  <th className="text-left py-2 px-3 font-medium hidden sm:table-cell">
-                    Fecha de creacion
-                  </th>
-                  <th className="text-left py-2 px-3 font-medium">Estado</th>
-                  <th className="text-left py-2 px-3 font-medium hidden sm:table-cell">
-                    Fecha de cierre
-                  </th>
+          <>
+            {/* Escritorio: tabla */}
+            <table className="hidden sm:table w-full text-sm">
+              <thead className="sticky top-0 z-10 bg-panel">
+                <tr className="border-b border-border text-xs text-fg-faint text-left">
+                  <th className="py-2 pl-5 pr-3 font-medium min-w-[180px]">Transacción o query</th>
+                  <th className="py-2 px-3 font-medium min-w-[200px]">Comentario</th>
+                  <th className="py-2 px-3 font-medium hidden lg:table-cell">Severidad</th>
+                  <th className="py-2 px-3 font-medium hidden md:table-cell">Quién lo levantó</th>
+                  <th className="py-2 px-3 font-medium whitespace-nowrap">Creado</th>
+                  <th className="py-2 px-3 font-medium whitespace-nowrap">Abierto hace</th>
+                  <th className="py-2 px-3 font-medium">Estado</th>
+                  <th className="py-2 pl-3 pr-5 font-medium whitespace-nowrap">Cierre</th>
                 </tr>
               </thead>
-              <tbody>
-                {errors.map((error) => (
-                  <tr
-                    key={error.id}
-                    className="border-b border-border hover:bg-surface/30 transition-colors align-top"
-                  >
-                    <td className="py-2.5 px-3">
-                      <EditableText
-                        value={error.title}
-                        canEdit={canManageErrors}
-                        onSave={(next) => updateField(error.id, { title: next })}
-                        textClassName="text-xs text-fg-body"
-                        preventEmpty
-                      />
-                    </td>
-                    <td className="py-2.5 px-3">
+              <tbody className="bg-panel">
+                {errors.map((error) => {
+                  const edad = antiguedad(error)
+                  const sev = ERROR_SEVERITY[error.severity]
+                  return (
+                    <tr
+                      key={error.id}
+                      className="border-b border-border hover:bg-surface transition-colors align-top"
+                    >
+                      <td className="relative py-2.5 pl-5 pr-3">
+                        <SeverityStripe severity={error.severity} />
+                        <EditableText
+                          value={error.title}
+                          canEdit={canManageErrors}
+                          onSave={(next) => updateField(error.id, { title: next })}
+                          textClassName="text-sm font-medium text-fg"
+                          preventEmpty
+                        />
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <EditableText
+                          value={error.description}
+                          canEdit={canManageErrors}
+                          onSave={(next) => updateField(error.id, { description: next })}
+                          placeholder="Descripción del error…"
+                          emptyLabel="Sin comentario"
+                          textClassName="text-sm text-fg-muted"
+                        />
+                      </td>
+                      <td
+                        className={cx(
+                          'py-2.5 px-3 hidden lg:table-cell text-xs',
+                          SEVERITY_TEXT[error.severity],
+                        )}
+                      >
+                        {sev?.label ?? error.severity}
+                      </td>
+                      <td className="py-2.5 px-3 hidden md:table-cell text-fg-muted whitespace-nowrap">
+                        {memberName(error.created_by)}
+                      </td>
+                      <td className="py-2.5 px-3 text-fg-muted whitespace-nowrap tabular-nums">
+                        {formatDateLocal(error.date, 'short')}
+                      </td>
+                      <td
+                        className={cx('py-2.5 px-3 whitespace-nowrap tabular-nums', edad.className)}
+                      >
+                        {edad.text}
+                      </td>
+                      <td className="py-2 px-3">
+                        <ErrorStatusSelect
+                          value={error.status}
+                          canEdit={canManageErrors}
+                          errorTitle={error.title}
+                          onChange={(s) => changeStatus(error.id, s)}
+                        />
+                      </td>
+                      <td className="py-2.5 pl-3 pr-5 text-fg-muted whitespace-nowrap tabular-nums">
+                        {error.closed_at ? formatDateLocal(error.closed_at, 'short') : '—'}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+
+            {/* Celular: lista de dos lineas (titulo y, debajo, estado + antiguedad + quien) */}
+            <ul className="sm:hidden bg-panel divide-y divide-border border-b border-border">
+              {errors.map((error) => {
+                const edad = antiguedad(error)
+                return (
+                  <li key={error.id} className="relative pl-4 pr-3 py-2.5 space-y-1">
+                    <SeverityStripe severity={error.severity} />
+                    <EditableText
+                      value={error.title}
+                      canEdit={canManageErrors}
+                      onSave={(next) => updateField(error.id, { title: next })}
+                      textClassName="text-sm font-medium text-fg"
+                      preventEmpty
+                    />
+                    {(error.description || canManageErrors) && (
                       <EditableText
                         value={error.description}
                         canEdit={canManageErrors}
                         onSave={(next) => updateField(error.id, { description: next })}
-                        placeholder="Descripcion del error..."
+                        placeholder="Descripción del error…"
                         emptyLabel="Sin comentario"
-                        textClassName="text-xs text-fg-muted"
+                        textClassName="text-sm text-fg-muted"
                       />
-                    </td>
-                    <td className="py-2.5 px-3 hidden md:table-cell text-fg-faint">
-                      {memberName(error.created_by)}
-                    </td>
-                    <td className="py-2.5 px-3 hidden sm:table-cell text-slate-500">
-                      {formatDateLocal(error.date, 'short')}
-                    </td>
-                    <td className="py-2.5 px-3">
-                      {canManageErrors ? (
-                        <select
-                          value={error.status}
-                          onChange={(e) => changeStatus(error.id, e.target.value as ErrorStatus)}
-                          className={`appearance-none rounded-full pl-3 pr-6 py-1 text-xs font-medium border-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/50 bg-[length:10px] bg-[right_8px_center] bg-no-repeat ${statusPillClasses[error.status]}`}
-                          style={{
-                            backgroundImage:
-                              "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 8l4 4 4-4'/%3E%3C/svg%3E\")",
-                          }}
-                        >
-                          {(['abierto', 'en_revision', 'resuelto', 'cerrado'] as ErrorStatus[]).map(
-                            (s) => (
-                              <option key={s} value={s} className="bg-surface text-fg-body">
-                                {errorStatusLabels[s]}
-                              </option>
-                            ),
-                          )}
-                        </select>
-                      ) : (
-                        <span
-                          className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${statusPillClasses[error.status]}`}
-                        >
-                          {errorStatusLabels[error.status]}
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-2.5 px-3 hidden sm:table-cell text-slate-500">
-                      {error.closed_at ? formatDateLocal(error.closed_at, 'short') : '-'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    )}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                      <ErrorStatusSelect
+                        value={error.status}
+                        canEdit={canManageErrors}
+                        errorTitle={error.title}
+                        onChange={(s) => changeStatus(error.id, s)}
+                      />
+                      <span className={edad.className}>{edad.text}</span>
+                      <span className="text-fg-faint truncate">{memberName(error.created_by)}</span>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          </>
         )}
       </div>
     </div>
+  )
+}
+
+function SeverityStripe({ severity }: { severity: ErrorSeverity }) {
+  const color = SEVERITY_STRIPE[severity]
+  const label = ERROR_SEVERITY[severity]?.label ?? severity
+  return (
+    <>
+      {color && (
+        <span
+          aria-hidden="true"
+          title={`Severidad ${label}`}
+          className={cx('absolute left-0 top-0 bottom-0 w-[3px]', color)}
+        />
+      )}
+      <span className="sr-only">Severidad {label}.</span>
+    </>
+  )
+}
+
+/** Fecha de filtro: input nativo compacto, a la altura de la barra de filtros. */
+function DateInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+}) {
+  return (
+    <input
+      type="date"
+      aria-label={label}
+      title={label}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="h-8 w-[132px] rounded-md border border-border-strong bg-field px-2 text-base sm:text-sm text-fg-body focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+    />
   )
 }

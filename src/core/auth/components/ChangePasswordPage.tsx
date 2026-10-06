@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@shared/components/ui/Button'
 import { Input } from '@shared/components/ui/Input'
 import { supabase } from '@infrastructure/supabase/client'
+import { AuthMessage, AuthShell } from './AuthShell'
 
 export function ChangePasswordPage() {
   const [password, setPassword] = useState('')
@@ -16,12 +17,12 @@ export function ChangePasswordPage() {
     setError('')
 
     if (password.length < 6) {
-      setError('La contrasena debe tener al menos 6 caracteres')
+      setError('La contraseña debe tener al menos 6 caracteres')
       return
     }
 
     if (password !== confirm) {
-      setError('Las contrasenas no coinciden')
+      setError('Las contraseñas no coinciden')
       return
     }
 
@@ -33,52 +34,41 @@ export function ChangePasswordPage() {
     setLoading(false)
 
     if (err) {
-      setError(err.message || 'Error al cambiar contrasena')
+      setError(err.message || 'Error al cambiar la contraseña')
       return
     }
 
     navigate('/chat', { replace: true })
   }
 
+  // El logo reemplaza al cuadrado ambar con "!": es un paso normal del primer ingreso, no
+  // una alerta.
   return (
-    <div className="min-h-dvh flex items-center justify-center bg-slate-950 p-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-xl bg-amber-600 flex items-center justify-center mx-auto mb-4">
-            <span className="text-white font-bold text-xl">!</span>
-          </div>
-          <h1 className="text-xl font-bold text-slate-100">Cambiar contrasena</h1>
-          <p className="text-sm text-slate-500 mt-1">Por seguridad, debes crear una nueva clave</p>
-        </div>
-
-        {error && (
-          <div className="mb-4 p-3 rounded-lg bg-red-900/30 border border-red-700/50 text-sm text-red-400">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            label="Nueva contrasena"
-            type="password"
-            placeholder="Minimo 6 caracteres"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-          <Input
-            label="Confirmar contrasena"
-            type="password"
-            placeholder="Repeti la contrasena"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            required
-          />
-          <Button type="submit" className="w-full" size="lg" disabled={loading}>
-            {loading ? 'Cambiando...' : 'Cambiar contrasena'}
-          </Button>
-        </form>
-      </div>
-    </div>
+    <AuthShell title="Cambiar contraseña" subtitle="Por seguridad, debes crear una nueva clave">
+      {error && <AuthMessage tone="error">{error}</AuthMessage>}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Input
+          label="Nueva contraseña"
+          type="password"
+          autoComplete="new-password"
+          placeholder="Mínimo 6 caracteres"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
+        <Input
+          label="Confirmar contraseña"
+          type="password"
+          autoComplete="new-password"
+          placeholder="Repite la contraseña"
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          required
+        />
+        <Button type="submit" className="w-full" size="lg" loading={loading}>
+          {loading ? 'Guardando…' : 'Cambiar contraseña'}
+        </Button>
+      </form>
+    </AuthShell>
   )
 }

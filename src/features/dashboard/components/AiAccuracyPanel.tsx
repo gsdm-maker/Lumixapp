@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Card } from '@shared/components/ui/Card'
+import { EmptyState } from '@shared/components/ui/EmptyState'
+import { LoadingState } from '@shared/components/ui/Spinner'
+import { cx } from '@shared/utils/cx'
 import { useAuth } from '@core/auth/hooks/useAuth'
 import { aiDecisionsService } from '@infrastructure/supabase/ai-decisions.service'
 
@@ -53,51 +55,49 @@ export function AiAccuracyPanel() {
     }
   }, [teamId])
 
-  if (rows === null) return null
+  if (rows === null) return <LoadingState />
   if (rows.length === 0) {
     return (
-      <Card padding="md">
-        <h3 className="text-sm font-semibold text-slate-200 mb-1">Precision de la IA</h3>
-        <p className="text-xs text-slate-500">
-          Sin clasificaciones registradas en los ultimos 30 dias.
-        </p>
-      </Card>
+      <EmptyState
+        icon="chart"
+        title="Sin clasificaciones"
+        description="No hay clasificaciones registradas en los últimos 30 días."
+      />
     )
   }
 
   return (
-    <Card padding="md">
-      <h3 className="text-sm font-semibold text-slate-200 mb-1">Precision de la IA</h3>
-      <p className="text-xs text-slate-500 mb-3">
-        Ultimos 30 dias. "Corregidas" = el usuario cambio la categoria o edito la actividad poco
-        despues de creada.
+    <section className="space-y-2">
+      <p className="text-xs text-fg-faint max-w-2xl">
+        Últimos 30 días. “Corregidas” = el usuario cambió la categoría o editó la actividad poco
+        después de creada.
       </p>
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="text-slate-500 text-left border-b border-border-strong/50">
-              <th className="pb-1.5 pr-3 font-medium">Categoria</th>
-              <th className="pb-1.5 pr-3 font-medium">Modelo</th>
-              <th className="pb-1.5 pr-3 font-medium text-right">Total</th>
-              <th className="pb-1.5 pr-3 font-medium text-right">Corregidas</th>
-              <th className="pb-1.5 font-medium text-right">% correccion</th>
+      <div className="overflow-x-auto rounded-lg border border-border bg-panel">
+        <table className="w-full text-sm">
+          <thead className="bg-surface-soft">
+            <tr className="text-xs text-fg-faint text-left border-b border-border">
+              <th className="py-2 px-4 font-medium">Categoría</th>
+              <th className="py-2 px-4 font-medium">Modelo</th>
+              <th className="py-2 px-4 font-medium text-right">Total</th>
+              <th className="py-2 px-4 font-medium text-right">Corregidas</th>
+              <th className="py-2 px-4 font-medium text-right">% corrección</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-border">
             {rows.map((r) => {
               const pct = r.total ? Math.round((r.corrected / r.total) * 100) : 0
               return (
-                <tr key={`${r.category}-${r.model}`} className="border-b border-border/60">
-                  <td className="py-1.5 pr-3 text-slate-200">
-                    {CATEGORY_LABELS[r.category] ?? r.category}
-                  </td>
-                  <td className="py-1.5 pr-3 text-slate-400">{r.model}</td>
-                  <td className="py-1.5 pr-3 text-right text-slate-300">{r.total}</td>
-                  <td className="py-1.5 pr-3 text-right text-slate-300">{r.corrected}</td>
+                <tr key={`${r.category}-${r.model}`}>
+                  <td className="py-2 px-4 text-fg">{CATEGORY_LABELS[r.category] ?? r.category}</td>
+                  <td className="py-2 px-4 text-fg-muted">{r.model}</td>
+                  <td className="py-2 px-4 text-right tabular-nums text-fg-body">{r.total}</td>
+                  <td className="py-2 px-4 text-right tabular-nums text-fg-body">{r.corrected}</td>
+                  {/* Color solo cuando la tasa es una alerta: 20% o mas es mucho corregir. */}
                   <td
-                    className={`py-1.5 text-right font-medium ${
-                      pct >= 20 ? 'text-red-400' : pct >= 8 ? 'text-amber-400' : 'text-emerald-400'
-                    }`}
+                    className={cx(
+                      'py-2 px-4 text-right tabular-nums font-medium',
+                      pct >= 20 ? 'text-danger' : pct >= 8 ? 'text-warning' : 'text-fg',
+                    )}
                   >
                     {pct}%
                   </td>
@@ -107,6 +107,6 @@ export function AiAccuracyPanel() {
           </tbody>
         </table>
       </div>
-    </Card>
+    </section>
   )
 }
