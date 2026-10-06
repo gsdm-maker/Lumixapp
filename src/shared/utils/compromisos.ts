@@ -37,6 +37,34 @@ export function compromisosEnVentana(
   })
 }
 
+/**
+ * Compromisos vencidos y no cerrados, de CUALQUIER semana: nacieron de un tema de minuta, su
+ * entrega ya paso (antes de hoy) y siguen sin completarse.
+ *
+ * Existe porque la ventana semanal de compromisosEnVentana los esconde: lo que vencia la
+ * semana pasada y nadie movio ni cumplio desaparecia de la semana actual, y solo se veia
+ * retrocediendo con ‹. Lo no cumplido se "perdia" solo y el % de la semana salia limpio.
+ *
+ * Mismo criterio de "vencido" que compromisoStats (dia de entrega < hoy, a medianoche), para
+ * que la pantalla y el chat cuenten igual. Orden: el mas antiguo primero.
+ */
+export function compromisosVencidosAbiertos(
+  activities: Activity[],
+  minuteItems: Pick<MinuteItem, 'linked_activity_ids'>[],
+): Activity[] {
+  const deMinuta = new Set(minuteItems.flatMap((t) => t.linked_activity_ids))
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+  return activities
+    .filter((a) => {
+      if (!deMinuta.has(a.id) || a.status === 'completado') return false
+      const vence = new Date(a.due_date)
+      vence.setHours(0, 0, 0, 0)
+      return vence < hoy
+    })
+    .sort((a, b) => a.due_date.localeCompare(b.due_date))
+}
+
 export interface CompromisoStats {
   total: number
   cumplidos: number

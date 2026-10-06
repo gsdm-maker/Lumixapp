@@ -36,7 +36,11 @@ import { minutesService } from '@infrastructure/supabase/minutes.service'
 import { teamsService, type GrupoTrabajo } from '@infrastructure/supabase/teams.service'
 import { useAuth } from '@core/auth/hooks/useAuth'
 import { useCapabilities } from '@core/auth/hooks/useCapabilities'
-import { compromisosEnVentana, compromisoStats } from '@shared/utils/compromisos'
+import {
+  compromisosEnVentana,
+  compromisosVencidosAbiertos,
+  compromisoStats,
+} from '@shared/utils/compromisos'
 import type { Activity, MinuteItem, Profile } from '@shared/types'
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
@@ -171,10 +175,9 @@ export function useCompromisos() {
   // El filtro "nacio de un tema de minuta + cae en esta semana" es el mismo que usa el chat
   // (ver buildTeamData en useChatMessages.ts) para no responder con numeros distintos a los
   // que muestra esta pantalla; vive en shared/utils/compromisos.ts.
-  const visibles = compromisosEnVentana(todas, temas, desde, hasta).filter((a) => {
-    if (!canViewAllActivities && !isGlobalAdmin && a.responsible_id !== profile?.id) return false
-    return true
-  })
+  const puedeVer = (a: Activity) =>
+    canViewAllActivities || isGlobalAdmin || a.responsible_id === profile?.id
+  const visibles = compromisosEnVentana(todas, temas, desde, hasta).filter(puedeVer)
 
   // Tema que trajo esta actividad a Compromisos (el que la tiene en linked_activity_ids).
   const temaDe = (activityId: string) =>
@@ -214,28 +217,37 @@ export function useCompromisos() {
   const compromisos = visibles.map(decorar)
 
   // Agrupado por persona: la reunion recorre "que te toco a ti", no una lista plana.
-  const porPersona: GrupoPersona[] = miembros
-    .map((m) => {
-      const suyos = compromisos.filter((c) => c.responsible_id === m.id)
-      const cumplidos = suyos.filter((c) => c.status === 'completado').length
-      return {
-        id: m.id,
-        nombre: m.full_name,
-        avatar: m.avatar_url ?? null,
-        // Lo no cumplido primero: en la reunion es lo que hay que conversar.
-        compromisos: suyos.sort((a, b) => {
-          const ha = a.status === 'completado' ? 1 : 0
-          const hb = b.status === 'completado' ? 1 : 0
-          return ha !== hb ? ha - hb : a.due_date.localeCompare(b.due_date)
-        }),
-        cumplidos,
-        total: suyos.length,
-        porcentaje: suyos.length ? Math.round((cumplidos / suyos.length) * 100) : null,
-        vencidos: suyos.filter((c) => c.diasVencida > 0).length,
-      }
-    })
-    .filter((g) => g.compromisos.length > 0)
-    .sort((a, b) => b.compromisos.length - a.compromisos.length)
+  const agruparPorPersona = (lista: Compromiso[]): GrupoPersona[] =>
+    miembros
+      .map((m) => {
+        const suyos = lista.filter((c) => c.responsible_id === m.id)
+        const cumplidos = suyos.filter((c) => c.status === 'completado').length
+        return {
+          id: m.id,
+          nombre: m.full_name,
+          avatar: m.avatar_url ?? null,
+          // Lo no cumplido primero: en la reunion es lo que hay que conversar.
+          compromisos: suyos.sort((a, b) => {
+            const ha = a.status === 'completado' ? 1 : 0
+            const hb = b.status === 'completado' ? 1 : 0
+            return ha !== hb ? ha - hb : a.due_date.localeCompare(b.due_date)
+          }),
+          cumplidos,
+          total: suyos.length,
+          porcentaje: suyos.length ? Math.round((cumplidos / suyos.length) * 100) : null,
+          vencidos: suyos.filter((c) => c.diasVencida > 0).length,
+        }
+      })
+      .filter((g) => g.compromisos.length > 0)
+      .sort((a, b) => b.compromisos.length - a.compromisos.length)
+
+  const porPersona = agruparPorPersona(compromisos)
+
+  // Vencidos y no cerrados de CUALQUIER semana (ver compromisosVencidosAbiertos). No dependen
+  // de la semana elegida: el boton de la cabecera los cuenta siempre, para que lo no cumplido
+  // no se esconda solo al pasar de semana. No suman al % semanal: son otra pregunta.
+  const vencidosAbiertos = compromisosVencidosAbiertos(todas, temas).filter(puedeVer).map(decorar)
+  const vencidosPorPersona = agruparPorPersona(vencidosAbiertos)
 
   // Mismo `porPersona`, reagrupado por su grupo de trabajo. Solo tiene datos si el equipo
   // efectivamente definio y asigno grupos -si no, queda [] y la UI ofrece solo "por persona".
@@ -374,6 +386,8 @@ export function useCompromisos() {
   return {
     porPersona,
     porGrupo,
+    vencidosPorPersona,
+    totalVencidos: vencidosAbiertos.length,
     resumen,
     loading,
     offset,

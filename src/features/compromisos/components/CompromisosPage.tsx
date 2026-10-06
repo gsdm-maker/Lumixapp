@@ -28,6 +28,8 @@ export function CompromisosPage() {
   const {
     porPersona,
     porGrupo,
+    vencidosPorPersona,
+    totalVencidos,
     resumen,
     loading,
     offset,
@@ -69,10 +71,16 @@ export function CompromisosPage() {
       return n
     })
 
+  // Modo "vencidos sin cerrar": cambia la ventana semanal por TODO lo vencido y abierto, de
+  // cualquier semana. Sin esto, lo que nadie movio ni cumplio quedaba escondido en su semana
+  // y solo se veia retrocediendo con ‹ -la trampa que reporto Sebastian-.
+  const [verVencidos, setVerVencidos] = useState(false)
+  const lista = verVencidos ? vencidosPorPersona : porPersona
+
   // Si solo hay una persona -un colaborador viendo lo suyo- plegar no aporta nada.
-  const soloUno = porPersona.length === 1
+  const soloUno = lista.length === 1
   const estaAbierto = (id: string) => soloUno || abiertos.has(id)
-  const todoAbierto = porPersona.length > 0 && porPersona.every((g) => abiertos.has(g.id))
+  const todoAbierto = lista.length > 0 && lista.every((g) => abiertos.has(g.id))
 
   // La MISMA escala arriba y por persona: si el equipo va en ambar y una persona en verde,
   // tiene que significar lo mismo en los dos lugares.
@@ -117,36 +125,53 @@ export function CompromisosPage() {
       {/* Cabecera: semana + cumplimiento */}
       <div className="flex-shrink-0 border-b border-border bg-panel px-3 sm:px-4 py-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-fg-body">Compromisos</h2>
-            <div className="inline-flex items-center rounded-lg bg-surface p-0.5">
+          {verVencidos ? (
+            <div className="flex items-center gap-2 flex-wrap">
               <button
-                onClick={() => setOffset(offset - 1)}
-                className="px-2 py-1 rounded-md text-fg-faint hover:text-fg-body hover:bg-surface-2 transition-colors"
-                aria-label="Semana anterior"
+                onClick={() => setVerVencidos(false)}
+                className="px-2 py-1 rounded-md text-xs text-fg-faint hover:text-fg-body hover:bg-surface-2 transition-colors"
               >
-                ‹
+                ← Volver a la semana
               </button>
-              <span className="px-2 text-xs text-fg-muted whitespace-nowrap">{etiqueta}</span>
-              <button
-                onClick={() => setOffset(offset + 1)}
-                className="px-2 py-1 rounded-md text-fg-faint hover:text-fg-body hover:bg-surface-2 transition-colors"
-                aria-label="Semana siguiente"
-              >
-                ›
-              </button>
+              <h2 className="text-sm font-semibold text-fg-body">
+                Compromisos vencidos sin cerrar
+              </h2>
+              <span className="text-xs text-fg-faint">
+                {totalVencidos} en total, de cualquier semana
+              </span>
             </div>
-            {!esSemanaActual && (
-              <button
-                onClick={() => setOffset(0)}
-                className="text-[11px] text-indigo-400 hover:text-indigo-300 underline"
-              >
-                Volver a esta semana
-              </button>
-            )}
-          </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-fg-body">Compromisos</h2>
+              <div className="inline-flex items-center rounded-lg bg-surface p-0.5">
+                <button
+                  onClick={() => setOffset(offset - 1)}
+                  className="px-2 py-1 rounded-md text-fg-faint hover:text-fg-body hover:bg-surface-2 transition-colors"
+                  aria-label="Semana anterior"
+                >
+                  ‹
+                </button>
+                <span className="px-2 text-xs text-fg-muted whitespace-nowrap">{etiqueta}</span>
+                <button
+                  onClick={() => setOffset(offset + 1)}
+                  className="px-2 py-1 rounded-md text-fg-faint hover:text-fg-body hover:bg-surface-2 transition-colors"
+                  aria-label="Semana siguiente"
+                >
+                  ›
+                </button>
+              </div>
+              {!esSemanaActual && (
+                <button
+                  onClick={() => setOffset(0)}
+                  className="text-[11px] text-indigo-400 hover:text-indigo-300 underline"
+                >
+                  Volver a esta semana
+                </button>
+              )}
+            </div>
+          )}
 
-          {resumen.total > 0 && (
+          {!verVencidos && resumen.total > 0 && (
             <div className="flex items-baseline gap-2">
               <span
                 className={`text-2xl font-semibold tabular-nums ${colorDe(resumen.porcentaje)}`}
@@ -161,7 +186,7 @@ export function CompromisosPage() {
           )}
         </div>
 
-        {resumen.total > 0 && (
+        {!verVencidos && resumen.total > 0 && (
           <div className="mt-2 h-1 w-full rounded-full bg-surface overflow-hidden">
             <div
               className={`h-full rounded-full transition-all ${barraDe(resumen.porcentaje)}`}
@@ -171,18 +196,37 @@ export function CompromisosPage() {
         )}
 
         <div className="mt-2 flex items-center gap-3 flex-wrap">
-          {porPersona.length > 1 && (
+          {/* Siempre visible y con el numero adelante: aunque nadie lo apriete, el equipo ve
+              cuanto quedo atras. Si no hay nada, se muestra tranquilo en vez de desaparecer,
+              para que se note que esta al dia y no que el boton se fue. */}
+          {!verVencidos &&
+            !loading &&
+            (totalVencidos > 0 ? (
+              <button
+                onClick={() => {
+                  setVerVencidos(true)
+                  setVista('persona')
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-500/50 bg-red-500/15 text-xs font-semibold text-red-400 hover:bg-red-500/25 transition-colors"
+              >
+                ⚠ Ver {totalVencidos} compromiso{totalVencidos === 1 ? '' : 's'} vencido
+                {totalVencidos === 1 ? '' : 's'} sin cerrar
+              </button>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs text-emerald-500">
+                ✓ Sin compromisos vencidos
+              </span>
+            ))}
+          {lista.length > 1 && (
             <button
-              onClick={() =>
-                setAbiertos(todoAbierto ? new Set() : new Set(porPersona.map((g) => g.id)))
-              }
+              onClick={() => setAbiertos(todoAbierto ? new Set() : new Set(lista.map((g) => g.id)))}
               className="text-[11px] text-slate-500 hover:text-fg-muted"
             >
               {todoAbierto ? 'Contraer todo' : 'Expandir todo'}
             </button>
           )}
           {/* Solo aparece si el equipo tiene grupos de trabajo con gente asignada. */}
-          {porGrupo.length > 0 && (
+          {!verVencidos && porGrupo.length > 0 && (
             <div className="inline-flex items-center rounded-lg bg-surface p-0.5 text-[11px]">
               <button
                 onClick={() => setVista('persona')}
@@ -212,7 +256,12 @@ export function CompromisosPage() {
       <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-3">
         {loading ? (
           <SkeletonRows />
-        ) : porPersona.length === 0 ? (
+        ) : verVencidos && lista.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <p className="text-sm text-fg-faint">No hay compromisos vencidos sin cerrar</p>
+            <p className="text-xs text-slate-600 mt-1">Todo lo comprometido está al día.</p>
+          </div>
+        ) : lista.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <p className="text-sm text-fg-faint">No hay compromisos para esta semana</p>
             {/* Importante ser preciso: puede haber actividades del equipo esa semana y aun
@@ -224,7 +273,7 @@ export function CompromisosPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {vista === 'grupo' && porGrupo.length > 0
+            {!verVencidos && vista === 'grupo' && porGrupo.length > 0
               ? porGrupo.map((grupo) => {
                   const grupoAbierto = gruposAbiertos.has(grupo.id ?? 'sin-grupo')
                   const totalGrupo = grupo.personas.reduce((s, p) => s + p.total, 0)
@@ -281,13 +330,14 @@ export function CompromisosPage() {
                     </div>
                   )
                 })
-              : porPersona.map((g) => (
+              : lista.map((g) => (
                   <PersonaCard
                     key={g.id}
                     g={g}
                     abierta={estaAbierto(g.id)}
                     soloUno={soloUno}
                     onToggle={() => alternar(g.id)}
+                    soloVencidos={verVencidos}
                     conduce={conduce}
                     colorDe={colorDe}
                     barraDe={barraDe}
@@ -318,6 +368,7 @@ function PersonaCard({
   abierta,
   soloUno,
   onToggle,
+  soloVencidos = false,
   conduce,
   colorDe,
   barraDe,
@@ -330,6 +381,8 @@ function PersonaCard({
   abierta: boolean
   soloUno: boolean
   onToggle: () => void
+  /** Lista de vencidos sin cerrar: el % de la persona seria siempre 0, asi que no se muestra. */
+  soloVencidos?: boolean
   conduce: boolean
   colorDe: (pct: number | null) => string
   barraDe: (pct: number | null) => string
@@ -372,22 +425,26 @@ function PersonaCard({
               </span>
             )}
           </div>
-          <div className="mt-1 h-1 w-full max-w-[180px] rounded-full bg-surface overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all ${barraDe(g.porcentaje)}`}
-              style={{ width: `${g.porcentaje ?? 0}%` }}
-            />
-          </div>
+          {!soloVencidos && (
+            <div className="mt-1 h-1 w-full max-w-[180px] rounded-full bg-surface overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${barraDe(g.porcentaje)}`}
+                style={{ width: `${g.porcentaje ?? 0}%` }}
+              />
+            </div>
+          )}
         </div>
 
-        <div className="flex items-baseline gap-1.5 flex-shrink-0">
-          <span className={`text-base font-semibold tabular-nums ${colorDe(g.porcentaje)}`}>
-            {g.porcentaje}%
-          </span>
-          <span className="text-[11px] tabular-nums text-slate-500">
-            {g.cumplidos}/{g.total}
-          </span>
-        </div>
+        {!soloVencidos && (
+          <div className="flex items-baseline gap-1.5 flex-shrink-0">
+            <span className={`text-base font-semibold tabular-nums ${colorDe(g.porcentaje)}`}>
+              {g.porcentaje}%
+            </span>
+            <span className="text-[11px] tabular-nums text-slate-500">
+              {g.cumplidos}/{g.total}
+            </span>
+          </div>
+        )}
       </button>
 
       <ul className={`divide-y divide-slate-800/60 ${abierta ? '' : 'hidden'}`}>
@@ -456,6 +513,16 @@ function PersonaCard({
                     {!hecha && c.diasVencida > 0 && (
                       <span className="text-red-400">
                         vencida hace {c.diasVencida} día{c.diasVencida === 1 ? '' : 's'}
+                      </span>
+                    )}
+                    {/* Regla de EOS: nada deberia quedar mas de dos semanas dando vueltas. Lo
+                      que pasa ese limite es lo primero que hay que conversar. */}
+                    {!hecha && c.diasVencida > 14 && (
+                      <span
+                        className="px-1.5 py-px rounded-full bg-red-500/20 text-red-400 font-semibold"
+                        title="Lleva más de dos semanas vencido: conviene conversarlo en la minuta"
+                      >
+                        +2 semanas
                       </span>
                     )}
 

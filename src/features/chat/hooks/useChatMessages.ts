@@ -18,7 +18,12 @@ import { teamsService } from '@infrastructure/supabase/teams.service'
 import { notificationsService } from '@infrastructure/supabase/notifications.service'
 import { minutesService } from '@infrastructure/supabase/minutes.service'
 import { aiDecisionsService } from '@infrastructure/supabase/ai-decisions.service'
-import { deriveEstado, compromisosEnVentana, compromisoStats } from '@shared/utils/compromisos'
+import {
+  deriveEstado,
+  compromisosEnVentana,
+  compromisosVencidosAbiertos,
+  compromisoStats,
+} from '@shared/utils/compromisos'
 import { useAuth } from '@core/auth/hooks/useAuth'
 import { useCapabilities } from '@core/auth/hooks/useCapabilities'
 import { formatDateLocal } from '@shared/utils/date'
@@ -768,6 +773,24 @@ export function useChatMessages() {
     ).filter((a) => !isColaborador || a.responsible_id === senderId)
     const compromisosSemana = compromisoStats(compromisosSemanaBase)
 
+    // Vencidos y no cerrados de CUALQUIER semana: el mismo criterio del boton "Ver N
+    // compromisos vencidos sin cerrar" de la hoja de Compromisos, para que preguntar "que
+    // compromisos tengo atrasados" no de un numero distinto al de la pantalla.
+    const hoy = new Date()
+    hoy.setHours(0, 0, 0, 0)
+    const compromisosVencidos = compromisosVencidosAbiertos(activities, temas)
+      .filter((a) => !isColaborador || a.responsible_id === senderId)
+      .map((a) => {
+        const vence = new Date(a.due_date)
+        vence.setHours(0, 0, 0, 0)
+        return {
+          title: a.title,
+          responsible: members.find((x) => x.id === a.responsible_id)?.full_name || 'Sin asignar',
+          due_date: vence.toLocaleDateString('es-CL'),
+          diasVencida: Math.floor((hoy.getTime() - vence.getTime()) / 86_400_000),
+        }
+      })
+
     return {
       today: new Date().toLocaleDateString('es-CL', {
         weekday: 'long',
@@ -788,6 +811,7 @@ export function useChatMessages() {
       sinAsignar: aMedioCamino,
       temasParaConversar,
       compromisosSemana,
+      compromisosVencidos,
       errors: errors
         .filter((e) => e.status !== 'cerrado')
         .map((e) => ({ title: e.title, severity: e.severity, status: e.status })),

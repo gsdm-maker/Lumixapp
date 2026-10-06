@@ -159,6 +159,12 @@ interface TeamData {
     porcentaje: number | null
     meta: number
   }
+  compromisosVencidos?: {
+    title: string
+    responsible: string
+    due_date: string
+    diasVencida: number
+  }[]
 }
 
 export async function askQuestion(

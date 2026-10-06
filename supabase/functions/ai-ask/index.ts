@@ -117,6 +117,14 @@ serve(async (req: Request) => {
       ? `total: ${compromisosSemana.total} | cumplidos: ${compromisosSemana.cumplidos} | vencidos: ${compromisosSemana.vencidos} | cumplimiento: ${compromisosSemana.porcentaje ?? 0}% | meta EOS: ${compromisosSemana.meta}%`
       : '(sin datos)'
 
+    const compromisosVencidosStr =
+      (teamData.compromisosVencidos ?? [])
+        .map(
+          (c: { title: string; responsible: string; due_date: string; diasVencida: number }) =>
+            `- ${c.title} | ${c.responsible} | vencia: ${c.due_date} | vencido hace ${c.diasVencida} dias`,
+        )
+        .join('\n') || '(ninguno)'
+
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -173,11 +181,17 @@ cumplimiento, meta) de las actividades que nacieron de la minuta y vencen esta s
 preguntan "como vamos con los compromisos", "cumplimiento de la semana" o algo similar, usa
 ESTOS numeros (no los cuentes vos mismo de la lista de actividades). El criterio es el Level
 10 Meeting de EOS: 90% de cumplimiento semanal es un equipo sano. Si el % esta por debajo de
-la meta, decilo sin dramatizar; si esta en o por encima, confirmalo brevemente.`,
+la meta, decilo sin dramatizar; si esta en o por encima, confirmalo brevemente.
+
+COMPROMISOS VENCIDOS SIN CERRAR. Lista ya calculada de compromisos cuya fecha de entrega paso
+y siguen sin completarse, de CUALQUIER semana (no solo la actual), del mas antiguo al mas
+reciente. Si preguntan por compromisos vencidos, atrasados, no cumplidos o pendientes de
+semanas anteriores, usa ESTA lista y da el total. Lo que lleva mas de 14 dias vencido
+mencionalo primero: segun EOS nada deberia quedar mas de dos semanas dando vueltas.`,
           },
           {
             role: 'user',
-            content: `${thread}DATOS:\n\nMIEMBROS:\n${membersStr}\n\nACTIVIDADES:\n${activitiesStr}\n\nERRORES:\n${errorsStr}\n\nTEMAS SIN ASIGNAR:\n${sinAsignarStr}\n\nTEMAS PARA CONVERSAR EN LA MINUTA:\n${temasParaConversarStr}\n\nCOMPROMISOS DE LA SEMANA:\n${compromisosSemanaStr}\n\nPREGUNTA: ${question}`,
+            content: `${thread}DATOS:\n\nMIEMBROS:\n${membersStr}\n\nACTIVIDADES:\n${activitiesStr}\n\nERRORES:\n${errorsStr}\n\nTEMAS SIN ASIGNAR:\n${sinAsignarStr}\n\nTEMAS PARA CONVERSAR EN LA MINUTA:\n${temasParaConversarStr}\n\nCOMPROMISOS DE LA SEMANA:\n${compromisosSemanaStr}\n\nCOMPROMISOS VENCIDOS SIN CERRAR:\n${compromisosVencidosStr}\n\nPREGUNTA: ${question}`,
           },
         ],
         ...tuningParams(AI_MODEL, 600, 0.3),
