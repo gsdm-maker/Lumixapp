@@ -110,9 +110,13 @@ export function ActivityCard({
   }
 
   return (
-    <div className="rounded-md border border-border border-l-3 border-l-accent bg-panel px-3 py-2">
-      <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
+    <div className="rounded-xl border border-border bg-panel shadow-sm shadow-black/5 px-3.5 py-3">
+      <div className="flex flex-wrap items-start gap-x-3 gap-y-2.5">
         <div className="min-w-0 flex-1 basis-56">
+          <p className="flex items-center gap-1.5 mb-1 text-2xs font-semibold uppercase tracking-wide text-fg-faint">
+            <Icon name="list" size={12} />
+            Actividad
+          </p>
           <p
             className={cx(
               'text-sm font-medium leading-snug break-words',
@@ -134,7 +138,7 @@ export function ActivityCard({
           <div className="flex flex-wrap items-center gap-1">
             <Button
               size="xs"
-              variant="secondary"
+              variant="primary"
               icon="check"
               disabled={busy}
               onClick={() => act(onComplete)}

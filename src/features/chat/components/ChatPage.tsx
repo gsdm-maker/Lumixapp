@@ -53,6 +53,8 @@ const TIPOS: TipoMensaje[] = [
 
 export function ChatPage() {
   const { user, profile } = useAuth()
+  // Momento en que se abrio el chat: lo que llega despues entra con animacion (ver MessageLine).
+  const [abiertoEn] = useState(() => Date.now())
   const teamId = profile?.team_id ?? ''
   const [teamName, setTeamName] = useState('')
   const [filtro, setFiltro] = useState<Filtro>('todo')
@@ -386,7 +388,7 @@ export function ChatPage() {
   let diaAnterior = ''
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-panel">
       <PageHeader
         title="Chat general"
         meta={[teamName, !loading && `${messages.length} mensajes`].filter(Boolean).join(' · ')}
@@ -433,19 +435,34 @@ export function ChatPage() {
               ) : visibles.length === 0 && filtro !== 'todo' ? (
                 <EmptyState icon="filter" {...vacioFiltro[filtro]} />
               ) : (
-                visibles.map((e) => {
+                visibles.map((e, i) => {
                   const dia = claveDia(e.msg.created_at)
                   const separador = dia !== diaAnterior
                   diaAnterior = dia
                   const preview = metaDe(e.msg).reply_preview as ReplyTarget | undefined
+                  // Mensajes seguidos de la misma persona (mismo dia, menos de 5 min, sin una
+                  // respuesta de Lumix entremedio) se agrupan: sin repetir avatar ni nombre.
+                  const previo = i > 0 ? visibles[i - 1] : null
+                  const continuation =
+                    !separador &&
+                    e.kind === 'persona' &&
+                    previo?.kind === 'persona' &&
+                    previo.msg.sender_id === e.msg.sender_id &&
+                    previo.resultados.length === 0 &&
+                    !preview &&
+                    new Date(e.msg.created_at).getTime() -
+                      new Date(previo.msg.created_at).getTime() <
+                      5 * 60_000
+                  // Solo lo que llega mientras se mira entra animado; el historial no.
+                  const fresh = new Date(e.msg.created_at).getTime() > abiertoEn
                   return (
                     <Fragment key={e.msg.id}>
                       {separador && (
-                        <div className="flex items-center gap-3 px-3 sm:px-4 pt-3 pb-1">
-                          <span className="text-xs font-medium text-fg-faint">
+                        // Pastilla del dia, pegada arriba mientras se recorre ese dia.
+                        <div className="sticky top-2 z-10 flex justify-center py-2 pointer-events-none">
+                          <span className="px-2.5 h-6 inline-flex items-center rounded-full border border-border bg-panel/95 shadow-sm text-xs font-medium text-fg-muted">
                             {etiquetaDia(e.msg.created_at)}
                           </span>
-                          <span className="h-px flex-1 bg-border" />
                         </div>
                       )}
                       {e.kind === 'persona' ? (
@@ -458,6 +475,13 @@ export function ChatPage() {
                               : (e.msg.sender?.full_name ?? 'Usuario')
                           }
                           own={e.msg.sender_id === user?.id}
+                          avatarSrc={
+                            e.msg.sender_id === user?.id
+                              ? profile?.avatar_url
+                              : e.msg.sender?.avatar_url
+                          }
+                          continuation={continuation}
+                          fresh={fresh}
                           category={e.msg.category}
                           optimistic={e.msg.id.startsWith('opt-')}
                           content={e.msg.content}
@@ -483,7 +507,7 @@ export function ChatPage() {
                             ))}
                         </MessageLine>
                       ) : (
-                        <MessageLine msgId={e.msg.id} timestamp={e.msg.created_at}>
+                        <MessageLine msgId={e.msg.id} timestamp={e.msg.created_at} fresh={fresh}>
                           {renderLumix(e.msg)}
                         </MessageLine>
                       )}
@@ -493,9 +517,21 @@ export function ChatPage() {
               )}
 
               {typingText && (
-                <p className="px-3 sm:px-4 sm:pl-[5.75rem] py-1 text-xs text-fg-faint">
+                <div className="flex items-center gap-2 px-4 sm:px-5 py-2 text-xs text-fg-faint animate-aparecer">
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex gap-1 rounded-full border border-border bg-panel px-2.5 py-1.5"
+                  >
+                    {[0, 150, 300].map((d) => (
+                      <i
+                        key={d}
+                        style={{ animationDelay: `${d}ms` }}
+                        className="w-1.5 h-1.5 rounded-full bg-fg-faint animate-latido"
+                      />
+                    ))}
+                  </span>
                   {typingText}
-                </p>
+                </div>
               )}
             </div>
           </div>

@@ -159,7 +159,7 @@ export function Composer({
             key={i}
             title={c.dudoso ? `${c.titulo ?? c.texto} · podría entenderlo distinto` : c.titulo}
             className={cx(
-              'inline-flex items-center h-5 px-1.5 rounded-sm border bg-panel',
+              'inline-flex items-center h-5 px-2 rounded-full border bg-panel',
               c.dudoso
                 ? 'border-dashed border-warning text-warning'
                 : 'border-border-strong text-fg',
@@ -176,24 +176,55 @@ export function Composer({
     estado = 'Escribe en lenguaje natural. Lumix clasificará tu mensaje.'
   }
 
+  // Atajos de un toque cuando el campo esta vacio: muestran que a Lumix tambien se le
+  // pregunta, no solo se le encargan cosas. Llenan el campo; enviar sigue siendo decision tuya.
+  const atajos =
+    !input && !replyTo && !busy && tipoVigente === 'auto'
+      ? [
+          '¿Qué tengo pendiente esta semana?',
+          '¿Cómo vamos con los compromisos?',
+          '¿Qué está vencido en el equipo?',
+        ]
+      : []
+
   return (
     <div
-      className="shrink-0 border-t border-border bg-panel px-3 sm:px-4 pt-2"
-      style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom, 0px))' }}
+      className="shrink-0 px-3 sm:px-4 pt-1"
+      style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
     >
       <div className="max-w-3xl mx-auto">
-        {replyTo && (
-          <div className="mb-1.5">
-            <QuotedMessage reply={replyTo} onCancel={onCancelReply} />
+        {atajos.length > 0 && (
+          <div className="flex gap-1.5 mb-2 overflow-x-auto [scrollbar-width:none]">
+            {atajos.map((a) => (
+              <button
+                key={a}
+                type="button"
+                onClick={() => {
+                  setInput(a)
+                  inputRef.current?.focus()
+                }}
+                className="shrink-0 h-7 px-3 rounded-full border border-border-strong bg-panel text-xs text-fg-muted hover:text-fg hover:border-fg-faint transition-colors"
+              >
+                {a}
+              </button>
+            ))}
           </div>
         )}
 
-        <div className="relative flex items-end gap-2">
+        {/* Tarjeta flotante: campo, tipo, vista previa y enviar viven juntos. El foco marca el
+            borde completo, no solo el texto. */}
+        <div className="relative rounded-2xl border border-border-strong bg-field shadow-lg shadow-black/5 transition-[border-color,box-shadow] focus-within:border-accent focus-within:ring-4 focus-within:ring-accent/10">
+          {replyTo && (
+            <div className="px-2 pt-2">
+              <QuotedMessage reply={replyTo} onCancel={onCancelReply} />
+            </div>
+          )}
+
           {sugerencias.length > 0 && (
             <ul
               role="listbox"
               aria-label="Comandos"
-              className="absolute bottom-full left-0 mb-1 w-56 rounded-lg border border-border-strong bg-panel shadow-lg py-1 z-10"
+              className="absolute bottom-full left-2 mb-2 w-60 rounded-xl border border-border-strong bg-panel shadow-lg py-1 z-10"
             >
               {sugerencias.map((t, i) => (
                 <li key={t} role="option" aria-selected={i === idx}>
@@ -210,7 +241,7 @@ export function Composer({
                       i === idx ? 'bg-surface text-fg' : 'text-fg-muted hover:bg-surface',
                     )}
                   >
-                    <span className="font-mono text-xs">/{t}</span>
+                    <span className="font-mono text-xs text-accent">/{t}</span>
                     <span className="text-xs text-fg-faint">{TIPO_LABEL[t]}</span>
                   </button>
                 </li>
@@ -226,35 +257,23 @@ export function Composer({
             placeholder={
               tipoVigente === 'masivo'
                 ? 'Pega la lista de actividades (una por línea)…'
-                : 'Escribe un mensaje…'
+                : 'Escribe un mensaje o pide algo a Lumix…'
             }
             rows={1}
             aria-label="Mensaje"
             // text-base (16px) en movil: Safari/iOS hace zoom automatico al enfocar un campo
-            // con letra menor a 16px -esa era la causa real del "zoom" y el boton desbordado
-            // que reporto Sebastian-. En escritorio vuelve a la escala compacta.
-            className="flex-1 resize-none overflow-y-auto max-h-40 rounded-md border border-border-strong bg-field px-3 py-2 text-base sm:text-sm text-fg placeholder:text-fg-faint focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+            // con letra menor a 16px (bug real reportado). En escritorio vuelve a la escala.
+            className="block w-full resize-none overflow-y-auto max-h-40 bg-transparent px-4 pt-3 pb-1 text-base sm:text-sm text-fg placeholder:text-fg-faint focus:outline-none"
           />
-          <Button
-            icon="send"
-            aria-label="Enviar"
-            title="Enviar"
-            loading={busy}
-            disabled={!input.trim()}
-            onClick={handleSend}
-            // 40px en movil: es el boton mas tocado de toda la app.
-            className="h-10 w-10 px-0 sm:h-9 sm:w-9"
-          />
-        </div>
 
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-faint">
-          <div className="min-w-0 flex-1">{estado}</div>
-          <div className="flex items-center gap-1.5 ml-auto">
-            <label htmlFor="chat-tipo">Tipo</label>
+          <div className="flex items-center gap-2 px-2 pb-2 pt-1">
+            <label htmlFor="chat-tipo" className="sr-only">
+              Tipo de mensaje
+            </label>
             <Select
               id="chat-tipo"
               size="sm"
-              className="w-28"
+              className="w-[7.5rem] shrink-0"
               value={tipoVigente}
               onChange={(e) => setTipo(e.target.value as TipoMensaje)}
             >
@@ -264,10 +283,24 @@ export function Composer({
                 </option>
               ))}
             </Select>
-            <span className="hidden md:inline-flex items-center gap-1 ml-1.5">
-              <Kbd>/</Kbd> comandos <Kbd>Enter</Kbd> enviar <Kbd>Shift+Enter</Kbd> línea
-            </span>
+            <div className="min-w-0 flex-1 text-xs text-fg-faint truncate sm:whitespace-normal">
+              {estado}
+            </div>
+            <Button
+              icon="send"
+              aria-label="Enviar"
+              title="Enviar"
+              loading={busy}
+              disabled={!input.trim()}
+              onClick={handleSend}
+              // 40px en movil: es el boton mas tocado de toda la app.
+              className="shrink-0 h-10 w-10 sm:h-9 sm:w-9 px-0 !rounded-full"
+            />
           </div>
+        </div>
+
+        <div className="hidden md:flex justify-end items-center gap-1 mt-1.5 text-2xs text-fg-faint">
+          <Kbd>/</Kbd> comandos · <Kbd>Enter</Kbd> enviar · <Kbd>Shift+Enter</Kbd> nueva línea
         </div>
       </div>
     </div>

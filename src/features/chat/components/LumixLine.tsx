@@ -1,4 +1,5 @@
 import { Icon, type IconName } from '@shared/components/ui/Icon'
+import { LumixIcon } from '@shared/components/ui/LumixIcon'
 import { cx } from '@shared/utils/cx'
 import { hora, textoLumix } from '@features/chat/components/log/registro'
 
@@ -29,7 +30,11 @@ export function LumixFirma({
       className={cx('text-sm text-fg-muted leading-relaxed', className)}
       title={timestamp ? hora(timestamp) : undefined}
     >
-      <span className="font-semibold text-accent mr-1.5">Lumix</span>
+      <span className="inline-flex items-center gap-1.5 font-semibold text-accent mr-1.5 align-[-3px]">
+        {/* firma-marca: MessageLine la oculta cuando el avatar de la linea ya es Lumix. */}
+        <LumixIcon size="sm" className="firma-marca !w-4 !h-4 !rounded-[4px]" />
+        Lumix
+      </span>
       {icon && (
         <Icon
           name={icon}

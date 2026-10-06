@@ -183,6 +183,31 @@
   --radius-xl: 8px;
   --radius-2xl: 10px;
 
+  /* Movimiento: solo donde informa (algo nuevo llego, alguien esta escribiendo). Ambas se
+     anulan con prefers-reduced-motion (al final del archivo). */
+  --animate-aparecer: aparecer 180ms ease-out;
+  --animate-latido: latido 1.2s ease-in-out infinite;
+  @keyframes aparecer {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes latido {
+    0%,
+    80%,
+    100% {
+      opacity: 0.3;
+    }
+    40% {
+      opacity: 1;
+    }
+  }
+
   /* Neutros con nombre semantico */
   --color-shell: rgb(var(--shell));
   --color-panel: rgb(var(--panel));

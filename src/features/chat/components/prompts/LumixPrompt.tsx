@@ -49,14 +49,19 @@ export function LumixPrompt({ question, detail, children, resolution, decidedBy,
     <div
       role="group"
       aria-label="Pregunta de Lumix"
-      className="rounded-md border border-dashed border-border-strong px-3 py-2"
+      className="rounded-xl border border-accent/30 bg-accent-soft/40 px-3.5 py-3"
     >
       <LumixFirma text={question} className="text-fg" />
       {detail && <div className="mt-1.5">{detail}</div>}
       {ajena ? (
         <p className="mt-1.5 text-xs text-fg-faint">Pendiente de su responsable</p>
       ) : (
-        children && <div className="mt-2 flex flex-wrap items-center gap-1.5">{children}</div>
+        // Opciones como pildoras: se leen como "elige una", no como botones de formulario.
+        children && (
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5 [&>button]:rounded-full [&>button]:px-3">
+            {children}
+          </div>
+        )
       )}
     </div>
   )

@@ -136,7 +136,7 @@ export function ActivityListMessage({
   }
 
   return (
-    <div className="rounded-md border border-border border-l-3 border-l-accent bg-panel overflow-hidden">
+    <div className="rounded-xl border border-border bg-panel shadow-sm shadow-black/5 overflow-hidden">
       <ul className="divide-y divide-border">
         {items.map((it) => {
           const isSelected = selected.has(it.id)
