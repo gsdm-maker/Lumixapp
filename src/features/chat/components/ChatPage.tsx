@@ -5,6 +5,7 @@ import { type BulkActivity } from '@core/ai-engine/client'
 import { teamsService } from '@infrastructure/supabase/teams.service'
 import { useChatMessages, type Member } from '@features/chat/hooks/useChatMessages'
 import { useTypingIndicator } from '@features/chat/hooks/useTypingIndicator'
+import { useActividadesVivas } from '@features/chat/hooks/useActividadesVivas'
 import type { ChatMessage, ReplyTarget } from '@features/chat/types'
 import { PageHeader } from '@shared/components/ui/PageHeader'
 import { SegmentedControl } from '@shared/components/ui/SegmentedControl'
@@ -82,6 +83,7 @@ export function ChatPage() {
     listMembers,
     confirmarEliminarActividad,
   } = chat
+  const { vivas } = useActividadesVivas(messages)
 
   const { canAssignOthers, canManageMinuta, canManageProyectos, canManageIngestas } =
     useCapabilities()
@@ -129,13 +131,12 @@ export function ChatPage() {
   // veria vacia. Tambien se guarda de que actividad habla, cuando se sabe: eso es lo que le
   // permite a Lumix aplicar el cambio sin preguntar a cual actividad te refieres.
   const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null)
-  const lineRefs = useRef<Map<string, HTMLDivElement>>(new Map())
-
-  const registerLine = useCallback(
-    (id: string) => (el: HTMLDivElement | null) => {
-      if (el) lineRefs.current.set(id, el)
-      else lineRefs.current.delete(id)
-    },
+  // Cada linea lleva data-msg-id y se busca dentro del contenedor cuando hace falta (saltar a
+  // una cita, mostrar una pregunta nueva). Sin refs por linea: un callback ref por mensaje se
+  // re-conectaba en cada render (cada tecla), y leer refs durante el render no esta permitido.
+  const lineaDe = useCallback(
+    (id: string) =>
+      scrollRef.current?.querySelector<HTMLElement>(`[data-msg-id="${CSS.escape(id)}"]`) ?? null,
     [],
   )
 
@@ -164,19 +165,19 @@ export function ChatPage() {
   const jumpTo = useCallback(
     (id: string) => {
       const ir = () => {
-        const el = lineRefs.current.get(id)
+        const el = lineaDe(id)
         if (!el) return
         el.scrollIntoView({ behavior: 'smooth', block: 'center' })
         const marca = ['ring-2', 'ring-inset', 'ring-accent', 'rounded-md']
         el.classList.add(...marca)
         setTimeout(() => el.classList.remove(...marca), 1200)
       }
-      if (!lineRefs.current.has(id) && filtro !== 'todo') {
+      if (!lineaDe(id) && filtro !== 'todo') {
         setFiltro('todo')
         setTimeout(ir, 60)
       } else ir()
     },
-    [filtro],
+    [filtro, lineaDe],
   )
 
   // Traer a la vista las preguntas nuevas (antes se abrian solas en una ventana: si quedaban
@@ -211,8 +212,8 @@ export function ChatPage() {
     vistasRef.current.add(nueva.id)
     // block 'nearest' y sin foco: mover el foco a un boton cerraria el teclado del celular
     // en medio de la escritura.
-    lineRefs.current.get(nueva.id)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-  }, [messages, loading, user?.id])
+    lineaDe(nueva.id)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [messages, loading, user?.id, lineaDe])
 
   const handleSend = useCallback(
     async (text: string, tipo: TipoMensaje) => {
@@ -247,22 +248,45 @@ export function ChatPage() {
     )
   }
 
-  const card = (meta: ActivityCardMeta, msg: ChatMessage) => (
-    <ActivityCard
-      meta={meta}
-      canAssignOthers={canAssignOthers}
-      onComplete={() => quickUpdate(meta.activityId, { status: 'completado' })}
-      onReschedule={(dueDate) => quickUpdate(meta.activityId, { due_date: dueDate })}
-      onReassign={(memberId, memberName) =>
-        quickUpdate(meta.activityId, { responsibleId: memberId, responsibleName: memberName })
-      }
-      onReply={() => startReply(msg)}
-      listMembers={async () => {
-        const m = await listMembers()
-        return m.map((x) => ({ id: x.id, full_name: x.full_name }))
-      }}
-    />
-  )
+  const card = (guardada: ActivityCardMeta, msg: ChatMessage) => {
+    // Estado actual de la actividad, no la foto guardada en el mensaje (ver useActividadesVivas).
+    const viva = vivas?.get(guardada.activityId)
+    if (vivas && !viva) {
+      return (
+        <LumixFirma
+          text={`"${guardada.title}" ya no existe o no la puedes ver.`}
+          icon="trash"
+          timestamp={msg.created_at}
+          className="text-xs"
+        />
+      )
+    }
+    const meta: ActivityCardMeta = viva
+      ? {
+          ...guardada,
+          title: viva.title,
+          status: viva.status,
+          dueDate: viva.due_date,
+          priority: viva.priority,
+        }
+      : guardada
+    return (
+      <ActivityCard
+        meta={meta}
+        canAssignOthers={canAssignOthers}
+        onComplete={() => quickUpdate(meta.activityId, { status: 'completado' })}
+        onReschedule={(dueDate) => quickUpdate(meta.activityId, { due_date: dueDate })}
+        onReassign={(memberId, memberName) =>
+          quickUpdate(meta.activityId, { responsibleId: memberId, responsibleName: memberName })
+        }
+        onReply={() => startReply(msg)}
+        listMembers={async () => {
+          const m = await listMembers()
+          return m.map((x) => ({ id: x.id, full_name: x.full_name }))
+        }}
+      />
+    )
+  }
 
   // Lo que Lumix dijo o hizo, segun el tipo de mensaje. Va colgado del mensaje de origen o,
   // si no hay uno cargado, en su propia linea.
@@ -426,7 +450,7 @@ export function ChatPage() {
                       )}
                       {e.kind === 'persona' ? (
                         <MessageLine
-                          ref={registerLine(e.msg.id)}
+                          msgId={e.msg.id}
                           timestamp={e.msg.created_at}
                           author={
                             e.msg.sender_id === user?.id
@@ -453,13 +477,13 @@ export function ChatPage() {
                         >
                           {e.resultados.length > 0 &&
                             e.resultados.map((r) => (
-                              <div key={r.id} ref={registerLine(r.id)} className="space-y-1.5">
+                              <div key={r.id} data-msg-id={r.id} className="space-y-1.5">
                                 {renderLumix(r)}
                               </div>
                             ))}
                         </MessageLine>
                       ) : (
-                        <MessageLine ref={registerLine(e.msg.id)} timestamp={e.msg.created_at}>
+                        <MessageLine msgId={e.msg.id} timestamp={e.msg.created_at}>
                           {renderLumix(e.msg)}
                         </MessageLine>
                       )}

@@ -116,11 +116,18 @@ export function ActivitiesPage() {
     const ok = await act.changeStatus(a.id, 'completado', { silent: true })
     if (!ok) return
     refrescarAbierta(a.id)
+    // Sin Deshacer para una hija (delegada o subtarea con parent_activity_id): si era la ultima
+    // abierta, el trigger trg_propagate_completion (migracion 025) ya cerro tambien al padre, y
+    // revertir solo la hija dejaria al padre cerrado con una hija abierta.
+    if (a.parent_activity_id) {
+      toast.success('Completada')
+      return
+    }
     toast.success('Completada', {
       action: {
         label: 'Deshacer',
         onClick: () => {
-          void act.changeStatus(a.id, anterior).then((bien) => bien && refrescarAbierta(a.id))
+          void act.deshacerCompletar(a.id, anterior).then((bien) => bien && refrescarAbierta(a.id))
         },
       },
     })

@@ -11,17 +11,11 @@ import { useCapabilities } from '@core/auth/hooks/useCapabilities'
 import { useNotificationsContext } from '@core/notifications/NotificationContext'
 import { teamsService } from '@infrastructure/supabase/teams.service'
 import { cx } from '@shared/utils/cx'
+import { ROLE_LABEL } from '@core/auth/roles'
 import { navItems } from './navItems'
 
 interface SidebarProps {
   onClose?: () => void
-}
-
-const ROL: Record<string, string> = {
-  admin: 'Admin',
-  jefatura: 'Jefatura',
-  colaborador: 'Colaborador',
-  invitado: 'Invitado',
 }
 
 /**
@@ -144,7 +138,9 @@ export function Sidebar({ onClose }: SidebarProps) {
                 {profile?.full_name ?? 'Usuario'}
               </span>
               <span className="block text-xs text-fg-faint truncate">
-                {ROL[teamRole ?? profile?.role ?? ''] ?? 'Colaborador'}
+                {/* El admin global se muestra como tal en cualquier equipo; el resto, con su
+                    rol en el equipo activo. */}
+                {ROLE_LABEL[isAdmin ? 'admin' : (teamRole ?? profile?.role ?? '')] ?? 'Colaborador'}
               </span>
             </span>
           </button>

@@ -29,7 +29,7 @@
 // Los datos ya existen (due_date, completed_at que pone un trigger), y duplicarlos en otra
 // tabla habria creado justamente el problema que estamos tratando de deshacer.
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { activitiesService } from '@infrastructure/supabase/activities.service'
 import { profilesService } from '@infrastructure/supabase/profiles.service'
 import { minutesService } from '@infrastructure/supabase/minutes.service'
@@ -105,6 +105,13 @@ export interface GrupoDeTrabajoCompromisos {
 export function useCompromisos() {
   const [todas, setTodas] = useState<Activity[]>([])
   const [temas, setTemas] = useState<MinuteItem[]>([])
+  // Copia sincronica de `temas` para las acciones en lote (Cerrar semana): un bucle de
+  // moverUnaSemana leia siempre el `temas` del render en que empezo, y dos actividades del mismo
+  // tema calculaban plazo_history/plazo_change_count desde el mismo valor viejo, pisandose.
+  const temasRef = useRef<MinuteItem[]>([])
+  useEffect(() => {
+    temasRef.current = temas
+  }, [temas])
   const [miembros, setMiembros] = useState<Profile[]>([])
   // Actividades que ya tienen un tema de minuta esperando conversacion. Sin esto la fila no
   // cambiaba al escalarla y la gente volvia a apretar el boton: pasó de verdad, tres temas
@@ -188,9 +195,10 @@ export function useCompromisos() {
   // Tema que trajo esta actividad a Compromisos (el que la tiene en linked_activity_ids). Si
   // viene de un proyecto se prefiere ese item: llevarla a la minuta crea un segundo tema con
   // el mismo vinculo, y el origen real sigue siendo el proyecto.
-  const temaDe = (activityId: string) =>
-    temas.find((t) => t.tipo === 'proyecto' && t.linked_activity_ids.includes(activityId)) ??
-    temas.find((t) => t.linked_activity_ids.includes(activityId))
+  const temaEn = (lista: MinuteItem[], activityId: string) =>
+    lista.find((t) => t.tipo === 'proyecto' && t.linked_activity_ids.includes(activityId)) ??
+    lista.find((t) => t.linked_activity_ids.includes(activityId))
+  const temaDe = (activityId: string) => temaEn(temas, activityId)
 
   // Sube por parent_item_id hasta el tema raiz. Todos los ancestros estan en `temas` -mismo
   // equipo, y la cadena nunca cruza de hoja-, asi que nunca queda cortada a mitad.
@@ -306,7 +314,6 @@ export function useCompromisos() {
     const nueva = new Date(a.due_date)
     nueva.setDate(nueva.getDate() + 7)
     const iso = nueva.toISOString()
-    const anterior = todas
     setTodas((cur) => cur.map((x) => (x.id === a.id ? { ...x, due_date: iso } : x)))
     try {
       await activitiesService.update(a.id, { due_date: iso })
@@ -316,7 +323,7 @@ export function useCompromisos() {
       // viejo (bug real reportado: "en minuta plazo no cuadra con lo que se ve en
       // compromisos"). Actividades ya completadas nunca llegan aca (moverUnaSemana solo se
       // ofrece en lo no cumplido), asi que no hace falta ese filtro en este sentido.
-      const tema = temaDe(a.id)
+      const tema = temaEn(temasRef.current, a.id)
       if (tema) {
         const nuevaFecha = iso.split('T')[0]
         const hadPlazo = !!tema.plazo
@@ -329,11 +336,14 @@ export function useCompromisos() {
           plazo_change_count: (tema.plazo_change_count ?? 0) + (hadPlazo ? 1 : 0),
           plazo_history: history,
         }
-        setTemas((cur) => cur.map((t) => (t.id === tema.id ? { ...t, ...patch } : t)))
+        temasRef.current = temasRef.current.map((t) => (t.id === tema.id ? { ...t, ...patch } : t))
+        setTemas(temasRef.current)
         await minutesService.update(tema.id, patch)
       }
     } catch (err) {
-      setTodas(anterior)
+      // Se revierte SOLO esta actividad: en un lote, una foto de todas tomada al principio
+      // desharia en pantalla las que si se guardaron.
+      setTodas((cur) => cur.map((x) => (x.id === a.id ? { ...x, due_date: a.due_date } : x)))
       throw err
     }
   }

@@ -24,6 +24,14 @@ export const activitiesService = {
   },
 
   // Todas las actividades de un conjunto de equipos (los que el usuario lidera).
+  /** Varias actividades por id (las que no existen o no se pueden ver no vienen). */
+  async getByIds(ids: string[]): Promise<Activity[]> {
+    if (ids.length === 0) return []
+    const { data, error } = await supabase.from('activities').select('*').in('id', ids)
+    if (error) throw error
+    return data ?? []
+  },
+
   async getByTeams(teamIds: string[]): Promise<Activity[]> {
     if (teamIds.length === 0) return []
     const { data, error } = await supabase

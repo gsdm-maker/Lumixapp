@@ -230,6 +230,22 @@ export function useActivities() {
    * Cambia el estado y recarga. Devuelve si funciono. `silent` evita el aviso generico para
    * que quien llama muestre el suyo (ej. "Completada" con Deshacer).
    */
+  /**
+   * Revierte un "Completar" (boton Deshacer del aviso). No alcanza con volver el status: el
+   * trigger set_completed_at (migracion 009) solo PONE completed_at, nunca lo limpia, y la
+   * actividad quedaria abierta con fecha de cierre (se ve en exportaciones y el Dashboard).
+   */
+  const deshacerCompletar = async (id: string, statusAnterior: ActivityStatus) => {
+    try {
+      await activitiesService.update(id, { status: statusAnterior, completed_at: null })
+      await load()
+      return true
+    } catch {
+      toast.error('No se pudo deshacer')
+      return false
+    }
+  }
+
   const changeStatus = async (
     id: string,
     newStatus: ActivityStatus,
@@ -329,6 +345,7 @@ export function useActivities() {
     filterStatus,
     setFilterStatus,
     changeStatus,
+    deshacerCompletar,
     deleteActivity,
     counts,
     filterTeam,

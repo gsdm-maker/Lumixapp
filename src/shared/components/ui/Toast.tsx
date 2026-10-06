@@ -59,7 +59,17 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const show = useCallback(
     (message: string, type: ToastType = 'info', options: ToastOptions = {}) => {
       const id = ++counter
-      setToasts((prev) => [...prev.slice(-2), { id, type, message, ...options }])
+      setToasts((prev) => {
+        // Maximo 3 a la vez, pero nunca se descarta antes de tiempo uno con accion (Deshacer):
+        // el diseno no pide confirmacion en lo reversible justamente porque se puede deshacer.
+        const next = [...prev, { id, type, message, ...options }]
+        while (next.length > 3) {
+          const i = next.findIndex((t) => !t.action)
+          if (i === -1 || i === next.length - 1) break
+          next.splice(i, 1)
+        }
+        return next
+      })
       setTimeout(() => remove(id), options.duration ?? (options.action ? 6000 : 3500))
     },
     [remove],

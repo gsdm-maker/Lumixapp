@@ -13,6 +13,8 @@ const CATEGORIA: Record<string, string> = {
 }
 
 interface Props {
+  /** Id del mensaje: ChatPage busca la linea por data-msg-id para saltar a ella. */
+  msgId?: string
   timestamp: string
   /** Nombre del autor. Sin autor la linea es solo de Lumix (no hay mensaje de origen cargado). */
   author?: string
@@ -32,12 +34,13 @@ interface Props {
  * a la burbuja de WhatsApp: se lee como un acta (quien dijo que, a que hora, y que salio).
  */
 export const MessageLine = forwardRef<HTMLDivElement, Props>(function MessageLine(
-  { timestamp, author, category, own, optimistic, quoted, content, onReply, children },
+  { msgId, timestamp, author, category, own, optimistic, quoted, content, onReply, children },
   ref,
 ) {
   return (
     <div
       ref={ref}
+      data-msg-id={msgId}
       className={cx(
         'group grid grid-cols-1 sm:grid-cols-[3rem_minmax(0,1fr)] gap-x-3 px-3 sm:px-4 py-2 transition-colors duration-500',
         own && 'bg-surface-soft',

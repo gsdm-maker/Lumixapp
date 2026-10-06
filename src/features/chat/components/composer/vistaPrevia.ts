@@ -1,4 +1,5 @@
 import { fechaRelativa, formatDateLocal } from '@shared/utils/date'
+import { nombreCorto } from '@shared/utils/nombres'
 import {
   findMentionedMembers,
   normalizeName,
@@ -84,8 +85,15 @@ export function detectarFecha(n: string): Campo | undefined {
     return campoFecha(sumarDias(delta), dudoso)
   }
 
-  const dm = /\b(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\b/.exec(n)
-  if (dm) {
+  // Anio de 2 o 4 digitos (no 3: "15/10/202" no es una fecha). Y "1/2 hora" o "3/4 kg" son
+  // cantidades, no fechas: si despues viene una unidad, no se interpreta.
+  const dm = /\b(\d{1,2})[/-](\d{1,2})(?:[/-](\d{4}|\d{2}))?(?![\d/-])/.exec(n)
+  const esCantidad =
+    !!dm &&
+    /^\s*(horas?|hrs?|h|minutos?|min|kilos?|kg|litros?|lt|%|partes?|dias?)\b/.test(
+      n.slice(dm.index + dm[0].length),
+    )
+  if (dm && !esCantidad) {
     const dd = Number(dm[1])
     const mm = Number(dm[2]) - 1
     const hoy = new Date()
@@ -120,11 +128,6 @@ export function detectarPrioridad(n: string): Campo | undefined {
   if (/\balta\b/.test(n) && !/\bde alta\b/.test(n)) return { texto: 'Alta', dudoso: true }
   if (/\bbaja\b/.test(n) && !/\bde baja\b/.test(n)) return { texto: 'Baja', dudoso: true }
   return undefined
-}
-
-function nombreCorto(full: string): string {
-  const [nombre, apellido] = full.trim().split(/\s+/)
-  return apellido ? `${nombre} ${apellido.charAt(0)}.` : nombre
 }
 
 export function detectarPersona(texto: string, members: Member[]): Campo | undefined {

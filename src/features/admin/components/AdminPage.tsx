@@ -1,3 +1,4 @@
+import { ROLE_LABEL } from '@core/auth/roles'
 import { useState } from 'react'
 import { Badge } from '@shared/components/ui/Badge'
 import { Button, IconButton } from '@shared/components/ui/Button'
@@ -16,13 +17,6 @@ import { normalizeFullName } from '@shared/utils/name'
 import { cx } from '@shared/utils/cx'
 
 const roles = ['admin', 'jefatura', 'colaborador', 'invitado'] as const
-
-const ROLE_LABEL: Record<string, string> = {
-  admin: 'Admin',
-  jefatura: 'Jefatura',
-  colaborador: 'Colaborador',
-  invitado: 'Invitado',
-}
 
 export function AdminPage() {
   const { profile } = useAuth()

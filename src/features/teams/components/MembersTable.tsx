@@ -6,7 +6,7 @@ import { useConfirm } from '@shared/components/ui/ConfirmDialog'
 import { useToast } from '@shared/components/ui/Toast'
 import type { GrupoTrabajo } from '@infrastructure/supabase/teams.service'
 import type { TeamMember } from '@features/teams/hooks/useTeams'
-import { MEMBER_ROLES, ROLE_LABEL } from './roles'
+import { MEMBER_ROLES, ROLE_LABEL } from '@core/auth/roles'
 
 // Columnas de la tabla en escritorio; en el celular cada fila envuelve en dos lineas.
 const COLS = 'sm:grid sm:grid-cols-[minmax(0,1fr)_9rem_10rem_2rem] sm:items-center sm:gap-3'

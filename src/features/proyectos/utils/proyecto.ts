@@ -1,3 +1,4 @@
+import { nombreCorto } from '@shared/utils/nombres'
 // Lecturas derivadas de un proyecto (estado general, alertas, avance, escala de tiempo).
 //
 // Viven aca y no en cada pantalla porque la lista de Proyectos y el encabezado del detalle
@@ -131,13 +132,6 @@ export function estadoItem(it: DecoratedItem, allItems: DecoratedItem[]): Status
     if (f && parseDateLocal(f) < hoyLocal()) return { label: 'Vencido', tone: 'danger' }
   }
   return MINUTE_ESTADO[it.effectiveEstado]
-}
-
-/** "Tomás Vergara" -> "Tomás V.": en filas densas el apellido completo no aporta. */
-export function nombreCorto(full: string): string {
-  const partes = full.trim().split(/\s+/)
-  if (partes.length < 2) return partes[0] ?? ''
-  return `${partes[0]} ${partes[1][0]}.`
 }
 
 /** "Tomás V.", "Tomás V. y Diego P.", "Tomás V. y 3 más". */

@@ -5,7 +5,7 @@ import { useToast } from '@shared/components/ui/Toast'
 import { CAPABILITIES, ROLE_DEFAULTS, type Capability } from '@core/auth/capabilities'
 import { cx } from '@shared/utils/cx'
 import type { TeamMember } from '@features/teams/hooks/useTeams'
-import { ROLE_LABEL } from './roles'
+import { ROLE_LABEL } from '@core/auth/roles'
 
 // Nombre corto para la cabecera de la columna: el grupo (modulo) ya va arriba, asi que basta
 // con el verbo. La descripcion completa de CAPABILITIES queda en el tooltip y en el

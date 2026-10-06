@@ -44,6 +44,10 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   const resolver = useRef<(v: boolean) => void>(() => {})
 
   const confirm = useCallback<ConfirmFn>((options) => {
+    // Si ya habia una pregunta abierta (doble clic, dos componentes a la vez), se responde "no"
+    // a la anterior antes de reemplazarla: si no, su `await confirm()` quedaba colgado para
+    // siempre con su estado de "cargando" puesto.
+    resolver.current(false)
     setPending(options)
     return new Promise<boolean>((resolve) => {
       resolver.current = resolve
@@ -52,6 +56,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
 
   const cerrar = (valor: boolean) => {
     resolver.current(valor)
+    resolver.current = () => {}
     setPending(null)
   }
 

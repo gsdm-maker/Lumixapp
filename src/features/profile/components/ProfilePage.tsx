@@ -1,3 +1,4 @@
+import { ROLE_LABEL } from '@core/auth/roles'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@shared/components/ui/Button'
@@ -65,13 +66,6 @@ const EMOJI_OPTIONS = [
   '⚠️',
   '♻️',
 ]
-
-const ROLE_LABELS: Record<string, string> = {
-  admin: 'Administrador',
-  jefatura: 'Jefatura',
-  colaborador: 'Colaborador',
-  invitado: 'Invitado',
-}
 
 // Lo que hace Lumix, como lista de texto (antes eran mosaicos con un emoji cada uno).
 const CAPACIDADES: { title: string; desc: string }[] = [
@@ -188,7 +182,7 @@ export function ProfilePage() {
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-lg font-semibold text-fg truncate">{profile?.full_name}</p>
-                <Badge>{ROLE_LABELS[profile?.role ?? 'colaborador'] ?? profile?.role}</Badge>
+                <Badge>{ROLE_LABEL[profile?.role ?? 'colaborador'] ?? profile?.role}</Badge>
               </div>
               <p className="text-sm text-fg-muted truncate">{profile?.email}</p>
             </div>

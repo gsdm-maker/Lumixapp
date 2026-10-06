@@ -89,13 +89,12 @@ export function ActivityDetailPanel(props: ActivityDetailPanelProps) {
         // Miembros del propio equipo (para agregar subtareas) + de los equipos de cada hija
         // ya existente (para mostrar su nombre), en un solo set de nombres.
         const teamIds = [...new Set([activityTeam, ...kids.map((k) => k.team_id)])]
+        // En paralelo: el panel cambia de actividad al recorrer la lista con las flechas, y una
+        // consulta por equipo en serie se notaba con hijas delegadas a otros equipos.
+        const porEquipo = await Promise.all(teamIds.map((tid) => profilesService.getByTeam(tid)))
         const names: Record<string, string> = {}
-        let subMembers: Profile[] = []
-        for (const tid of teamIds) {
-          const ms = await profilesService.getByTeam(tid)
-          ms.forEach((m) => (names[m.id] = m.full_name))
-          if (tid === activityTeam) subMembers = ms
-        }
+        porEquipo.flat().forEach((m) => (names[m.id] = m.full_name))
+        const subMembers: Profile[] = porEquipo[teamIds.indexOf(activityTeam)] ?? []
         if (!cancelled) setHijas({ forId: activityId, kids, names, subMembers })
       })
       .catch(() => {})
