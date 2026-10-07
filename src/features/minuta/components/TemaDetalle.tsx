@@ -6,6 +6,7 @@ import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@shared/components/ui/Button'
 import { EditableText } from '@shared/components/ui/EditableText'
+import { ComentarioLibre } from '@shared/components/ui/ComentarioLibre'
 import { Icon } from '@shared/components/ui/Icon'
 import { SectionLabel } from '@shared/components/ui/Indicators'
 import { SidePanel } from '@shared/components/ui/SidePanel'
@@ -117,13 +118,12 @@ export function TemaDetalle({
         </dl>
 
         <Campo label="Comentarios">
-          <EditableText
-            as="p"
+          <ComentarioLibre
             value={item.comentarios}
             canEdit={canManage}
             onSave={(next) => hoja.guardarComentarios(item.id, next)}
             placeholder="Notas…"
-            emptyLabel="Sin comentarios"
+            size="sm"
             textClassName="text-sm text-fg-body"
           />
         </Campo>
