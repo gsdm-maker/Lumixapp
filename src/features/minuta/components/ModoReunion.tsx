@@ -13,7 +13,6 @@
 import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react'
 import { Button } from '@shared/components/ui/Button'
 import { EditableText } from '@shared/components/ui/EditableText'
-import { ComentarioLibre } from '@shared/components/ui/ComentarioLibre'
 import { EmptyState } from '@shared/components/ui/EmptyState'
 import { Icon } from '@shared/components/ui/Icon'
 import { Kbd, ProgressBar, SectionLabel } from '@shared/components/ui/Indicators'
@@ -410,12 +409,13 @@ function TemaEnFoco({
         />
       </div>
 
-      <ComentarioLibre
+      <EditableText
+        as="p"
         value={it.comentarios}
         canEdit={hoja.canManage}
         onSave={(next) => hoja.guardarComentarios(it.id, next)}
         placeholder="Notas de la conversación…"
-        size="sm"
+        emptyLabel="Sin comentarios"
         textClassName="text-sm text-fg-body"
       />
 

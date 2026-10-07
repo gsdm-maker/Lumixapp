@@ -1,6 +1,5 @@
 import { IconButton } from '@shared/components/ui/Button'
 import { EditableText } from '@shared/components/ui/EditableText'
-import { ComentarioLibre } from '@shared/components/ui/ComentarioLibre'
 import { Icon } from '@shared/components/ui/Icon'
 import { DueDate } from '@shared/components/ui/Indicators'
 import { StatusLabel } from '@shared/components/ui/StatusLabel'
@@ -136,13 +135,12 @@ export function MinutaTabla({
                 </td>
               )}
               <td className={td}>
-                {/* Siempre abierto para escribir, sin lapiz (pedido de Sebastian). */}
-                <ComentarioLibre
+                <EditableText
                   value={it.comentarios}
                   canEdit={canManage}
                   onSave={(next) => hoja.guardarComentarios(it.id, next)}
                   placeholder="Notas…"
-                  size="sm"
+                  emptyLabel="—"
                   textClassName="text-sm text-fg-muted"
                 />
               </td>
