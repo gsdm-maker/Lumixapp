@@ -122,6 +122,7 @@ export function TemaDetalle({
             value={item.comentarios}
             canEdit={canManage}
             onSave={(next) => hoja.guardarComentarios(item.id, next)}
+            editarAlTocar
             placeholder="Notas…"
             emptyLabel="Sin comentarios"
             textClassName="text-sm text-fg-body"

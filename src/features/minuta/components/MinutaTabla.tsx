@@ -139,6 +139,7 @@ export function MinutaTabla({
                   value={it.comentarios}
                   canEdit={canManage}
                   onSave={(next) => hoja.guardarComentarios(it.id, next)}
+                  editarAlTocar
                   placeholder="Notas…"
                   emptyLabel="—"
                   textClassName="text-sm text-fg-muted"

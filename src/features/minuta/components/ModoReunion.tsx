@@ -414,6 +414,7 @@ function TemaEnFoco({
         value={it.comentarios}
         canEdit={hoja.canManage}
         onSave={(next) => hoja.guardarComentarios(it.id, next)}
+        editarAlTocar
         placeholder="Notas de la conversación…"
         emptyLabel="Sin comentarios"
         textClassName="text-sm text-fg-body"
