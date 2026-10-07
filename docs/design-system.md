@@ -15,8 +15,11 @@ nueva o modificada.
   Sistema (Perfil → Apariencia).
 - **Bordes, no tarjetas.** Secciones separadas con líneas de 1px y fondos apenas distintos.
   Sombra solo en lo que flota (menús, diálogos, avisos).
-- **Tipografía:** IBM Plex Sans (alojada en `public/fonts`, la CSP no permite Google Fonts).
-  Plex Mono solo para claves temporales y atajos de teclado.
+- **Estilo shadcn/ui:** componentes sobre Radix (diálogos accesibles), íconos Lucide, avisos con
+  sonner, paleta de comandos con cmdk (`Ctrl+K`) y animaciones de `tw-animate-css`. Esquinas de
+  8 px (controles) a 12-16 px (contenedores), sombras en capas suaves y movimiento corto.
+- **Tipografía:** Geist (alojada en `public/fonts`, la CSP no permite Google Fonts). Geist Mono
+  solo para claves temporales y atajos de teclado. Texto base de 14 px.
 - **Sin** emojis como íconos, degradados, violeta, IDs inventados (`#ACT-104`), bloques de
   héroe ni tarjetas dentro de tarjetas.
 

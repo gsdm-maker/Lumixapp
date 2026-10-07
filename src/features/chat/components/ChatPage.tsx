@@ -1,3 +1,4 @@
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useAuth } from '@core/auth/hooks/useAuth'
 import { useCapabilities } from '@core/auth/hooks/useCapabilities'
@@ -96,6 +97,19 @@ export function ChatPage() {
   } = useCapabilities()
   // Tipo del proximo mensaje (botones del campo de texto).
   const [tipo, setTipo] = useState<TipoMensaje>('auto')
+
+  // "Crear ..." desde la paleta de comandos llega aca con el tipo en el estado de la ruta: se
+  // fija el tipo, se enfoca el campo y se limpia el estado (para que volver atras no lo repita).
+  const location = useLocation()
+  const navigate = useNavigate()
+  const tipoPedido = (location.state as { tipo?: TipoMensaje } | null)?.tipo
+  useEffect(() => {
+    if (!tipoPedido) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTipo(tipoPedido)
+    inputRef.current?.focus()
+    navigate(location.pathname, { replace: true, state: null })
+  }, [tipoPedido, navigate, location.pathname])
   // Cada tipo con el permiso de su destino (antes Proyecto pedia el de Minuta, e Ingesta no
   // pedia nada). Error queda abierto a todos a proposito (Sebastian): cualquiera puede
   // reportar un error por el chat.

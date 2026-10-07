@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar'
 import { BottomNav } from './BottomNav'
 import { navItems } from './navItems'
 import { NovedadesModal } from '@shared/components/ui/NovedadesModal'
+import { CommandPalette } from './CommandPalette'
 import { IconButton } from '@shared/components/ui/Button'
 import { LumixIcon } from '@shared/components/ui/LumixIcon'
 import { useAppHeight } from '@shared/hooks/useAppHeight'
@@ -40,6 +41,7 @@ export function AppLayout() {
       }}
     >
       <NovedadesModal />
+      <CommandPalette />
 
       {menuAbierto && (
         <div

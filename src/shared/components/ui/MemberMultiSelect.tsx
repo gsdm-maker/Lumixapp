@@ -1,3 +1,4 @@
+import { useEscapePrimero } from '@shared/hooks/useEscapePrimero'
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { cx } from '@shared/utils/cx'
 import { Icon } from './Icon'
@@ -83,6 +84,7 @@ export function MemberMultiSelect({
     setOpen(false)
     triggerRef.current?.focus({ preventScroll: true })
   }
+  useEscapePrimero(open, cerrar)
 
   useLayoutEffect(() => {
     if (open) panelRef.current?.querySelector<HTMLElement>('button')?.focus({ preventScroll: true })

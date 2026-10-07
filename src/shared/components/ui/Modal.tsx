@@ -1,7 +1,8 @@
-import { useId, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
+import * as Dialog from '@radix-ui/react-dialog'
 import { cx } from '@shared/utils/cx'
-import { useOverlay } from '@shared/hooks/useOverlay'
-import { IconButton } from './Button'
+import { useCapaEnPila } from '@shared/hooks/useOverlay'
+import { Icon } from './Icon'
 
 interface ModalProps {
   open: boolean
@@ -17,11 +18,15 @@ interface ModalProps {
   dismissible?: boolean
 }
 
-const SIZE = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-lg', xl: 'max-w-2xl' }
+const SIZE = { sm: 'sm:max-w-sm', md: 'sm:max-w-md', lg: 'sm:max-w-lg', xl: 'sm:max-w-2xl' }
 
 /**
- * Dialogo centrado. Para decisiones y formularios cortos; para editar el detalle de algo que
- * esta en una lista usar <SidePanel>, que no tapa la lista.
+ * Dialogo centrado sobre Radix (la base de shadcn/ui): foco atrapado, Escape, bloqueo de scroll
+ * y lectores de pantalla resueltos, con animacion corta de entrada y salida. En el celular sube
+ * desde abajo como una hoja.
+ *
+ * Para decisiones y formularios cortos; para editar el detalle de algo de una lista usar
+ * <SidePanel>, que no tapa la lista.
  */
 export function Modal({
   open,
@@ -33,57 +38,61 @@ export function Modal({
   size = 'md',
   dismissible = true,
 }: ModalProps) {
-  const ref = useOverlay(open, onClose)
-  const titleId = useId()
-
-  if (!open) return null
+  useCapaEnPila(open)
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40"
-      onMouseDown={(e) => {
-        if (dismissible && e.target === e.currentTarget) onClose()
-      }}
-    >
-      <div
-        ref={ref}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={title ? titleId : undefined}
-        tabIndex={-1}
-        className={cx(
-          'w-full flex flex-col bg-panel border border-border-strong shadow-xl outline-none',
-          'max-h-[90dvh] rounded-t-xl sm:rounded-lg',
-          SIZE[size],
-        )}
-      >
-        {title && (
-          <div className="flex items-start gap-3 px-5 pt-4 pb-3 border-b border-border">
-            <div className="flex-1 min-w-0">
-              <h2 id={titleId} className="text-lg font-semibold text-fg">
-                {title}
-              </h2>
-              {description && <p className="text-xs text-fg-faint mt-0.5">{description}</p>}
+    <Dialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0" />
+        <Dialog.Content
+          // Sin descripcion, se le avisa a Radix que no hay (si no, advierte en consola).
+          {...(description ? {} : { 'aria-describedby': undefined })}
+          onInteractOutside={(e) => {
+            if (!dismissible) e.preventDefault()
+          }}
+          className={cx(
+            'fixed z-50 flex flex-col w-full bg-panel border border-border-strong shadow-lg outline-none',
+            'max-h-[90dvh] bottom-0 left-0 rounded-t-2xl',
+            'sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl',
+            'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
+            'data-[state=open]:slide-in-from-bottom-6 sm:data-[state=open]:slide-in-from-bottom-0 sm:data-[state=open]:zoom-in-95 sm:data-[state=closed]:zoom-out-95 duration-200',
+            SIZE[size],
+          )}
+        >
+          {title ? (
+            <div className="flex items-start gap-3 px-5 pt-4 pb-3 border-b border-border">
+              <div className="flex-1 min-w-0">
+                <Dialog.Title className="text-lg font-semibold text-fg tracking-tight">
+                  {title}
+                </Dialog.Title>
+                {description && (
+                  <Dialog.Description className="text-xs text-fg-faint mt-0.5">
+                    {description}
+                  </Dialog.Description>
+                )}
+              </div>
+              <Dialog.Close
+                aria-label="Cerrar"
+                className="-mr-2 -mt-1 inline-flex items-center justify-center w-8 h-8 rounded-md text-fg-faint hover:text-fg hover:bg-surface transition-colors"
+              >
+                <Icon name="x" size={16} />
+              </Dialog.Close>
             </div>
-            <IconButton
-              icon="x"
-              label="Cerrar"
-              onClick={onClose}
-              className="-mr-2 -mt-1"
-              data-overlay-close
-            />
-          </div>
-        )}
-        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
-        {footer && (
-          <div
-            className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border"
-            style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))' }}
-          >
-            {footer}
-          </div>
-        )}
-      </div>
-    </div>
+          ) : (
+            // Radix exige un titulo para lectores de pantalla aunque no se muestre.
+            <Dialog.Title className="sr-only">Diálogo</Dialog.Title>
+          )}
+          <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+          {footer && (
+            <div
+              className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border"
+              style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))' }}
+            >
+              {footer}
+            </div>
+          )}
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   )
 }

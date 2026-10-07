@@ -47,7 +47,10 @@ export function SidePanel({
   return (
     <>
       {/* Fondo solo en movil: en escritorio la lista de atras sigue usable. */}
-      <div className="fixed inset-0 z-40 bg-black/40 sm:hidden" onClick={onClose} />
+      <div
+        className="fixed inset-0 z-40 bg-black/40 sm:hidden animate-in fade-in-0 duration-200"
+        onClick={onClose}
+      />
       <aside
         ref={ref}
         role="dialog"
@@ -55,7 +58,9 @@ export function SidePanel({
         tabIndex={-1}
         className={cx(
           'fixed z-40 inset-0 sm:inset-auto sm:top-0 sm:bottom-0 sm:right-0 w-full flex flex-col',
-          'bg-panel border-l border-border-strong shadow-xl outline-none',
+          'bg-panel border-l border-border shadow-lg outline-none',
+          // Entra deslizandose desde la derecha (estilo "sheet" de shadcn/ui).
+          'animate-in slide-in-from-right duration-300 ease-out',
           WIDTH[width],
         )}
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}

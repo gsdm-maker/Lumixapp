@@ -68,3 +68,20 @@ export function useOverlay(
 
   return containerRef
 }
+
+/**
+ * Registra una capa en la pila SIN manejar Escape ni el foco. Para capas cuyo componente ya
+ * resuelve eso (los dialogos de Radix): asi un panel lateral abajo sabe que no esta arriba y no
+ * se cierra con el mismo Escape que cierra el dialogo.
+ */
+export function useCapaEnPila(open: boolean) {
+  useEffect(() => {
+    if (!open) return
+    const id = Symbol('capa')
+    pila.push(id)
+    return () => {
+      const i = pila.indexOf(id)
+      if (i >= 0) pila.splice(i, 1)
+    }
+  }, [open])
+}

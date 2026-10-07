@@ -14,6 +14,7 @@ import { cx } from '@shared/utils/cx'
 import { TAG, type TagColor } from '@shared/utils/colores'
 import { ROLE_LABEL } from '@core/auth/roles'
 import { navItems } from './navItems'
+import { abrirPaletaDeComandos } from './paletaEventos'
 
 interface SidebarProps {
   onClose?: () => void
@@ -61,7 +62,7 @@ export function Sidebar({ onClose }: SidebarProps) {
 
   return (
     <aside
-      className="flex flex-col h-full w-60 bg-panel border-r border-border"
+      className="flex flex-col h-full w-60 bg-shell border-r border-border"
       style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
       <div className="flex items-center gap-2.5 px-4 h-12 shrink-0">
@@ -99,6 +100,24 @@ export function Sidebar({ onClose }: SidebarProps) {
             </div>
           )
         )}
+      </div>
+
+      {/* Paleta de comandos (Ctrl+K): buscar y crear desde cualquier pantalla. */}
+      <div className="px-3 pb-2">
+        <button
+          type="button"
+          onClick={() => {
+            abrirPaletaDeComandos()
+            onClose?.()
+          }}
+          className="w-full flex items-center gap-2 h-8 px-2.5 rounded-md border border-border bg-panel text-sm text-fg-faint shadow-xs hover:text-fg-muted transition-colors"
+        >
+          <Icon name="search" size={15} />
+          <span className="flex-1 text-left">Buscar o crear…</span>
+          <kbd className="hidden md:inline font-mono text-2xs border border-border rounded px-1">
+            Ctrl K
+          </kbd>
+        </button>
       </div>
 
       <nav aria-label="Principal" className="flex-1 overflow-y-auto px-2 py-1 space-y-px">
@@ -177,8 +196,9 @@ function NavItemLink({
       className={({ isActive }) =>
         cx(
           'relative flex items-center gap-2.5 h-8 px-2.5 rounded-md text-sm transition-colors',
+          // Activa: pastilla blanca con sombra (sidebar de shadcn/ui), sin bloque de color.
           isActive
-            ? 'bg-surface text-fg font-medium before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-accent'
+            ? 'bg-panel text-fg font-medium shadow-sm ring-1 ring-border'
             : 'text-fg-muted hover:text-fg hover:bg-surface',
         )
       }

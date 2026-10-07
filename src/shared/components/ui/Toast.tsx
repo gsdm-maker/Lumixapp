@@ -1,5 +1,6 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
-import { cx } from '@shared/utils/cx'
+import { createContext, useContext, useMemo, type ReactNode } from 'react'
+import { Toaster, toast as sonner } from 'sonner'
+import { useTheme } from '@core/theme/ThemeContext'
 import { Icon } from './Icon'
 
 type ToastType = 'success' | 'error' | 'info'
@@ -14,12 +15,6 @@ interface ToastOptions {
   action?: ToastAction
   /** Milisegundos. Por defecto 3.5s, 6s si trae accion (hay que alcanzar a usarla). */
   duration?: number
-}
-
-interface ToastItem extends ToastOptions {
-  id: number
-  type: ToastType
-  message: string
 }
 
 interface ToastApi {
@@ -37,96 +32,56 @@ export function useToast(): ToastApi {
   return ctx
 }
 
-let counter = 0
-
-const MARCA: Record<ToastType, { icon: 'check' | 'alert' | 'info'; color: string }> = {
-  success: { icon: 'check', color: 'text-success' },
-  error: { icon: 'alert', color: 'text-danger' },
-  info: { icon: 'info', color: 'text-fg-faint' },
-}
-
 /**
- * Avisos sutiles abajo al centro. Superficie neutra con un icono de color: el aviso confirma,
- * no grita. Sobre la barra inferior en el celular.
+ * Avisos con sonner (el de shadcn/ui): se apilan, entran con animacion y se pueden descartar
+ * deslizando. La API (useToast().success(msg, { action })) es la misma de antes, asi que
+ * ninguna pantalla cambia.
  */
 export function ToastProvider({ children }: { children: ReactNode }) {
-  const [toasts, setToasts] = useState<ToastItem[]>([])
+  const { theme } = useTheme()
 
-  const remove = useCallback((id: number) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id))
-  }, [])
-
-  const show = useCallback(
-    (message: string, type: ToastType = 'info', options: ToastOptions = {}) => {
-      const id = ++counter
-      setToasts((prev) => {
-        // Maximo 3 a la vez, pero nunca se descarta antes de tiempo uno con accion (Deshacer):
-        // el diseno no pide confirmacion en lo reversible justamente porque se puede deshacer.
-        const next = [...prev, { id, type, message, ...options }]
-        while (next.length > 3) {
-          const i = next.findIndex((t) => !t.action)
-          if (i === -1 || i === next.length - 1) break
-          next.splice(i, 1)
-        }
-        return next
-      })
-      setTimeout(() => remove(id), options.duration ?? (options.action ? 6000 : 3500))
-    },
-    [remove],
-  )
-
-  const api = useMemo<ToastApi>(
-    () => ({
+  const api = useMemo<ToastApi>(() => {
+    const show = (message: string, type: ToastType = 'info', o: ToastOptions = {}) => {
+      const opciones = {
+        duration: o.duration ?? (o.action ? 6000 : 3500),
+        action: o.action ? { label: o.action.label, onClick: o.action.onClick } : undefined,
+      }
+      if (type === 'success') sonner.success(message, opciones)
+      else if (type === 'error') sonner.error(message, opciones)
+      else sonner(message, opciones)
+    }
+    return {
       show,
       success: (m, o) => show(m, 'success', o),
       error: (m, o) => show(m, 'error', o),
       info: (m, o) => show(m, 'info', o),
-    }),
-    [show],
-  )
+    }
+  }, [])
 
   return (
     <ToastContext.Provider value={api}>
       {children}
-      <div
-        aria-live="polite"
-        className="fixed z-[100] left-1/2 -translate-x-1/2 bottom-20 md:bottom-5 flex flex-col gap-2 items-center pointer-events-none w-full max-w-sm px-4"
-        style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
-      >
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            role={t.type === 'error' ? 'alert' : 'status'}
-            className="pointer-events-auto w-full flex items-center gap-2.5 pl-3 pr-2 py-2 rounded-lg bg-panel border border-border-strong shadow-lg text-sm text-fg"
-          >
-            <Icon name={MARCA[t.type].icon} size={16} className={MARCA[t.type].color} />
-            <span className="flex-1 min-w-0">{t.message}</span>
-            {t.action && (
-              <button
-                type="button"
-                onClick={() => {
-                  t.action!.onClick()
-                  remove(t.id)
-                }}
-                className="px-2 h-7 rounded-md text-sm font-medium text-accent hover:bg-accent-soft"
-              >
-                {t.action.label}
-              </button>
-            )}
-            <button
-              type="button"
-              aria-label="Cerrar aviso"
-              onClick={() => remove(t.id)}
-              className={cx(
-                'p-1 rounded text-fg-faint hover:text-fg',
-                t.action && 'hidden sm:block',
-              )}
-            >
-              <Icon name="x" size={14} />
-            </button>
-          </div>
-        ))}
-      </div>
+      <Toaster
+        theme={theme}
+        position="bottom-center"
+        // Sobre la barra inferior en el celular; en escritorio, abajo con margen normal.
+        offset={{ bottom: 20 }}
+        mobileOffset={{ bottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}
+        visibleToasts={3}
+        icons={{
+          success: <Icon name="circleCheck" size={16} className="text-success" />,
+          error: <Icon name="alert" size={16} className="text-danger" />,
+          info: <Icon name="info" size={16} className="text-fg-faint" />,
+        }}
+        toastOptions={{
+          classNames: {
+            toast:
+              '!bg-panel !text-fg !border !border-border-strong !rounded-xl !shadow-lg !font-sans !text-sm !gap-2.5',
+            actionButton:
+              '!bg-transparent !text-accent !font-medium !text-sm hover:!bg-accent-soft !rounded-md',
+          },
+        }}
+      />
     </ToastContext.Provider>
   )
 }

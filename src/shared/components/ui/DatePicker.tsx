@@ -1,3 +1,4 @@
+import { useEscapePrimero } from '@shared/hooks/useEscapePrimero'
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { cx } from '@shared/utils/cx'
 import { Icon } from './Icon'
@@ -88,6 +89,7 @@ export function DatePicker({ value, onChange, placeholder = 'Seleccionar', class
     setOpen(false)
     triggerRef.current?.focus({ preventScroll: true })
   }
+  useEscapePrimero(open, close)
 
   const pick = (v: string | null) => {
     onChange(v)
