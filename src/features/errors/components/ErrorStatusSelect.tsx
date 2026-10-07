@@ -1,7 +1,7 @@
 import { Icon } from '@shared/components/ui/Icon'
 import { StatusLabel } from '@shared/components/ui/StatusLabel'
-import { ERROR_STATUS } from '@shared/utils/estados'
-import type { ErrorStatus } from '@shared/types'
+import { ERROR_SEVERITY, ERROR_STATUS } from '@shared/utils/estados'
+import type { ErrorSeverity, ErrorStatus } from '@shared/types'
 
 const ORDEN: ErrorStatus[] = ['abierto', 'en_revision', 'resuelto', 'cerrado']
 
@@ -38,6 +38,50 @@ export function ErrorStatusSelect({
         {ORDEN.map((s) => (
           <option key={s} value={s}>
             {ERROR_STATUS[s].label}
+          </option>
+        ))}
+      </select>
+    </span>
+  )
+}
+
+const SEVERIDADES: ErrorSeverity[] = ['baja', 'media', 'alta', 'critica']
+
+const SEVERIDAD_TEXTO: Record<ErrorSeverity, string> = {
+  critica: 'text-danger font-medium',
+  alta: 'text-danger',
+  media: 'text-warning',
+  baja: 'text-fg-faint',
+}
+
+/** Severidad del error, editable con el mismo patron de select transparente que el estado. */
+export function ErrorSeveritySelect({
+  value,
+  onChange,
+  canEdit,
+  errorTitle,
+}: {
+  value: ErrorSeverity
+  onChange: (next: ErrorSeverity) => void
+  canEdit: boolean
+  errorTitle: string
+}) {
+  const label = ERROR_SEVERITY[value]?.label ?? value
+  if (!canEdit) return <span className={SEVERIDAD_TEXTO[value]}>{label}</span>
+
+  return (
+    <span className="relative inline-flex items-center gap-1 h-7 -mx-1.5 px-1.5 rounded-md hover:bg-surface focus-within:ring-2 focus-within:ring-accent/40">
+      <span className={SEVERIDAD_TEXTO[value]}>{label}</span>
+      <Icon name="chevronDown" size={12} className="text-fg-faint" />
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value as ErrorSeverity)}
+        aria-label={`Severidad de “${errorTitle}”`}
+        className="absolute inset-0 w-full opacity-0 cursor-pointer text-base sm:text-sm"
+      >
+        {SEVERIDADES.map((s) => (
+          <option key={s} value={s}>
+            {ERROR_SEVERITY[s].label}
           </option>
         ))}
       </select>

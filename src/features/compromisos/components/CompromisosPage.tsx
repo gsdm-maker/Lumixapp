@@ -21,6 +21,7 @@ import { PageHeader } from '@shared/components/ui/PageHeader'
 import { SegmentedControl } from '@shared/components/ui/SegmentedControl'
 import { SkeletonRows } from '@shared/components/ui/Skeleton'
 import { useToast } from '@shared/components/ui/Toast'
+import { useAuth } from '@core/auth/hooks/useAuth'
 import { useCapabilities } from '@core/auth/hooks/useCapabilities'
 import {
   semanaDe,
@@ -73,7 +74,8 @@ export function CompromisosPage() {
   // Conducir (mover de semana, llevar a minuta, comentar el tema) tiene permiso propio desde
   // la migracion 049. Antes se usaba "ver todas las actividades": un invitado veia los
   // botones y la base se los rechazaba, porque esas escrituras van a la minuta.
-  const { canConducirCompromisos: conduce } = useCapabilities()
+  const { canConducirCompromisos: conduce, canEditAllActivities } = useCapabilities()
+  const { profile } = useAuth()
   const toast = useToast()
 
   // Arranca TODO PLEGADO: la primera mirada es el tablero del equipo -quien va como- y
@@ -136,6 +138,7 @@ export function CompromisosPage() {
 
   const acciones: AccionesCompromiso = {
     conduce,
+    puedeMarcar: (c) => conduce || canEditAllActivities || c.responsible_id === profile?.id,
     alMarcar: (c) =>
       marcar(c.id, c.status !== 'completado').catch(() => toast.error('No se pudo guardar')),
     alMover: (c) =>

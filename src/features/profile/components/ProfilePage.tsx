@@ -313,7 +313,6 @@ export function ProfilePage() {
               </div>
             </div>
             <p className="text-xs text-fg-faint mt-3">Se guarda en este dispositivo.</p>
-            <p className="text-xs text-fg-faint">Se guarda en este dispositivo.</p>
           </section>
 
           {/* Sobre Lumix: lista de texto, sin mosaicos de emoji. */}

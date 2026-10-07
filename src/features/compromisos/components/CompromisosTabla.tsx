@@ -26,6 +26,8 @@ import {
 
 export interface AccionesCompromiso {
   conduce: boolean
+  /** Marca hecho quien conduce, el responsable o quien edita actividades ajenas. */
+  puedeMarcar: (c: Compromiso) => boolean
   alMarcar: (c: Compromiso) => void
   alMover: (c: Compromiso) => void
   alDiscutir: (c: Compromiso) => void
@@ -105,11 +107,15 @@ function FilaCompromiso({ c, acciones }: { c: Compromiso; acciones: AccionesComp
               hecha ? `Marcar "${c.title}" como no hecha` : `Marcar "${c.title}" como hecha`
             }
             onClick={() => acciones.alMarcar(c)}
+            disabled={!acciones.puedeMarcar(c)}
+            title={
+              acciones.puedeMarcar(c) ? undefined : 'Solo lo marca su responsable o quien conduce'
+            }
             className={cx(
-              'mt-0.5 w-4 h-4 rounded-sm border inline-flex items-center justify-center transition-colors',
+              'mt-0.5 w-4 h-4 rounded-sm border inline-flex items-center justify-center transition-colors disabled:cursor-not-allowed disabled:opacity-50',
               hecha
                 ? 'bg-success border-success text-on-accent'
-                : 'border-border-strong hover:border-success hover:bg-success-soft',
+                : 'border-border-strong enabled:hover:border-success enabled:hover:bg-success-soft',
             )}
           >
             {hecha && <Icon name="check" size={12} strokeWidth={2.5} />}

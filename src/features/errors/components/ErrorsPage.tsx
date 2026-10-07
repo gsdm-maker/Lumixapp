@@ -8,7 +8,10 @@ import { Select } from '@shared/components/ui/Input'
 import { EmptyState } from '@shared/components/ui/EmptyState'
 import { SkeletonRows } from '@shared/components/ui/Skeleton'
 import { useErrors } from '@features/errors/hooks/useErrors'
-import { ErrorStatusSelect } from '@features/errors/components/ErrorStatusSelect'
+import {
+  ErrorSeveritySelect,
+  ErrorStatusSelect,
+} from '@features/errors/components/ErrorStatusSelect'
 import { useCapabilities } from '@core/auth/hooks/useCapabilities'
 import { exportToCSV } from '@shared/utils/export'
 import { formatDateLocal, parseDateLocal } from '@shared/utils/date'
@@ -34,13 +37,6 @@ const SEVERITY_STRIPE: Record<ErrorSeverity, string> = {
   alta: 'bg-danger',
   media: 'bg-warning',
   baja: '',
-}
-
-const SEVERITY_TEXT: Record<ErrorSeverity, string> = {
-  critica: 'text-danger font-medium',
-  alta: 'text-danger',
-  media: 'text-warning',
-  baja: 'text-fg-faint',
 }
 
 const DIA = 86400000
@@ -86,6 +82,7 @@ export function ErrorsPage() {
     search,
     setSearch,
     changeStatus,
+    changeSeverity,
     createError,
     updateField,
     counts,
@@ -130,7 +127,7 @@ export function ErrorsPage() {
               icon="download"
               onClick={exportar}
               disabled={errors.length === 0}
-              title="Exportar a Excel"
+              title="Exportar (archivo CSV que abre en Excel)"
             >
               <span className="hidden sm:inline">Exportar</span>
             </Button>
@@ -219,7 +216,6 @@ export function ErrorsPage() {
               <tbody className="bg-panel">
                 {errors.map((error) => {
                   const edad = antiguedad(error)
-                  const sev = ERROR_SEVERITY[error.severity]
                   return (
                     <tr
                       key={error.id}
@@ -245,13 +241,13 @@ export function ErrorsPage() {
                           textClassName="text-sm text-fg-muted"
                         />
                       </td>
-                      <td
-                        className={cx(
-                          'py-2.5 px-3 hidden lg:table-cell text-xs',
-                          SEVERITY_TEXT[error.severity],
-                        )}
-                      >
-                        {sev?.label ?? error.severity}
+                      <td className="py-2 px-3 hidden lg:table-cell text-xs">
+                        <ErrorSeveritySelect
+                          value={error.severity}
+                          canEdit={canManageErrors}
+                          errorTitle={error.title}
+                          onChange={(v) => changeSeverity(error.id, v)}
+                        />
                       </td>
                       <td className="py-2.5 px-3 hidden md:table-cell text-fg-muted whitespace-nowrap">
                         {memberName(error.created_by)}
@@ -311,6 +307,12 @@ export function ErrorsPage() {
                         canEdit={canManageErrors}
                         errorTitle={error.title}
                         onChange={(s) => changeStatus(error.id, s)}
+                      />
+                      <ErrorSeveritySelect
+                        value={error.severity}
+                        canEdit={canManageErrors}
+                        errorTitle={error.title}
+                        onChange={(v) => changeSeverity(error.id, v)}
                       />
                       <span className={edad.className}>{edad.text}</span>
                       <span className="text-fg-faint truncate">{memberName(error.created_by)}</span>

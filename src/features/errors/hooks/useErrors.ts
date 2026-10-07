@@ -137,7 +137,12 @@ export function useErrors() {
       (previo.status === 'resuelto' || previo.status === 'cerrado') &&
       (newStatus === 'en_revision' || newStatus === 'abierto')
     try {
-      await errorsService.update(id, { status: newStatus })
+      // Al reabrir se borra tambien la fecha de "Resuelto": el trigger de la base solo limpia
+      // closed_at, y un error activo con fecha de resolucion vieja confundia el "Abierto hace".
+      await errorsService.update(
+        id,
+        esReabrir ? { status: newStatus, resolved_at: null } : { status: newStatus },
+      )
 
       if (esReabrir && previo) {
         await notificationsService.sendToTeam(
@@ -187,6 +192,29 @@ export function useErrors() {
 
   /** Edicion inline generica (titulo/comentario): actualiza la base y el estado local sin
    * recargar todo, mismo criterio que guardar() en useMinuta. */
+  /** Cambia la severidad. Si pasa a Critica, avisa al equipo: es lo que no puede esperar. */
+  const changeSeverity = async (id: string, severity: ErrorSeverity) => {
+    const previo = errors.find((e) => e.id === id)
+    try {
+      const updated = await errorsService.update(id, { severity })
+      setErrors((cur) => cur.map((e) => (e.id === id ? updated : e)))
+      if (severity === 'critica' && previo?.severity !== 'critica') {
+        await notificationsService.sendToTeam(
+          teamId,
+          {
+            title: 'Error crítico',
+            body: updated.title,
+            type: 'critical_error',
+            metadata: { error_id: id },
+          },
+          { exceptUserId: user?.id },
+        )
+      }
+    } catch {
+      toast.error('No se pudo cambiar la severidad')
+    }
+  }
+
   const updateField = async (id: string, updates: Partial<AppError>) => {
     try {
       const updated = await errorsService.update(id, updates)
@@ -198,6 +226,7 @@ export function useErrors() {
 
   return {
     errors: filtered,
+    changeSeverity,
     members,
     loading,
     filterStatus,

@@ -69,6 +69,7 @@ export function GanttPage() {
 
     const activity = todas.find((a) => a.id === activityId)
     if (!activity) return
+    if (!canEditAllActivities && activity.responsible_id !== profile?.id) return
 
     const newDueDate = new Date(date)
     const oldDueDate = new Date(activity.due_date)

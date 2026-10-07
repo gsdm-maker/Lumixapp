@@ -249,7 +249,7 @@ export function ActivitiesPage() {
               size="sm"
               variant="secondary"
               icon="download"
-              title="Exportar a Excel"
+              title="Exportar (archivo CSV que abre en Excel)"
               onClick={exportar}
             >
               <span className="hidden sm:inline">Exportar</span>

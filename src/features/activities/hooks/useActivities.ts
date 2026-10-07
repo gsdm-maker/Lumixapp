@@ -253,6 +253,24 @@ export function useActivities() {
   ): Promise<boolean> => {
     try {
       await activitiesService.update(id, { status: newStatus })
+      const previa = activities.find((a) => a.id === id)
+      if (newStatus === 'falta_informacion' && previa && previa.status !== 'falta_informacion') {
+        // A quien puede destrabarla: jefatura y quien la creo (suele ser quien tiene el dato).
+        await notificationsService.sendToTeam(
+          previa.team_id,
+          {
+            title: 'Falta información',
+            body: `"${previa.title}" está esperando información`,
+            type: 'missing_info',
+            metadata: { activity_id: id },
+          },
+          {
+            exceptUserId: user?.id,
+            roles: ['admin', 'jefatura'],
+            alsoUserIds: [previa.created_by, previa.responsible_id],
+          },
+        )
+      }
       if (newStatus === 'bloqueado') {
         const activity = activities.find((a) => a.id === id)
         if (activity) {

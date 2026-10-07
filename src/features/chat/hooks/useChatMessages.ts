@@ -1235,6 +1235,18 @@ export function useChatMessages() {
         sender: { full_name: 'Lumix', avatar_url: null },
         metadata: { type: 'overload_lote', pending },
       })
+      // A quien le cargaron el dia tambien se le avisa: el mensaje del chat solo lo ve quien
+      // asigno (el chat es privado por persona).
+      if (primero.responsibleId !== user?.id) {
+        void notificationsService
+          .send(primero.responsibleId, {
+            title: 'Día cargado',
+            body: `Tienes ${primero.yaTenia + items.length} actividades para el ${formatDateLocal(primero.dueDate)}`,
+            type: 'overload',
+            metadata: { activity_id: primero.activityId },
+          })
+          .catch((err) => console.error('Overload notify failed:', err))
+      }
     }
   }
   emitirResumenSobrecargaRef.current = emitirResumenSobrecarga
@@ -1889,6 +1901,27 @@ export function useChatMessages() {
         console.error('Block notify failed:', err)
       }
     }
+    if (updates.status === 'falta_informacion' && activity.status !== 'falta_informacion') {
+      try {
+        // A quien puede destrabarla: jefatura y quien la creo (suele ser quien tiene el dato).
+        await notificationsService.sendToTeam(
+          teamId,
+          {
+            title: 'Falta información',
+            body: `"${updated.title}" está esperando información`,
+            type: 'missing_info',
+            metadata: { activity_id: updated.id },
+          },
+          {
+            exceptUserId: user?.id,
+            roles: ['admin', 'jefatura'],
+            alsoUserIds: [updated.created_by, updated.responsible_id],
+          },
+        )
+      } catch (err) {
+        console.error('Missing info notify failed:', err)
+      }
+    }
     if (updates.responsible_id && updates.responsible_id !== activity.responsible_id) {
       try {
         await notificationsService.send(updates.responsible_id, {
@@ -2445,6 +2478,21 @@ export function useChatMessages() {
       created_by: opts.senderId,
     })
     void aiDecisionsService.linkEntity(opts.decisionId ?? null, 'errors', error.id)
+    if (error.severity === 'critica') {
+      // Un error critico no puede esperar a que alguien abra la bitacora.
+      void notificationsService
+        .sendToTeam(
+          teamId,
+          {
+            title: 'Error crítico',
+            body: error.title,
+            type: 'critical_error',
+            metadata: { error_id: error.id },
+          },
+          { exceptUserId: opts.senderId },
+        )
+        .catch((err) => console.error('Critical error notify failed:', err))
+    }
     await aiSay(
       `Error "${error.title}" registrado en bitacora. Severidad: ${error.severity}.`,
       'error',

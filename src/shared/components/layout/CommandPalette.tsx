@@ -4,6 +4,7 @@ import { Command } from 'cmdk'
 import * as Dialog from '@radix-ui/react-dialog'
 import { useAuth } from '@core/auth/hooks/useAuth'
 import { useCapabilities } from '@core/auth/hooks/useCapabilities'
+import type { Capability } from '@core/auth/capabilities'
 import { useTheme } from '@core/theme/ThemeContext'
 import { activitiesService } from '@infrastructure/supabase/activities.service'
 import { minutesService } from '@infrastructure/supabase/minutes.service'
@@ -17,12 +18,31 @@ import { navItems } from './navItems'
 import { EVENTO_PALETA } from './paletaEventos'
 
 // Tipos que se pueden crear desde la paleta: abren el chat con ese tipo ya elegido (el chat es
-// donde Lumix entiende y crea; la paleta solo acorta el camino).
-const CREAR: { tipo: string; label: string; icon: IconName; color: string }[] = [
+// donde Lumix entiende y crea; la paleta solo acorta el camino). Cada uno se ofrece solo a quien
+// puede crearlo, con el mismo permiso que pide el chat o el modulo.
+const CREAR: { tipo: string; label: string; icon: IconName; color: string; cap?: Capability }[] = [
   { tipo: 'actividad', label: 'Nueva actividad', icon: 'list', color: TAG.blue.text },
-  { tipo: 'error', label: 'Registrar un error', icon: 'bug', color: TAG.red.text },
-  { tipo: 'minuta', label: 'Tema para la minuta', icon: 'clipboard', color: TAG.amber.text },
-  { tipo: 'proyecto', label: 'Nuevo proyecto', icon: 'folder', color: TAG.violet.text },
+  {
+    tipo: 'error',
+    label: 'Registrar un error',
+    icon: 'bug',
+    color: TAG.red.text,
+    cap: 'modulos.errores',
+  },
+  {
+    tipo: 'minuta',
+    label: 'Tema para la minuta',
+    icon: 'clipboard',
+    color: TAG.amber.text,
+    cap: 'minuta.gestionar',
+  },
+  {
+    tipo: 'proyecto',
+    label: 'Nuevo proyecto',
+    icon: 'folder',
+    color: TAG.violet.text,
+    cap: 'proyectos.gestionar',
+  },
 ]
 
 const ITEM =
@@ -113,7 +133,7 @@ export function CommandPalette() {
               </Command.Empty>
 
               <Command.Group heading="Crear">
-                {CREAR.map((c) => (
+                {CREAR.filter((c) => !c.cap || can(c.cap)).map((c) => (
                   <Command.Item
                     key={c.tipo}
                     value={`crear ${c.label}`}

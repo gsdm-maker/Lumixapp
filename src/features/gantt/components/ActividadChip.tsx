@@ -4,6 +4,8 @@
 
 import type { HTMLAttributes, ReactNode } from 'react'
 import { useDraggable, useDroppable } from '@dnd-kit/core'
+import { useAuth } from '@core/auth/hooks/useAuth'
+import { useCapabilities } from '@core/auth/hooks/useCapabilities'
 import { PriorityBars } from '@shared/components/ui/Indicators'
 import { cx } from '@shared/utils/cx'
 import type { Activity } from '@shared/types'
@@ -42,19 +44,23 @@ export function ActividadChip({
   activity: Activity
   onSelect: (a: Activity) => void
 }) {
-  // Una completada ya no se reprograma: queda fija donde se entrego.
+  // Una completada ya no se reprograma: queda fija donde se entrego. Y solo la mueve quien
+  // puede editarla (el responsable o quien edita actividades ajenas), igual que en el modal.
   const completada = activity.status === 'completado'
+  const { profile } = useAuth()
+  const { canEditAllActivities } = useCapabilities()
+  const movible = !completada && (canEditAllActivities || activity.responsible_id === profile?.id)
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: activity.id,
-    disabled: completada,
+    disabled: !movible,
   })
 
   return (
     <ChipContenido
       ref={setNodeRef}
       activity={activity}
-      {...(completada ? {} : attributes)}
-      {...(completada ? {} : listeners)}
+      {...(movible ? attributes : {})}
+      {...(movible ? listeners : {})}
       onClick={(e) => {
         e.stopPropagation()
         onSelect(activity)
@@ -65,11 +71,13 @@ export function ActividadChip({
       title={
         completada
           ? `${activity.title} (completada)`
-          : `${activity.title} · arrastra para cambiar de día`
+          : movible
+            ? `${activity.title} · arrastra para cambiar de día`
+            : activity.title
       }
       className={cx(
         isDragging && 'opacity-40',
-        !completada && 'cursor-grab active:cursor-grabbing touch-none hover:border-border-strong',
+        movible && 'cursor-grab active:cursor-grabbing touch-none hover:border-border-strong',
       )}
     />
   )

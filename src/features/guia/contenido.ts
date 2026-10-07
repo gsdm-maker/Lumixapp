@@ -358,6 +358,7 @@ export const SECCIONES: SeccionGuia[] = [
     ],
     permisos: [
       'Mover, llevar a la minuta, comentar y cerrar semana: "Conducir la revisión".',
+      'Marcar hecho: el responsable, quien conduce o quien edita actividades ajenas.',
       'Sin "Ver todas las del equipo" solo ves tus compromisos.',
     ],
   },
@@ -376,6 +377,10 @@ export const SECCIONES: SeccionGuia[] = [
         d: 'Lo registra en la bitácora. También desde el chat con el tipo Error.',
       },
       { t: 'Cambiar estado', d: 'En proceso, Resuelto o Cerrado, directo en la fila.' },
+      {
+        t: 'Cambiar severidad',
+        d: 'Baja, Media, Alta o Crítica, directo en la fila. Un error nuevo parte en Alta; al pasarlo a Crítica se avisa a todo el equipo.',
+      },
       { t: 'Editar en la fila', d: 'Título y comentario se editan sin abrir nada.' },
       {
         t: 'Filtrar',
@@ -386,7 +391,7 @@ export const SECCIONES: SeccionGuia[] = [
     reglas: [
       'La franja de color a la izquierda indica severidad: roja = alta o crítica, ámbar = media.',
       '"Abierto hace" se pinta ámbar desde 14 días.',
-      'La fecha de cierre se pone sola al cerrar y se borra si el error se reabre.',
+      'Las fechas de resolución y de cierre se ponen solas y se borran si el error se reabre.',
       'Reabrir un error avisa a todo el equipo.',
     ],
     permisos: ['Crear, editar y cambiar estado: "Gestionar errores".'],
@@ -437,7 +442,10 @@ export const SECCIONES: SeccionGuia[] = [
         t: 'Ver las actividades',
         d: 'Toca una celda para ver las actividades de esa persona en la semana.',
       },
-      { t: 'Mover una entrega', d: 'Arrastra una actividad a otro día para cambiarle la fecha.' },
+      {
+        t: 'Mover una entrega',
+        d: 'Arrastra una actividad a otro día para cambiarle la fecha. Solo se mueven las que puedes editar (las tuyas, o todas si editas actividades ajenas).',
+      },
       {
         t: 'Editar',
         d: 'Al hacer clic en una actividad: prioridad, entrega, horas estimadas y descripción.',
@@ -493,7 +501,7 @@ export const SECCIONES: SeccionGuia[] = [
     acciones: [
       {
         t: 'Qué llega',
-        d: 'Te asignaron, delegaron o reasignaron una actividad; nueva actividad desde la Minuta o un Proyecto; una actividad se bloqueó; un error se reabrió.',
+        d: 'Te asignaron, delegaron o reasignaron una actividad; nueva actividad desde la Minuta o un Proyecto; una actividad se bloqueó o quedó esperando información; te cargaron un día con más actividades de las recomendadas; un error pasó a crítico o se reabrió.',
       },
       {
         t: 'Ir al detalle',
