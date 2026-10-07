@@ -18,7 +18,7 @@ import {
 } from '@features/chat/components/ActivityListMessage'
 import { BulkCreateModal } from '@features/chat/components/BulkCreateModal'
 import { Composer } from '@features/chat/components/Composer'
-import { ConversationRail } from '@features/chat/components/ConversationRail'
+import { ChatSidePanel } from '@features/chat/components/ChatSidePanel'
 import { EditActivityModal } from '@features/chat/components/EditActivityModal'
 import { LumixFirma } from '@features/chat/components/LumixLine'
 import { MessageLine } from '@features/chat/components/MessageLine'
@@ -87,8 +87,16 @@ export function ChatPage() {
   } = chat
   const { vivas } = useActividadesVivas(messages)
 
-  const { canAssignOthers, canManageMinuta, canManageProyectos, canManageIngestas } =
-    useCapabilities()
+  const {
+    canAssignOthers,
+    canManageMinuta,
+    canManageProyectos,
+    canManageIngestas,
+    canViewAllActivities,
+  } = useCapabilities()
+  // Tipo del proximo mensaje. Vive aca (no en Composer) para que "Crear rapido" del panel
+  // lateral lo pueda fijar.
+  const [tipo, setTipo] = useState<TipoMensaje>('auto')
   // Cada tipo con el permiso de su destino (antes Proyecto pedia el de Minuta, e Ingesta no
   // pedia nada). Error queda abierto a todos a proposito (Sebastian): cualquiera puede
   // reportar un error por el chat.
@@ -99,17 +107,17 @@ export function ChatPage() {
   }
   const tipos = TIPOS.filter((t) => tipoPermitido[t] ?? true)
 
-  // El roster sirve a tres cosas: editar una actividad, reasignar varias desde el listado y
-  // adelantar en el campo a quien se asigna. Se pide una vez y solo si puede asignar a otros
-  // (sin ese permiso todo queda a su nombre y no hay a quien elegir).
+  // El roster sirve para editar una actividad, reasignar varias desde el listado, adelantar en
+  // el campo a quien se asigna y poner nombres en el panel lateral. Se pide una vez y solo si
+  // hace falta: quien no asigna a otros ni ve al equipo solo ve lo suyo.
   useEffect(() => {
-    if (canAssignOthers && roster.length === 0) {
+    if ((canAssignOthers || canViewAllActivities) && roster.length === 0) {
       listMembers()
         .then(setRoster)
         .catch(() => {})
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canAssignOthers])
+  }, [canAssignOthers, canViewAllActivities])
   const editMembers = useMemo(
     () => roster.map((m) => ({ id: m.id, full_name: m.full_name })),
     [roster],
@@ -385,7 +393,81 @@ export function ChatPage() {
     },
   }
 
-  let diaAnterior = ''
+  // Dibuja una entrada del registro (mensaje de persona con lo que Lumix hizo debajo, o una
+  // linea sola de Lumix). Funcion aparte y no inline en el JSX: el compilador de React
+  // marcaba como lectura de refs en render los handlers definidos dentro del map anidado.
+  const renderEntrada = (e: (typeof visibles)[number], i: number, dia: string) => {
+    const preview = metaDe(e.msg).reply_preview as ReplyTarget | undefined
+    // Mensajes seguidos de la misma persona (mismo dia, menos de 5 min, sin una
+    // respuesta de Lumix entremedio) se agrupan: sin repetir avatar ni nombre.
+    const previo = i > 0 ? visibles[i - 1] : null
+    const continuation =
+      !!previo &&
+      claveDia(previo.msg.created_at) === dia &&
+      e.kind === 'persona' &&
+      previo?.kind === 'persona' &&
+      previo.msg.sender_id === e.msg.sender_id &&
+      previo.resultados.length === 0 &&
+      !preview &&
+      new Date(e.msg.created_at).getTime() - new Date(previo.msg.created_at).getTime() < 5 * 60_000
+    // Solo lo que llega mientras se mira entra animado; el historial no.
+    const fresh = new Date(e.msg.created_at).getTime() > abiertoEn
+    return (
+      <Fragment key={e.msg.id}>
+        {e.kind === 'persona' ? (
+          <MessageLine
+            msgId={e.msg.id}
+            timestamp={e.msg.created_at}
+            author={e.msg.sender_id === user?.id ? 'Tú' : (e.msg.sender?.full_name ?? 'Usuario')}
+            own={e.msg.sender_id === user?.id}
+            avatarSrc={
+              e.msg.sender_id === user?.id ? profile?.avatar_url : e.msg.sender?.avatar_url
+            }
+            continuation={continuation}
+            fresh={fresh}
+            category={e.msg.category}
+            optimistic={e.msg.id.startsWith('opt-')}
+            content={e.msg.content}
+            onReply={() => startReply(e.msg)}
+            quoted={
+              preview && (
+                <QuotedMessage
+                  reply={preview}
+                  onJump={
+                    messages.some((m) => m.id === preview.id) ? () => jumpTo(preview.id) : undefined
+                  }
+                />
+              )
+            }
+          >
+            {e.resultados.length > 0 &&
+              e.resultados.map((r) => (
+                <div key={r.id} data-msg-id={r.id} className="space-y-1.5">
+                  {renderLumix(r)}
+                </div>
+              ))}
+          </MessageLine>
+        ) : (
+          <MessageLine msgId={e.msg.id} timestamp={e.msg.created_at} fresh={fresh}>
+            {renderLumix(e.msg)}
+          </MessageLine>
+        )}
+      </Fragment>
+    )
+  }
+
+  // Mensajes visibles agrupados por dia, en orden (para las secciones con su pastilla).
+  const porDia: {
+    clave: string
+    etiqueta: string
+    items: { e: (typeof visibles)[number]; i: number }[]
+  }[] = []
+  visibles.forEach((e, i) => {
+    const clave = claveDia(e.msg.created_at)
+    const ultimo = porDia[porDia.length - 1]
+    if (ultimo?.clave === clave) ultimo.items.push({ e, i })
+    else porDia.push({ clave, etiqueta: etiquetaDia(e.msg.created_at), items: [{ e, i }] })
+  })
 
   return (
     <div className="flex flex-col h-full bg-panel">
@@ -435,85 +517,19 @@ export function ChatPage() {
               ) : visibles.length === 0 && filtro !== 'todo' ? (
                 <EmptyState icon="filter" {...vacioFiltro[filtro]} />
               ) : (
-                visibles.map((e, i) => {
-                  const dia = claveDia(e.msg.created_at)
-                  const separador = dia !== diaAnterior
-                  diaAnterior = dia
-                  const preview = metaDe(e.msg).reply_preview as ReplyTarget | undefined
-                  // Mensajes seguidos de la misma persona (mismo dia, menos de 5 min, sin una
-                  // respuesta de Lumix entremedio) se agrupan: sin repetir avatar ni nombre.
-                  const previo = i > 0 ? visibles[i - 1] : null
-                  const continuation =
-                    !separador &&
-                    e.kind === 'persona' &&
-                    previo?.kind === 'persona' &&
-                    previo.msg.sender_id === e.msg.sender_id &&
-                    previo.resultados.length === 0 &&
-                    !preview &&
-                    new Date(e.msg.created_at).getTime() -
-                      new Date(previo.msg.created_at).getTime() <
-                      5 * 60_000
-                  // Solo lo que llega mientras se mira entra animado; el historial no.
-                  const fresh = new Date(e.msg.created_at).getTime() > abiertoEn
-                  return (
-                    <Fragment key={e.msg.id}>
-                      {separador && (
-                        // Pastilla del dia, pegada arriba mientras se recorre ese dia.
-                        <div className="sticky top-2 z-10 flex justify-center py-2 pointer-events-none">
-                          <span className="px-2.5 h-6 inline-flex items-center rounded-full border border-border bg-panel/95 shadow-sm text-xs font-medium text-fg-muted">
-                            {etiquetaDia(e.msg.created_at)}
-                          </span>
-                        </div>
-                      )}
-                      {e.kind === 'persona' ? (
-                        <MessageLine
-                          msgId={e.msg.id}
-                          timestamp={e.msg.created_at}
-                          author={
-                            e.msg.sender_id === user?.id
-                              ? 'Tú'
-                              : (e.msg.sender?.full_name ?? 'Usuario')
-                          }
-                          own={e.msg.sender_id === user?.id}
-                          avatarSrc={
-                            e.msg.sender_id === user?.id
-                              ? profile?.avatar_url
-                              : e.msg.sender?.avatar_url
-                          }
-                          continuation={continuation}
-                          fresh={fresh}
-                          category={e.msg.category}
-                          optimistic={e.msg.id.startsWith('opt-')}
-                          content={e.msg.content}
-                          onReply={() => startReply(e.msg)}
-                          quoted={
-                            preview && (
-                              <QuotedMessage
-                                reply={preview}
-                                onJump={
-                                  messages.some((m) => m.id === preview.id)
-                                    ? () => jumpTo(preview.id)
-                                    : undefined
-                                }
-                              />
-                            )
-                          }
-                        >
-                          {e.resultados.length > 0 &&
-                            e.resultados.map((r) => (
-                              <div key={r.id} data-msg-id={r.id} className="space-y-1.5">
-                                {renderLumix(r)}
-                              </div>
-                            ))}
-                        </MessageLine>
-                      ) : (
-                        <MessageLine msgId={e.msg.id} timestamp={e.msg.created_at} fresh={fresh}>
-                          {renderLumix(e.msg)}
-                        </MessageLine>
-                      )}
-                    </Fragment>
-                  )
-                })
+                porDia.map((grupo) => (
+                  // Cada dia en su propia seccion, con la pastilla pegajosa ADENTRO: un sticky solo
+                  // se pega dentro de su contenedor, asi que al llegar a "Ayer" u "Hoy" la pastilla
+                  // nueva empuja a la anterior en vez de quedar encima de ella (bug reportado).
+                  <section key={grupo.clave} aria-label={grupo.etiqueta}>
+                    <div className="sticky top-2 z-10 flex justify-center py-2 pointer-events-none">
+                      <span className="px-2.5 h-6 inline-flex items-center rounded-full border border-border bg-panel shadow-sm text-xs font-medium text-fg-muted">
+                        {grupo.etiqueta}
+                      </span>
+                    </div>
+                    {grupo.items.map(({ e, i }) => renderEntrada(e, i, grupo.clave))}
+                  </section>
+                ))
               )}
 
               {typingText && (
@@ -547,10 +563,26 @@ export function ChatPage() {
             onCancelReply={() => setReplyTo(null)}
             onTyping={broadcastTyping}
             members={canAssignOthers ? roster : []}
+            tipo={tipo}
+            onTipoChange={setTipo}
           />
         </div>
 
-        <ConversationRail resumen={resumen} onJump={jumpTo} />
+        <ChatSidePanel
+          resumen={resumen}
+          onJump={jumpTo}
+          tipos={tipos}
+          onCrear={(t) => {
+            setTipo(t)
+            inputRef.current?.focus()
+          }}
+          onCompletar={(id) => quickUpdate(id, { status: 'completado' })}
+          teamId={profile?.team_id ?? ''}
+          userId={user?.id}
+          verEquipo={canViewAllActivities}
+          version={messages.length}
+          memberName={(id) => roster.find((m) => m.id === id)?.full_name ?? 'Sin asignar'}
+        />
       </div>
 
       {editTarget && (

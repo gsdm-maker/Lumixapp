@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState, type RefObject } from 'react'
 import type { ReplyTarget } from '@features/chat/types'
 import type { Member } from '@features/chat/hooks/useChatMessages'
 import { Button } from '@shared/components/ui/Button'
-import { Select } from '@shared/components/ui/Input'
+import { Icon } from '@shared/components/ui/Icon'
+import { TAG } from '@shared/utils/colores'
+import { TIPO_ESTILO } from '@features/chat/components/composer/tipos'
 import { Kbd } from '@shared/components/ui/Indicators'
 import { Spinner } from '@shared/components/ui/Spinner'
 import { cx } from '@shared/utils/cx'
@@ -27,6 +29,9 @@ interface Props {
   onTyping: () => void
   /** Roster para adelantar a quien se asigna. Vacio = no se adelanta persona. */
   members: Member[]
+  /** Tipo elegido. Vive en ChatPage para que el panel lateral ("Crear rapido") lo pueda fijar. */
+  tipo: TipoMensaje
+  onTipoChange: (t: TipoMensaje) => void
 }
 
 const COMANDO_RE = /^\/(\p{L}+)\s+/u
@@ -47,9 +52,10 @@ export function Composer({
   onCancelReply,
   onTyping,
   members,
+  tipo,
+  onTipoChange: setTipo,
 }: Props) {
   const [input, setInput] = useState('')
-  const [tipo, setTipo] = useState<TipoMensaje>('auto')
   const [menuIdx, setMenuIdx] = useState(0)
   const [menuCerrado, setMenuCerrado] = useState(false)
 
@@ -266,25 +272,41 @@ export function Composer({
             className="block w-full resize-none overflow-y-auto max-h-40 bg-transparent px-4 pt-3 pb-1 text-base sm:text-sm text-fg placeholder:text-fg-faint focus:outline-none"
           />
 
+          <div className="px-4 pb-1 text-xs text-fg-faint min-h-[1.25rem]">{estado}</div>
+
           <div className="flex items-center gap-2 px-2 pb-2 pt-1">
-            <label htmlFor="chat-tipo" className="sr-only">
-              Tipo de mensaje
-            </label>
-            <Select
-              id="chat-tipo"
-              size="sm"
-              className="w-[7.5rem] shrink-0"
-              value={tipoVigente}
-              onChange={(e) => setTipo(e.target.value as TipoMensaje)}
+            {/* Tipo como botones a la vista (no un desplegable): cada uno con el color e icono
+                del modulo al que va. En el celular se desplazan de lado. */}
+            <div
+              role="radiogroup"
+              aria-label="Tipo de mensaje"
+              className="min-w-0 flex-1 flex gap-1 overflow-x-auto [scrollbar-width:none]"
             >
-              {tipos.map((t) => (
-                <option key={t} value={t}>
-                  {TIPO_LABEL[t]}
-                </option>
-              ))}
-            </Select>
-            <div className="min-w-0 flex-1 text-xs text-fg-faint truncate sm:whitespace-normal">
-              {estado}
+              {tipos.map((t) => {
+                const est = TIPO_ESTILO[t]
+                const activo = t === tipoVigente
+                const texto = est.color === 'accent' ? 'text-accent' : TAG[est.color].text
+                const fondo = est.color === 'accent' ? 'bg-accent-soft' : TAG[est.color].soft
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    role="radio"
+                    aria-checked={activo}
+                    onClick={() => {
+                      setTipo(t)
+                      inputRef.current?.focus()
+                    }}
+                    className={cx(
+                      'shrink-0 inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full text-xs font-medium transition-colors',
+                      activo ? cx(fondo, texto) : 'text-fg-muted hover:bg-surface hover:text-fg',
+                    )}
+                  >
+                    <Icon name={est.icon} size={13} className={activo ? undefined : texto} />
+                    {TIPO_LABEL[t]}
+                  </button>
+                )
+              })}
             </div>
             <Button
               icon="send"
