@@ -38,6 +38,10 @@ Todo color sale de una variable. Nunca escribir colores de Tailwind a mano (`bg-
 | `text-accent`, `bg-accent-fill`, `bg-accent-soft`, `text-on-accent` | Acento: enlaces, acción principal, selección      |
 | `success`, `warning`, `danger`, `blocked` (+ `-soft`)               | Solo semántica de estado                          |
 
+**Contraste:** todos los pares de color están medidos con WCAG en los dos temas (texto ≥ 4,5;
+gráficos y borde de controles ≥ 3; fondos suaves distinguibles del blanco ≥ 1,2). Al cambiar
+un token, medirlo de nuevo.
+
 **Tema y acento** se cambian con atributos en `<html>` (`data-theme`, `data-accent`), gestionados
 por `ThemeContext` y aplicados antes de pintar por `public/tema-inicial.js`.
 

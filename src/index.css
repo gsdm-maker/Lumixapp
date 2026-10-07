@@ -45,18 +45,18 @@
 /* --- Tema claro (default) ------------------------------------------------------------------ */
 :root {
   /* Neutros: tinta fria sobre papel casi blanco. */
-  --shell: 246 247 248; /* fondo general de la app */
+  --shell: 244 245 247; /* fondo general de la app */
   --panel: 255 255 255; /* encabezados, tablas, paneles, dialogos */
   --surface: 238 240 242; /* controles en reposo, filas de grupo */
   --field: 255 255 255; /* inputs */
   --surface-2: 226 229 233; /* hover, avatares */
   --surface-soft: 243 244 246; /* insets sutiles: subtareas, seleccion suave */
-  --border: 226 229 233; /* divisores */
-  --border-strong: 205 210 216; /* bordes de inputs y contenedores */
+  --border: 220 223 228; /* divisores */
+  --border-strong: 133 142 153; /* bordes de inputs y contenedores */
   --fg: 21 25 30; /* titulos y datos */
   --fg-body: 43 50 58; /* texto de cuerpo */
   --fg-muted: 74 83 93; /* texto secundario */
-  --fg-faint: 107 116 128; /* metadatos */
+  --fg-faint: 95 104 117; /* metadatos */
 
   /* Semantica: solo para comunicar estado, nunca para decorar. */
   --success: 29 122 70;
@@ -70,30 +70,36 @@
 
   /* Color con significado, al estilo de Todoist: prioridad, cercania de la fecha y una paleta
      de "etiquetas" para modulos, proyectos y avatares. Siempre un tono fuerte (texto/icono) y
-     uno suave (fondo). */
-  --p1: 209 69 59;
-  --p2: 235 137 9;
-  --p3: 36 111 224;
-  --date-today: 5 133 39;
-  --date-tomorrow: 173 98 0;
-  --date-week: 105 46 194;
+     uno suave (fondo).
 
-  --tag-red: 209 69 59;
-  --tag-red-soft: 252 233 231;
-  --tag-orange: 196 104 0;
-  --tag-orange-soft: 253 240 222;
-  --tag-amber: 161 116 0;
-  --tag-amber-soft: 252 244 214;
-  --tag-green: 30 128 74;
-  --tag-green-soft: 225 243 232;
-  --tag-teal: 0 122 122;
-  --tag-teal-soft: 220 242 241;
-  --tag-blue: 36 111 224;
-  --tag-blue-soft: 226 236 252;
-  --tag-violet: 105 46 194;
-  --tag-violet-soft: 238 231 250;
-  --tag-pink: 184 37 95;
-  --tag-pink-soft: 250 230 238;
+     CONTRASTE MEDIDO (WCAG), en claro y en oscuro: cada tono fuerte da >= 4.5 sobre su fondo
+     suave y sobre el panel; los graficos (barras de prioridad) >= 3; el borde de controles
+     (border-strong) >= 3; y cada fondo suave se distingue del blanco (>= 1.2). La primera
+     version los tenia en 3.5-4.4 y los colores "se perdian" (reportado). Antes de cambiar un
+     valor, medirlo de nuevo: no aclararlo a ojo. */
+  --p1: 200 55 45;
+  --p2: 201 104 0;
+  --p3: 37 99 214;
+  --date-today: 11 122 50;
+  --date-tomorrow: 166 75 0;
+  --date-week: 91 43 174;
+
+  --tag-red: 180 35 24;
+  --tag-red-soft: 251 226 223;
+  --tag-orange: 166 75 0;
+  --tag-orange-soft: 253 229 203;
+  --tag-amber: 133 90 0;
+  --tag-amber-soft: 247 230 173;
+  --tag-green: 22 104 60;
+  --tag-green-soft: 214 238 223;
+  --tag-teal: 0 106 107;
+  --tag-teal-soft: 207 236 235;
+  --tag-blue: 29 88 194;
+  --tag-blue-soft: 218 229 251;
+  --tag-violet: 91 43 174;
+  --tag-violet-soft: 231 221 250;
+  --tag-pink: 160 31 80;
+  --tag-pink-soft: 248 218 229;
 
   color-scheme: light;
 }
@@ -106,12 +112,12 @@
   --field: 23 27 31;
   --surface-2: 42 48 54;
   --surface-soft: 20 24 27;
-  --border: 37 43 49;
-  --border-strong: 52 60 68;
+  --border: 46 53 60;
+  --border-strong: 107 118 130;
   --fg: 232 235 238;
   --fg-body: 204 210 216;
   --fg-muted: 170 178 187;
-  --fg-faint: 132 141 151;
+  --fg-faint: 138 147 157;
 
   --success: 76 194 127;
   --success-soft: 19 39 28;
@@ -122,29 +128,29 @@
   --blocked: 167 156 240;
   --blocked-soft: 30 27 52;
 
-  --p1: 255 112 102;
-  --p2: 255 168 64;
-  --p3: 102 160 255;
-  --date-today: 94 200 120;
-  --date-tomorrow: 240 160 60;
-  --date-week: 178 140 255;
+  --p1: 255 122 112;
+  --p2: 255 169 77;
+  --p3: 106 165 255;
+  --date-today: 111 214 154;
+  --date-tomorrow: 255 173 92;
+  --date-week: 190 163 255;
 
-  --tag-red: 255 128 118;
-  --tag-red-soft: 58 28 26;
-  --tag-orange: 255 170 80;
-  --tag-orange-soft: 56 38 18;
-  --tag-amber: 240 200 90;
-  --tag-amber-soft: 50 42 16;
-  --tag-green: 100 210 140;
-  --tag-green-soft: 20 46 32;
-  --tag-teal: 80 210 205;
-  --tag-teal-soft: 16 44 44;
-  --tag-blue: 110 165 255;
-  --tag-blue-soft: 22 36 66;
-  --tag-violet: 180 145 255;
-  --tag-violet-soft: 40 30 66;
-  --tag-pink: 255 120 170;
-  --tag-pink-soft: 60 24 40;
+  --tag-red: 255 138 128;
+  --tag-red-soft: 72 32 29;
+  --tag-orange: 255 173 92;
+  --tag-orange-soft: 70 48 26;
+  --tag-amber: 240 200 96;
+  --tag-amber-soft: 61 52 21;
+  --tag-green: 111 214 154;
+  --tag-green-soft: 23 58 40;
+  --tag-teal: 95 214 209;
+  --tag-teal-soft: 19 59 59;
+  --tag-blue: 134 180 255;
+  --tag-blue-soft: 27 47 87;
+  --tag-violet: 190 163 255;
+  --tag-violet-soft: 47 36 82;
+  --tag-pink: 255 143 187;
+  --tag-pink-soft: 74 29 49;
 
   color-scheme: dark;
 }
