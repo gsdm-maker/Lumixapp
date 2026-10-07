@@ -1,4 +1,5 @@
 import {
+  AlarmClock,
   ArrowLeft,
   ArrowRight,
   ArrowUp,
@@ -56,6 +57,8 @@ import {
   Sun,
   Target,
   Trash,
+  TrendingDown,
+  TrendingUp,
   TriangleAlert,
   Undo2,
   Upload,
@@ -138,6 +141,9 @@ const ICONOS = {
   flag: Flag,
   copy: Copy,
   bot: Bot,
+  alarm: AlarmClock,
+  trendUp: TrendingUp,
+  trendDown: TrendingDown,
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof ICONOS

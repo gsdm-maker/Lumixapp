@@ -4,75 +4,151 @@ import { SegmentedControl } from '@shared/components/ui/SegmentedControl'
 import { Button } from '@shared/components/ui/Button'
 import { EmptyState } from '@shared/components/ui/EmptyState'
 import { Skeleton } from '@shared/components/ui/Skeleton'
-import { useDashboard } from '@features/dashboard/hooks/useDashboard'
 import { useCapabilities } from '@core/auth/hooks/useCapabilities'
+import { useDashboard } from '@features/dashboard/hooks/useDashboard'
 import { AiAccuracyPanel } from '@features/dashboard/components/AiAccuracyPanel'
-import { SummaryStrip } from '@features/dashboard/components/SummaryStrip'
+import { Kpis } from '@features/dashboard/components/Kpis'
+import { BarrasRendimiento, LineaCompromisos } from '@features/dashboard/components/Graficos'
 import {
-  ActivityList,
-  PriorityTable,
-  Question,
-  StatusBar,
-  Workload,
-} from '@features/dashboard/components/QuestionPanels'
+  CargaPanel,
+  ErroresPanel,
+  Leyenda,
+  LeyendaCarga,
+  ListaActividades,
+  Panel,
+  ProyectosPanel,
+  VerTodo,
+} from '@features/dashboard/components/Paneles'
+import {
+  CAPACIDAD_HORAS,
+  PERIODO,
+  semanaISO,
+  type Periodo,
+} from '@features/dashboard/utils/metricas'
+import { exportarDashboard } from '@features/dashboard/utils/exportar'
 
 type Vista = 'equipo' | 'ia'
 
-/** Semana ISO del ano: es como el equipo nombra la semana en la reunion ("semana 41"). */
-function semanaISO(d: Date): number {
-  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
-  const dia = t.getUTCDay() || 7
-  t.setUTCDate(t.getUTCDate() + 4 - dia)
-  const inicio = new Date(Date.UTC(t.getUTCFullYear(), 0, 1))
-  return Math.ceil(((t.getTime() - inicio.getTime()) / 86400000 + 1) / 7)
+// Como se nombra el periodo en los textos de las tarjetas.
+const TEXTOS: Record<Periodo, { contra: string; en: string }> = {
+  semana: { contra: 'la semana anterior', en: 'esta semana' },
+  mes: { contra: 'las 4 semanas anteriores', en: 'en 4 semanas' },
+  trimestre: { contra: 'el trimestre anterior', en: 'en el trimestre' },
 }
 
+const LISTA = 5
+
 /**
- * Dashboard que responde preguntas (idea 15): una franja con los cuatro numeros y, debajo,
- * cuatro preguntas de gestion respondidas con nombres y fechas que llevan al item.
+ * Dashboard del equipo: cuatro indicadores con su tendencia, rendimiento y compromisos semana
+ * a semana, carga por persona, proyectos y listas que llevan directo a la accion. Todo sale de
+ * datos que ya existen; el periodo elegido solo cambia el calculo, no vuelve a cargar.
  */
 export function DashboardPage() {
-  const { isGlobalAdmin } = useCapabilities()
+  const { isGlobalAdmin, can } = useCapabilities()
   const [vista, setVista] = useState<Vista>('equipo')
-  const d = useDashboard()
+  const [periodo, setPeriodo] = useState<Periodo>('semana')
+  const d = useDashboard(periodo)
 
-  const teamHours = d.memberWorkloads.reduce((s, w) => s + w.totalHours, 0)
   const meta = [d.teamName, `semana ${semanaISO(new Date())}`].filter(Boolean).join(' · ')
   // Un colaborador ve solo lo suyo: el nombre del responsable en cada fila sobra.
-  const showResponsible = !d.isColaborador
+  const mostrarResponsable = !d.isColaborador
+  const texto = TEXTOS[periodo]
+  const enEquipo = !(isGlobalAdmin && vista === 'ia')
+
+  const exportar = () =>
+    exportarDashboard({
+      equipo: d.teamName ?? '',
+      periodo: PERIODO[periodo].label,
+      indicadores: [
+        ['Pendientes', d.kpis.pendientes.valor],
+        ['Vencidas', d.kpis.vencidas.valor],
+        [`Completadas (${texto.en})`, d.kpis.completadas.valor],
+        [
+          `Compromisos cumplidos (${texto.en})`,
+          d.kpis.compromisos.porcentaje === null ? '' : `${d.kpis.compromisos.porcentaje}%`,
+        ],
+        ['Errores abiertos', d.errores.length],
+      ],
+      rendimiento: d.rendimiento,
+      compromisos: d.compromisosSemana,
+      carga: d.carga,
+    })
 
   return (
-    <div className="flex flex-col h-full bg-shell">
+    <div className="flex h-full flex-col bg-shell">
       <PageHeader
         title="Resumen del equipo"
         meta={meta}
         actions={
-          // Precision de la IA: solo el admin global, es una senal de operacion del producto.
-          isGlobalAdmin && (
-            <SegmentedControl
-              label="Sección del dashboard"
-              value={vista}
-              onChange={setVista}
-              options={[
-                { value: 'equipo', label: 'Equipo' },
-                { value: 'ia', label: 'Precisión de la IA' },
-              ]}
-            />
-          )
+          <>
+            {enEquipo && !d.loading && !d.error && (
+              <>
+                <SegmentedControl
+                  label="Periodo"
+                  value={periodo}
+                  onChange={setPeriodo}
+                  className="hidden sm:inline-flex"
+                  options={(Object.keys(PERIODO) as Periodo[]).map((p) => ({
+                    value: p,
+                    label: PERIODO[p].label,
+                  }))}
+                />
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon="download"
+                  onClick={exportar}
+                  className="hidden sm:inline-flex"
+                >
+                  Exportar
+                </Button>
+              </>
+            )}
+            {/* Precision de la IA: solo el admin global, es una senal de operacion del producto. */}
+            {isGlobalAdmin && (
+              <SegmentedControl
+                label="Sección del dashboard"
+                value={vista}
+                onChange={setVista}
+                options={[
+                  { value: 'equipo', label: 'Equipo' },
+                  { value: 'ia', label: 'Precisión de la IA' },
+                ]}
+              />
+            )}
+          </>
         }
-      />
+      >
+        {/* En el celular el selector de periodo baja a su propia fila: arriba no cabe. */}
+        {enEquipo && !d.loading && !d.error && (
+          <div className="px-3 pb-2 sm:hidden">
+            <SegmentedControl
+              label="Periodo"
+              value={periodo}
+              onChange={setPeriodo}
+              options={(Object.keys(PERIODO) as Periodo[]).map((p) => ({
+                value: p,
+                label: PERIODO[p].label,
+              }))}
+            />
+          </div>
+        )}
+      </PageHeader>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-6xl mx-auto px-3 sm:px-5 py-4 space-y-4">
-          {isGlobalAdmin && vista === 'ia' ? (
+        <div className="mx-auto max-w-6xl space-y-3.5 px-3 py-4 sm:px-5">
+          {!enEquipo ? (
             <AiAccuracyPanel />
           ) : d.loading ? (
-            <div className="space-y-4" aria-busy="true" aria-label="Cargando">
-              <Skeleton className="h-[70px]" />
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="space-y-3.5" aria-busy="true" aria-label="Cargando">
+              <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
                 {[0, 1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-44" />
+                  <Skeleton key={i} className="h-[118px]" />
                 ))}
+              </div>
+              <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-[2fr_1fr]">
+                <Skeleton className="h-64" />
+                <Skeleton className="h-64" />
               </div>
             </div>
           ) : d.error ? (
@@ -88,49 +164,90 @@ export function DashboardPage() {
             />
           ) : (
             <>
-              <SummaryStrip
-                pending={d.pendingActivities}
-                overdue={d.overdue}
-                openErrors={d.openErrors}
-                criticalErrors={d.criticalErrors}
-                completedThisWeek={d.completedThisWeek}
-                weeklyTrend={d.weeklyTrend}
-                teamHours={teamHours}
+              <Kpis
+                pendientes={d.kpis.pendientes}
+                vencidas={d.kpis.vencidas}
+                completadas={d.kpis.completadas}
+                compromisos={d.kpis.compromisos}
+                contra={texto.contra}
+                enPeriodo={texto.en}
               />
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <Question
-                  title="¿Qué está atrasado?"
-                  aside={d.overdue > 5 ? `5 de ${d.overdue}` : undefined}
+              <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-[2fr_1fr]">
+                <Panel
+                  title="Rendimiento"
+                  nota={`completadas vs creadas, últimas ${d.rendimiento.length} semanas`}
+                  accion={
+                    <Leyenda
+                      items={[
+                        { label: 'Completadas', className: 'bg-tag-green' },
+                        { label: 'Creadas', className: 'bg-border-strong' },
+                      ]}
+                    />
+                  }
                 >
-                  <ActivityList
-                    items={d.overdueList}
+                  <BarrasRendimiento datos={d.rendimiento} />
+                </Panel>
+                <Panel
+                  title="Compromisos"
+                  nota="% cumplido por semana"
+                  accion={<VerTodo to="/compromisos">Abrir</VerTodo>}
+                >
+                  <LineaCompromisos datos={d.compromisosSemana} meta={d.kpis.compromisos.meta} />
+                </Panel>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-2">
+                <Panel
+                  title="Carga por persona"
+                  nota={`horas abiertas vs capacidad (${CAPACIDAD_HORAS} h)`}
+                  accion={<LeyendaCarga />}
+                >
+                  <CargaPanel carga={d.carga} />
+                </Panel>
+                <Panel
+                  title="Proyectos"
+                  nota="avance y alertas"
+                  accion={
+                    <VerTodo to="/proyectos">
+                      Ver todos{d.proyectos.length > LISTA ? ` (${d.proyectos.length})` : ''}
+                    </VerTodo>
+                  }
+                >
+                  <ProyectosPanel proyectos={d.proyectos.slice(0, LISTA)} />
+                </Panel>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-3">
+                <Panel
+                  title="Atrasado"
+                  nota={d.vencidas.length > LISTA ? `${LISTA} de ${d.vencidas.length}` : undefined}
+                  accion={<VerTodo to="/activities">Ver en Actividades</VerTodo>}
+                >
+                  <ListaActividades
+                    items={d.vencidas.slice(0, LISTA)}
                     memberNames={d.memberNames}
-                    showResponsible={showResponsible}
-                    empty="Nada atrasado."
+                    origenes={d.origenes}
+                    mostrarResponsable={mostrarResponsable}
+                    vacio="Nada atrasado."
                   />
-                </Question>
-
-                <Question title="¿Quién está saturado?" aside="horas pendientes">
-                  <Workload workloads={d.memberWorkloads} />
-                </Question>
-
-                <Question title="Estado de actividades">
-                  <StatusBar counts={d.statusCounts} />
-                  <div className="mt-4 pt-3 border-t border-border">
-                    <p className="text-xs text-fg-faint mb-1">Activas por prioridad</p>
-                    <PriorityTable counts={d.priorityCounts} />
-                  </div>
-                </Question>
-
-                <Question title="¿Qué vence pronto?" aside="próximos 3 días">
-                  <ActivityList
-                    items={d.upcomingDeadlines}
+                </Panel>
+                <Panel title="Vence pronto" nota="próximos 7 días">
+                  <ListaActividades
+                    items={d.proximas.slice(0, LISTA)}
                     memberNames={d.memberNames}
-                    showResponsible={showResponsible}
-                    empty="Nada vence en los próximos 3 días."
+                    origenes={d.origenes}
+                    mostrarResponsable={mostrarResponsable}
+                    vacio="Nada vence en los próximos 7 días."
                   />
-                </Question>
+                </Panel>
+                <Panel
+                  title="Errores abiertos"
+                  nota="por antigüedad"
+                  accion={can('modulos.errores') && <VerTodo to="/errors">Ver todos</VerTodo>}
+                >
+                  <ErroresPanel edad={d.edadErrores} total={d.errores.length} />
+                </Panel>
               </div>
             </>
           )}
