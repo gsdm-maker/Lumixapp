@@ -6,7 +6,15 @@ import { PRIORITY_LABEL } from '@shared/utils/estados'
 // Indicadores chicos y repetidos en toda la app. Cada concepto tiene UN dibujo: antes la
 // prioridad era barras, puntos, "P1" de color y botones de tres tamanos distintos.
 
-/** Prioridad 1 (alta) a 3 (baja) como tres barras de altura creciente, en tinta. */
+// Color por prioridad, el mismo codigo que Todoist: alta roja, media naranja, baja azul.
+const PRIO_BAR: Record<number, string> = { 1: 'bg-p1', 2: 'bg-p2', 3: 'bg-p3' }
+const PRIO_ACTIVA: Record<number, string> = {
+  1: 'bg-tag-red-soft text-p1',
+  2: 'bg-tag-orange-soft text-p2',
+  3: 'bg-tag-blue-soft text-p3',
+}
+
+/** Prioridad 1 (alta) a 3 (baja) como tres barras de altura creciente, en su color. */
 export function PriorityBars({ priority, className }: { priority: number; className?: string }) {
   const llenas = priority === 1 ? 3 : priority === 2 ? 2 : 1
   return (
@@ -22,13 +30,7 @@ export function PriorityBars({ priority, className }: { priority: number; classN
           style={{ height: h }}
           className={cx(
             'w-[3px] rounded-[1px]',
-            i < llenas
-              ? priority === 1
-                ? 'bg-fg'
-                : priority === 2
-                  ? 'bg-fg-muted'
-                  : 'bg-fg-faint'
-              : 'bg-border-strong',
+            i < llenas ? (PRIO_BAR[priority] ?? 'bg-fg-faint') : 'bg-border-strong',
           )}
         />
       ))}
@@ -63,13 +65,10 @@ export function PriorityPicker({
           className={cx(
             'inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium transition-colors disabled:opacity-50',
             i > 0 && 'border-l border-border-strong',
-            value === p ? 'bg-fg text-panel' : 'bg-panel text-fg-muted hover:bg-surface',
+            value === p ? PRIO_ACTIVA[p] : 'bg-panel text-fg-muted hover:bg-surface',
           )}
         >
-          <PriorityBars
-            priority={p}
-            className={value === p ? '[&_i]:!bg-panel/40 [&_i:nth-child(-n+3)]:!bg-current' : ''}
-          />
+          <PriorityBars priority={p} />
           {PRIORITY_LABEL[p]}
         </button>
       ))}
@@ -77,10 +76,13 @@ export function PriorityPicker({
   )
 }
 
+// Fechas con color segun cercania (como Todoist): vencido rojo, hoy verde, manana naranja,
+// esta semana violeta; lo lejano queda en gris.
 const DUE_TONE: Record<DueTone, string> = {
   late: 'text-danger font-medium',
-  today: 'text-warning font-medium',
-  soon: 'text-fg',
+  today: 'text-date-today font-medium',
+  tomorrow: 'text-date-tomorrow font-medium',
+  soon: 'text-date-week',
   normal: 'text-fg-muted',
 }
 

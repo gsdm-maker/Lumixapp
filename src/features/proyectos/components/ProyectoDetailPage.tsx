@@ -7,6 +7,7 @@
 // Esta pagina solo orquesta: estado de la vista, item abierto y modal de asignar. Cada vista
 // vive en components/detail/ y los calculos en utils/proyecto.ts.
 
+import { ProjectDot } from '@shared/components/ui/ProjectDot'
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Button, IconButton } from '@shared/components/ui/Button'
@@ -140,14 +141,17 @@ export function ProyectoDetailPage() {
       <PageHeader
         leading={volver}
         title={
-          <EditableText
-            as="span"
-            value={proyecto.tema}
-            canEdit={canManage}
-            onSave={(next) => updateItem(proyecto.id, { tema: next })}
-            textClassName="text-lg font-semibold text-fg"
-            preventEmpty
-          />
+          <span className="flex items-center gap-2.5 min-w-0">
+            <ProjectDot id={proyecto.id} className="!w-3 !h-3" />
+            <EditableText
+              as="span"
+              value={proyecto.tema}
+              canEdit={canManage}
+              onSave={(next) => updateItem(proyecto.id, { tema: next })}
+              textClassName="text-lg font-semibold text-fg"
+              preventEmpty
+            />
+          </span>
         }
         meta={rango}
         actions={

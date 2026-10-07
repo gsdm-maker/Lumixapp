@@ -68,6 +68,33 @@
   --blocked: 91 75 176;
   --blocked-soft: 238 236 250;
 
+  /* Color con significado, al estilo de Todoist: prioridad, cercania de la fecha y una paleta
+     de "etiquetas" para modulos, proyectos y avatares. Siempre un tono fuerte (texto/icono) y
+     uno suave (fondo). */
+  --p1: 209 69 59;
+  --p2: 235 137 9;
+  --p3: 36 111 224;
+  --date-today: 5 133 39;
+  --date-tomorrow: 173 98 0;
+  --date-week: 105 46 194;
+
+  --tag-red: 209 69 59;
+  --tag-red-soft: 252 233 231;
+  --tag-orange: 196 104 0;
+  --tag-orange-soft: 253 240 222;
+  --tag-amber: 161 116 0;
+  --tag-amber-soft: 252 244 214;
+  --tag-green: 30 128 74;
+  --tag-green-soft: 225 243 232;
+  --tag-teal: 0 122 122;
+  --tag-teal-soft: 220 242 241;
+  --tag-blue: 36 111 224;
+  --tag-blue-soft: 226 236 252;
+  --tag-violet: 105 46 194;
+  --tag-violet-soft: 238 231 250;
+  --tag-pink: 184 37 95;
+  --tag-pink-soft: 250 230 238;
+
   color-scheme: light;
 }
 
@@ -94,6 +121,30 @@
   --danger-soft: 45 23 20;
   --blocked: 167 156 240;
   --blocked-soft: 30 27 52;
+
+  --p1: 255 112 102;
+  --p2: 255 168 64;
+  --p3: 102 160 255;
+  --date-today: 94 200 120;
+  --date-tomorrow: 240 160 60;
+  --date-week: 178 140 255;
+
+  --tag-red: 255 128 118;
+  --tag-red-soft: 58 28 26;
+  --tag-orange: 255 170 80;
+  --tag-orange-soft: 56 38 18;
+  --tag-amber: 240 200 90;
+  --tag-amber-soft: 50 42 16;
+  --tag-green: 100 210 140;
+  --tag-green-soft: 20 46 32;
+  --tag-teal: 80 210 205;
+  --tag-teal-soft: 16 44 44;
+  --tag-blue: 110 165 255;
+  --tag-blue-soft: 22 36 66;
+  --tag-violet: 180 145 255;
+  --tag-violet-soft: 40 30 66;
+  --tag-pink: 255 120 170;
+  --tag-pink-soft: 60 24 40;
 
   color-scheme: dark;
 }
@@ -231,6 +282,32 @@
   --color-danger-soft: rgb(var(--danger-soft));
   --color-blocked: rgb(var(--blocked));
   --color-blocked-soft: rgb(var(--blocked-soft));
+
+  /* Prioridad y fechas (estilo Todoist) */
+  --color-p1: rgb(var(--p1));
+  --color-p2: rgb(var(--p2));
+  --color-p3: rgb(var(--p3));
+  --color-date-today: rgb(var(--date-today));
+  --color-date-tomorrow: rgb(var(--date-tomorrow));
+  --color-date-week: rgb(var(--date-week));
+
+  /* Paleta de etiquetas: modulos, proyectos y avatares */
+  --color-tag-red: rgb(var(--tag-red));
+  --color-tag-red-soft: rgb(var(--tag-red-soft));
+  --color-tag-orange: rgb(var(--tag-orange));
+  --color-tag-orange-soft: rgb(var(--tag-orange-soft));
+  --color-tag-amber: rgb(var(--tag-amber));
+  --color-tag-amber-soft: rgb(var(--tag-amber-soft));
+  --color-tag-green: rgb(var(--tag-green));
+  --color-tag-green-soft: rgb(var(--tag-green-soft));
+  --color-tag-teal: rgb(var(--tag-teal));
+  --color-tag-teal-soft: rgb(var(--tag-teal-soft));
+  --color-tag-blue: rgb(var(--tag-blue));
+  --color-tag-blue-soft: rgb(var(--tag-blue-soft));
+  --color-tag-violet: rgb(var(--tag-violet));
+  --color-tag-violet-soft: rgb(var(--tag-violet-soft));
+  --color-tag-pink: rgb(var(--tag-pink));
+  --color-tag-pink-soft: rgb(var(--tag-pink-soft));
 
   /* Acento */
   --color-accent: rgb(var(--accent));

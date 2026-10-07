@@ -4,6 +4,7 @@
 // explicarla: tres casillas que se llenan, y a la tercera la accion sugerida pasa a ser
 // "A la minuta".
 
+import { ProjectDot } from '@shared/components/ui/ProjectDot'
 import { Fragment, useState } from 'react'
 import { Avatar } from '@shared/components/ui/Avatar'
 import { Button, IconButton } from '@shared/components/ui/Button'
@@ -66,8 +67,12 @@ function Origen({ c }: { c: Compromiso }) {
         </>
       )}
       {c.origen === 'proyecto' && (
-        <span className="truncate" title="Compromiso de un proyecto">
-          Proyecto: {c.origenProyecto}
+        <span
+          className="inline-flex items-center gap-1.5 min-w-0"
+          title="Compromiso de un proyecto"
+        >
+          {c.origenProyectoId && <ProjectDot id={c.origenProyectoId} className="!w-2 !h-2" />}
+          <span className="truncate">{c.origenProyecto}</span>
         </span>
       )}
       {c.origen === 'minuta' && <span>Minuta</span>}

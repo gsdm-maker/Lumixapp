@@ -9,6 +9,7 @@
 // Rediseno 2026 (idea 12): tabla en vez de tarjetas, para comparar proyectos entre si. Cada
 // fila trae una mini linea de tiempo sobre una escala comun, con la marca de hoy.
 
+import { ProjectDot } from '@shared/components/ui/ProjectDot'
 import { useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@shared/components/ui/Button'
@@ -114,9 +115,10 @@ export function ProyectosPage() {
                           e.stopPropagation()
                           abrir(p.id)
                         }}
-                        className="block max-w-full text-left font-medium text-fg truncate hover:underline"
+                        className="flex items-center gap-2 max-w-full text-left font-medium text-fg hover:underline"
                       >
-                        {p.tema}
+                        <ProjectDot id={p.id} />
+                        <span className="truncate">{p.tema}</span>
                       </button>
                       <span className="block text-xs text-fg-faint truncate">
                         {resumenPersonas(r.responsables, memberName)}
@@ -168,6 +170,7 @@ export function ProyectosPage() {
                     className="w-full text-left px-4 py-2.5 hover:bg-surface"
                   >
                     <span className="flex items-center gap-3">
+                      <ProjectDot id={p.id} />
                       <span className="flex-1 min-w-0 truncate text-sm font-medium text-fg">
                         {p.tema}
                       </span>

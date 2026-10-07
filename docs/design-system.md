@@ -8,8 +8,9 @@ nueva o modificada.
 
 ## 1. Identidad
 
-- **Tinta, papel y una sola señal.** Neutros fríos, un acento (petróleo por defecto) y color
-  semántico solo cuando comunica estado.
+- **Tinta, papel y color con significado.** Neutros fríos, un acento (petróleo por defecto) y
+  color donde comunica algo, al estilo de Todoist: prioridad, cercanía de la fecha, estado,
+  módulo, proyecto y persona. Nunca color decorativo.
 - **Claro por defecto.** El oscuro se mantiene igual de cuidado. Preferencia: Claro, Oscuro o
   Sistema (Perfil → Apariencia).
 - **Bordes, no tarjetas.** Secciones separadas con líneas de 1px y fondos apenas distintos.
@@ -84,8 +85,10 @@ entrada en `ACCENTS` (`src/core/theme/apariencia.ts`) y el valor en `public/tema
 - **Confirmar y deshacer:** lo reversible se hace al tiro y ofrece "Deshacer" en un aviso; lo
   irreversible pasa por `useConfirm`, con "Cancelar" a la izquierda y la acción a la derecha,
   nombrando qué se borra.
-- **Estado:** punto + texto, nunca píldora de color. Un solo mapa por familia en
-  `estados.ts`.
+- **Estado:** etiqueta con fondo suave de su color + punto (el punto mantiene la forma para
+  quien no distingue colores). Un solo mapa por familia en `estados.ts`.
+- **Color de módulo/proyecto/persona:** sale de `colorDe(id)` y se dibuja con las clases de
+  `TAG` (`ProjectDot`, `Avatar`, íconos del menú). Siempre el mismo para el mismo id.
 - **Fechas:** cercanas en palabras ("hoy", "ayer", "jue 8"), exacta en el tooltip.
 - **Acciones de fila:** la siguiente acción lógica (Iniciar/Completar) aparece en la fila; el
   resto vive en el panel de detalle.

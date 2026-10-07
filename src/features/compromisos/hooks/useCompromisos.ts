@@ -75,6 +75,8 @@ export interface Compromiso extends Activity {
   origen: 'minuta' | 'subtema' | 'proyecto'
   /** Titulo del tema raiz (o nombre del proyecto), salvo origen 'minuta'. Da contexto. */
   origenProyecto?: string
+  /** Id del proyecto (o tema raiz), para su punto de color. */
+  origenProyectoId?: string
   /** Id del tema de Minuta que originó este compromiso (via linked_activity_ids). Los
    * comentarios de un compromiso SON los del tema, no los de la actividad -la nota real
    * ("Situación: ... Accion: ...") vive ahi, no en `observations` (bug real reportado). */
@@ -231,6 +233,7 @@ export function useCompromisos() {
       enMinuta: escaladas.has(a.id),
       origen,
       origenProyecto: origen !== 'minuta' ? raizDe(origenTema!).tema : undefined,
+      origenProyectoId: origen === 'proyecto' ? raizDe(origenTema!).id : undefined,
       temaId: origenTema?.id,
       comentariosTema: origenTema?.comentarios ?? '',
     }

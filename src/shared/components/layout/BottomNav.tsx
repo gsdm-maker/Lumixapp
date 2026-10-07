@@ -3,6 +3,7 @@ import { useCapabilities } from '@core/auth/hooks/useCapabilities'
 import { useNotificationsContext } from '@core/notifications/NotificationContext'
 import { Icon } from '@shared/components/ui/Icon'
 import { cx } from '@shared/utils/cx'
+import { TAG } from '@shared/utils/colores'
 import { bottomNavItems } from './navItems'
 
 /**
@@ -40,7 +41,13 @@ export function BottomNav({ onMore }: { onMore: () => void }) {
               )
             }
           >
-            <Icon name={i.icon} size={20} />
+            <Icon
+              name={i.icon}
+              size={20}
+              className={
+                i.color === 'accent' ? 'text-accent' : i.color ? TAG[i.color].text : undefined
+              }
+            />
             <span className="truncate max-w-full px-0.5">{i.label}</span>
           </NavLink>
         ))}

@@ -11,6 +11,7 @@ import { useCapabilities } from '@core/auth/hooks/useCapabilities'
 import { useNotificationsContext } from '@core/notifications/NotificationContext'
 import { teamsService } from '@infrastructure/supabase/teams.service'
 import { cx } from '@shared/utils/cx'
+import { TAG, type TagColor } from '@shared/utils/colores'
 import { ROLE_LABEL } from '@core/auth/roles'
 import { navItems } from './navItems'
 
@@ -109,6 +110,7 @@ export function Sidebar({ onClose }: SidebarProps) {
               to={item.to}
               label={item.label}
               icon={item.icon}
+              color={item.color}
               onClick={onClose}
               badge={item.to === '/notifications' && unreadCount > 0 ? unreadCount : undefined}
             />
@@ -155,15 +157,19 @@ function NavItemLink({
   to,
   label,
   icon,
+  color,
   badge,
   onClick,
 }: {
   to: string
   label: string
   icon: IconName
+  color?: TagColor | 'accent'
   badge?: number
   onClick?: () => void
 }) {
+  // Icono con el color de su modulo (como el menu de Todoist); los de sistema, en gris.
+  const tono = color === 'accent' ? 'text-accent' : color ? TAG[color].text : 'text-fg-faint'
   return (
     <NavLink
       to={to}
@@ -177,7 +183,7 @@ function NavItemLink({
         )
       }
     >
-      <Icon name={icon} size={17} />
+      <Icon name={icon} size={17} className={tono} />
       <span className="flex-1 truncate">{label}</span>
       {badge !== undefined && (
         <span

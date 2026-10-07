@@ -1,4 +1,5 @@
 import { cx } from '@shared/utils/cx'
+import { TAG, colorDe } from '@shared/utils/colores'
 
 interface AvatarProps {
   name: string
@@ -25,8 +26,9 @@ function iniciales(name: string): string {
 }
 
 /**
- * Avatar neutro: iniciales en tinta sobre gris, o la foto. Antes cada persona tenia un color
- * fuerte (8 colores fijos) que competia con los colores de estado.
+ * Avatar: la foto, o las iniciales sobre un tono pastel propio de cada persona (siempre el
+ * mismo, sale del nombre). Ayuda a reconocer quien escribio de un vistazo; pastel y no los
+ * colores fuertes de antes, que competian con los de estado.
  *
  * Compatibilidad: las personas que eligieron un emoji como avatar lo tienen guardado en `src`
  * (texto corto, no URL); se muestra tal cual.
@@ -45,6 +47,7 @@ export function Avatar({ name, src, size = 'md', className }: AvatarProps) {
       />
     )
   }
+  const tono = colorDe(name)
   return (
     <span
       title={name}
@@ -52,7 +55,8 @@ export function Avatar({ name, src, size = 'md', className }: AvatarProps) {
       role="img"
       className={cx(
         'inline-flex items-center justify-center rounded-full shrink-0 font-semibold select-none',
-        'bg-surface text-fg-muted border border-border-strong',
+        // Con emoji como avatar el fondo queda neutro: el emoji ya trae su color.
+        src ? 'bg-surface border border-border-strong' : [TAG[tono].soft, TAG[tono].text].join(' '),
         SIZE[size],
         className,
       )}

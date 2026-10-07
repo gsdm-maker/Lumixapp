@@ -19,7 +19,7 @@ export function getDaysRemainingLocal(dueDate: string): number {
   return Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 }
 
-export type DueTone = 'late' | 'today' | 'soon' | 'normal'
+export type DueTone = 'late' | 'today' | 'tomorrow' | 'soon' | 'normal'
 
 /**
  * Fecha de entrega en palabras, como la diria una persona: "hoy", "ayer", "mañana",
@@ -31,7 +31,7 @@ export function fechaRelativa(iso: string): { text: string; tone: DueTone; days:
   const date = parseDateLocal(iso)
   if (days < 0) return { text: days === -1 ? 'ayer' : `hace ${-days} d`, tone: 'late', days }
   if (days === 0) return { text: 'hoy', tone: 'today', days }
-  if (days === 1) return { text: 'mañana', tone: 'soon', days }
+  if (days === 1) return { text: 'mañana', tone: 'tomorrow', days }
   if (days <= 6) {
     const dia = date.toLocaleDateString('es-CL', { weekday: 'short' }).replace('.', '')
     return { text: `${dia} ${date.getDate()}`, tone: 'soon', days }
