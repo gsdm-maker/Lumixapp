@@ -93,7 +93,7 @@ export function CargaPanel({ carga }: { carga: CargaPersona[] }) {
   const escala = Math.max(CAPACIDAD_HORAS * 1.2, ...carga.map((c) => c.total))
   const pct = (h: number) => `${(h / escala) * 100}%`
   return (
-    <ul className="grid gap-3">
+    <ul className="grid grid-cols-1 gap-3">
       {carga.map((c) => {
         const pasada = c.total > CAPACIDAD_HORAS
         return (
@@ -155,7 +155,7 @@ export function CargaPanel({ carga }: { carga: CargaPersona[] }) {
 export function ProyectosPanel({ proyectos }: { proyectos: ProyectoFila[] }) {
   if (proyectos.length === 0) return <Nada>No hay proyectos abiertos.</Nada>
   return (
-    <ul className="-mx-2 grid">
+    <ul className="-mx-2 grid grid-cols-1">
       {proyectos.map((p) => {
         const { avance, alertas } = p.resumen
         const alerta =
@@ -220,7 +220,7 @@ export function ListaActividades({
 }) {
   if (items.length === 0) return <Nada>{vacio}</Nada>
   return (
-    <ul className="-mx-2 grid">
+    <ul className="-mx-2 grid grid-cols-1">
       {items.map((a) => {
         const meta = [
           mostrarResponsable &&
@@ -275,7 +275,7 @@ export function ErroresPanel({ edad, total }: { edad: EdadErrores; total: number
   ]
   return (
     <div>
-      <ul className="grid gap-2.5">
+      <ul className="grid grid-cols-1 gap-2.5">
         {filas.map((f) => (
           <li
             key={f.label}
