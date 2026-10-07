@@ -94,8 +94,7 @@ export function ChatPage() {
     canManageIngestas,
     canViewAllActivities,
   } = useCapabilities()
-  // Tipo del proximo mensaje. Vive aca (no en Composer) para que "Crear rapido" del panel
-  // lateral lo pueda fijar.
+  // Tipo del proximo mensaje (botones del campo de texto).
   const [tipo, setTipo] = useState<TipoMensaje>('auto')
   // Cada tipo con el permiso de su destino (antes Proyecto pedia el de Minuta, e Ingesta no
   // pedia nada). Error queda abierto a todos a proposito (Sebastian): cualquiera puede
@@ -571,11 +570,6 @@ export function ChatPage() {
         <ChatSidePanel
           resumen={resumen}
           onJump={jumpTo}
-          tipos={tipos}
-          onCrear={(t) => {
-            setTipo(t)
-            inputRef.current?.focus()
-          }}
           onCompletar={(id) => quickUpdate(id, { status: 'completado' })}
           teamId={profile?.team_id ?? ''}
           userId={user?.id}

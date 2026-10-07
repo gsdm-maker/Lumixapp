@@ -6,13 +6,10 @@ import { SegmentedControl } from '@shared/components/ui/SegmentedControl'
 import { ProjectDot } from '@shared/components/ui/ProjectDot'
 import { Spinner } from '@shared/components/ui/Spinner'
 import { cx } from '@shared/utils/cx'
-import { TAG } from '@shared/utils/colores'
 import { nombreCorto } from '@shared/utils/nombres'
 import type { Activity, MinuteItem } from '@shared/types'
 import type { ResumenDia } from '@features/chat/components/log/registro'
 import { textoLumix } from '@features/chat/components/log/registro'
-import { TIPO_LABEL, type TipoMensaje } from '@features/chat/components/composer/vistaPrevia'
-import { TIPO_ESTILO } from '@features/chat/components/composer/tipos'
 import { useTrabajoPendiente, type Plazo } from '@features/chat/hooks/useTrabajoPendiente'
 
 type Lista = 'actividades' | 'proyectos' | 'minuta'
@@ -20,10 +17,6 @@ type Lista = 'actividades' | 'proyectos' | 'minuta'
 interface Props {
   resumen: ResumenDia
   onJump: (messageId: string) => void
-  /** Tipos que esta persona puede crear (mismos permisos que el campo de texto). */
-  tipos: TipoMensaje[]
-  /** Fija el tipo en el campo de texto y le da el foco. */
-  onCrear: (tipo: TipoMensaje) => void
   onCompletar: (activityId: string) => Promise<unknown>
   teamId: string
   userId: string | undefined
@@ -32,15 +25,6 @@ interface Props {
   version: number
   memberName: (id: string) => string
 }
-
-const ACCIONES: { tipo: TipoMensaje; label: string }[] = [
-  { tipo: 'actividad', label: 'Actividad' },
-  { tipo: 'error', label: 'Error' },
-  { tipo: 'minuta', label: 'Tema de minuta' },
-  { tipo: 'proyecto', label: 'Proyecto' },
-  { tipo: 'ingesta', label: 'Ingesta' },
-  { tipo: 'masivo', label: 'Varias a la vez' },
-]
 
 const PLAZOS: { value: Plazo; label: string }[] = [
   { value: 'vencidas', label: 'Vencidas' },
@@ -62,14 +46,13 @@ const CHECK_PRIO: Record<number, string> = {
 }
 
 /**
- * Panel al costado del chat (escritorio): crear rapido, el trabajo que vence (hoy, vencido o
- * por vencer) de actividades, proyectos y minuta, y lo que salio de la conversacion hoy.
+ * Panel al costado del chat (escritorio): lo que salio de la conversacion hoy y el trabajo que
+ * vence (hoy, vencido o por vencer) de actividades, proyectos y minuta. Crear no va aca: ya
+ * esta en los botones de tipo del campo de texto.
  */
 export function ChatSidePanel({
   resumen,
   onJump,
-  tipos,
-  onCrear,
   onCompletar,
   teamId,
   userId,
@@ -88,8 +71,6 @@ export function ChatSidePanel({
   const contar = (l: Lista) =>
     trabajo ? trabajo[l].vencidas.length + trabajo[l].hoy.length + trabajo[l].proximas.length : 0
 
-  const acciones = ACCIONES.filter((a) => tipos.includes(a.tipo))
-
   const completar = async (a: Activity) => {
     setCompletando(a.id)
     try {
@@ -104,30 +85,30 @@ export function ChatSidePanel({
       aria-label="Panel de trabajo"
       className="hidden lg:flex w-80 shrink-0 flex-col gap-5 overflow-y-auto border-l border-border bg-shell px-4 py-4"
     >
-      {/* Crear rapido: fija el tipo en el campo de texto, asi lo que se escriba va directo. */}
-      {acciones.length > 0 && (
-        <section className="flex flex-col gap-2">
-          <SectionLabel>Crear rápido</SectionLabel>
-          <div className="grid grid-cols-2 gap-1.5">
-            {acciones.map((a) => {
-              const est = TIPO_ESTILO[a.tipo]
-              const color = est.color === 'accent' ? 'text-accent' : TAG[est.color].text
-              return (
+      <section className="flex flex-col gap-2">
+        <SectionLabel>Esta conversación hoy</SectionLabel>
+        <div className="grid grid-cols-2 gap-1.5">
+          <Cifra label="Actividades" value={resumen.actividades} />
+          <Cifra label="Errores" value={resumen.errores} />
+          <Cifra label="Fechas movidas" value={resumen.movidas} />
+          <Cifra label="Por decidir" value={resumen.porDecidir.length} alerta />
+        </div>
+        {resumen.porDecidir.length > 0 && (
+          <ul className="flex flex-col gap-0.5 -mx-1.5">
+            {resumen.porDecidir.slice(-5).map((m) => (
+              <li key={m.id}>
                 <button
-                  key={a.tipo}
                   type="button"
-                  onClick={() => onCrear(a.tipo)}
-                  title={`Escribir como ${TIPO_LABEL[a.tipo]}`}
-                  className="flex items-center gap-2 h-9 px-2.5 rounded-lg border border-border bg-panel text-sm text-fg-body hover:border-border-strong hover:bg-surface-soft transition-colors"
+                  onClick={() => onJump(m.id)}
+                  className="w-full rounded-md px-1.5 py-1 text-left text-xs text-fg-muted hover:bg-surface hover:text-fg line-clamp-2"
                 >
-                  <Icon name={est.icon} size={15} className={color} />
-                  <span className="truncate">{a.label}</span>
+                  {textoLumix(m.content).text}
                 </button>
-              )
-            })}
-          </div>
-        </section>
-      )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section className="flex flex-col gap-2.5 min-h-0">
         <SectionLabel
@@ -226,31 +207,6 @@ export function ChatSidePanel({
             {items.length > 12 && (
               <li className="px-1.5 pt-1 text-xs text-fg-faint">y {items.length - 12} más…</li>
             )}
-          </ul>
-        )}
-      </section>
-
-      <section className="flex flex-col gap-2">
-        <SectionLabel>Esta conversación hoy</SectionLabel>
-        <div className="grid grid-cols-2 gap-1.5">
-          <Cifra label="Actividades" value={resumen.actividades} />
-          <Cifra label="Errores" value={resumen.errores} />
-          <Cifra label="Fechas movidas" value={resumen.movidas} />
-          <Cifra label="Por decidir" value={resumen.porDecidir.length} alerta />
-        </div>
-        {resumen.porDecidir.length > 0 && (
-          <ul className="flex flex-col gap-0.5 -mx-1.5">
-            {resumen.porDecidir.slice(-5).map((m) => (
-              <li key={m.id}>
-                <button
-                  type="button"
-                  onClick={() => onJump(m.id)}
-                  className="w-full rounded-md px-1.5 py-1 text-left text-xs text-fg-muted hover:bg-surface hover:text-fg line-clamp-2"
-                >
-                  {textoLumix(m.content).text}
-                </button>
-              </li>
-            ))}
           </ul>
         )}
       </section>
