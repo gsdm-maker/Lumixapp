@@ -38,9 +38,19 @@ Todo color sale de una variable. Nunca escribir colores de Tailwind a mano (`bg-
 | `text-accent`, `bg-accent-fill`, `bg-accent-soft`, `text-on-accent` | Acento: enlaces, acción principal, selección      |
 | `success`, `warning`, `danger`, `blocked` (+ `-soft`)               | Solo semántica de estado                          |
 
-**Contraste:** todos los pares de color están medidos con WCAG en los dos temas (texto ≥ 4,5;
-gráficos y borde de controles ≥ 3; fondos suaves distinguibles del blanco ≥ 1,2). Al cambiar
-un token, medirlo de nuevo.
+**Teoría aplicada (revisada con Sebastián):**
+
+- **60-30-10:** fondos neutros dominan; el color va en marcas chicas (íconos, puntos, etiquetas).
+- **Contraste:** WCAG 2 (texto ≥ 4,5; gráficos y borde de controles ≥ 3) y APCA (texto de color
+  ≥ Lc 60 en los dos temas). Fondos suaves distinguibles del blanco (≥ 1,2).
+- **Uniformidad perceptual:** la paleta de etiquetas se genera en OKLCH con la misma luminosidad e
+  intensidad para todos los tonos; máximo 7 tonos.
+- **Color nunca solo (WCAG 1.4.1):** todo color con significado va con texto, forma o ícono
+  (punto con forma en estados, "hoy/ayer" en fechas, cantidad de barras en prioridad).
+- **Un significado por color:** verde = completado; rojo = vencido/prioridad alta/error;
+  ámbar = hoy/advertencia; naranja = prioridad media; violeta = esta semana.
+
+Al cambiar un token, medirlo de nuevo.
 
 **Tema y acento** se cambian con atributos en `<html>` (`data-theme`, `data-accent`), gestionados
 por `ThemeContext` y aplicados antes de pintar por `public/tema-inicial.js`.

@@ -48,7 +48,7 @@ export const navItems: NavItem[] = [
     to: '/ingestas',
     label: 'Ingestas',
     icon: 'database',
-    color: 'teal',
+    color: 'pink',
     capability: 'modulos.ingestas',
   },
   {
@@ -62,7 +62,6 @@ export const navItems: NavItem[] = [
     to: '/dashboard',
     label: 'Dashboard',
     icon: 'chart',
-    color: 'pink',
     capability: 'modulos.dashboard',
   },
   { to: '/notifications', label: 'Notificaciones', icon: 'bell' },

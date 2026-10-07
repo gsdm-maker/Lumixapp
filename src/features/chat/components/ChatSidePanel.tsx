@@ -154,7 +154,7 @@ export function ChatSidePanel({
                     ? p.value === 'vencidas'
                       ? 'bg-danger-soft text-danger'
                       : p.value === 'hoy'
-                        ? 'bg-tag-green-soft text-date-today'
+                        ? 'bg-tag-amber-soft text-date-today'
                         : 'bg-tag-violet-soft text-date-week'
                     : 'text-fg-muted hover:bg-surface',
                 )}

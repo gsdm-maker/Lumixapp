@@ -76,12 +76,13 @@ export function PriorityPicker({
   )
 }
 
-// Fechas con color segun cercania (como Todoist): vencido rojo, hoy verde, manana naranja,
-// esta semana violeta; lo lejano queda en gris.
+// Fechas con color segun cercania, un significado por color: vencido rojo, hoy ambar (urgente
+// sin alarmar, y no se confunde con el verde de "completado"), esta semana violeta. Manana va
+// en tinta fuerte: el naranja ya significa "prioridad media". Lo lejano, en gris.
 const DUE_TONE: Record<DueTone, string> = {
   late: 'text-danger font-medium',
   today: 'text-date-today font-medium',
-  tomorrow: 'text-date-tomorrow font-medium',
+  tomorrow: 'text-fg font-medium',
   soon: 'text-date-week',
   normal: 'text-fg-muted',
 }
