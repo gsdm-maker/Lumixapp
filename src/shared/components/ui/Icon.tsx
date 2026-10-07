@@ -4,6 +4,7 @@ import {
   ArrowRight,
   ArrowUp,
   Bell,
+  BookOpen,
   Bot,
   Bug,
   Calendar,
@@ -144,6 +145,7 @@ const ICONOS = {
   alarm: AlarmClock,
   trendUp: TrendingUp,
   trendDown: TrendingDown,
+  guia: BookOpen,
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof ICONOS

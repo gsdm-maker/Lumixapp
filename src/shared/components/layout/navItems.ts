@@ -66,6 +66,7 @@ export const navItems: NavItem[] = [
   },
   { to: '/notifications', label: 'Notificaciones', icon: 'bell' },
   { to: '/teams', label: 'Equipos', icon: 'users' },
+  { to: '/guia', label: 'Guía', icon: 'guia' },
 ]
 
 /**

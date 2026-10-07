@@ -73,6 +73,9 @@ const ChangePasswordPage = lazy(() =>
     default: m.ChangePasswordPage,
   })),
 )
+const GuiaPage = lazy(() =>
+  import('@features/guia/components/GuiaPage').then((m) => ({ default: m.GuiaPage })),
+)
 const ProfilePage = lazy(() =>
   import('@features/profile/components/ProfilePage').then((m) => ({ default: m.ProfilePage })),
 )
@@ -186,6 +189,7 @@ export function App() {
                           }
                         />
                         <Route path="/profile" element={<ProfilePage />} />
+                        <Route path="/guia" element={<GuiaPage />} />
                         <Route path="*" element={<Navigate to="/chat" replace />} />
                       </Route>
                     </Routes>
