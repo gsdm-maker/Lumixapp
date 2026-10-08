@@ -74,3 +74,19 @@ export function yaEnMinuta(temas: MinuteItem[], activityId: string): boolean {
       t.tipo === 'minuta' && t.estado === 'definir' && t.linked_activity_ids.includes(activityId),
   )
 }
+
+/**
+ * Cambia la entrega de una actividad a una fecha (YYYY-MM-DD) y, si nacio de un tema de minuta o
+ * proyecto, sincroniza tambien su plazo (con historial). La usan el agente del chat y la
+ * sugerencia de "equilibrar la semana".
+ */
+export async function cambiarEntrega(
+  a: Activity,
+  fecha: string,
+  temas: MinuteItem[],
+): Promise<void> {
+  await activitiesService.update(a.id, { due_date: new Date(fecha + 'T00:00:00').toISOString() })
+  const tema = temaDeActividad(temas, a.id)
+  const patch = tema ? patchDePlazo(tema, fecha) : null
+  if (tema && patch) await minutesService.update(tema.id, patch)
+}

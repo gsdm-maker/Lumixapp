@@ -62,6 +62,7 @@ export function esResultadoDeTrabajo(msg: ChatMessage): boolean {
   return (
     t === 'activity_card' ||
     t === 'activity_list' ||
+    t === 'agente_resultado' ||
     t === 'proyecto_confirm' ||
     esPregunta(msg) ||
     esActividadCreada(msg) ||
@@ -122,54 +123,6 @@ export function filtrar(entradas: Entrada[], filtro: Filtro): Entrada[] {
   if (filtro === 'trabajo') return entradas.filter(entradaConTrabajo)
   if (filtro === 'decidir') return entradas.filter(entradaPorDecidir)
   return entradas
-}
-
-function esHoy(iso: string): boolean {
-  const d = new Date(iso)
-  const hoy = new Date()
-  return (
-    d.getFullYear() === hoy.getFullYear() &&
-    d.getMonth() === hoy.getMonth() &&
-    d.getDate() === hoy.getDate()
-  )
-}
-
-export interface ResumenDia {
-  actividades: number
-  errores: number
-  movidas: number
-  porDecidir: ChatMessage[]
-}
-
-/**
- * Lo que salio hoy de la conversacion, contado solo con los mensajes ya cargados (los
- * ultimos 50). No consulta la base: es un resumen del hilo, no un reporte.
- *
- * - Actividades: confirmaciones de creacion (las de modo masivo son silenciosas y no cuentan).
- * - Errores: respuestas de Lumix con categoria error (las que registran en la bitacora).
- * - Movidas: se leen del texto de Lumix y de las alertas de carga resueltas; no hay otro rastro.
- */
-export function resumenDelDia(messages: ChatMessage[]): ResumenDia {
-  let actividades = 0
-  let errores = 0
-  let movidas = 0
-  for (const m of messages) {
-    if (!esLumix(m) || !esHoy(m.created_at)) continue
-    if (esActividadCreada(m)) actividades++
-    if (m.category === 'error') errores++
-    const t = tipoDe(m)
-    if (t === 'activity_card' && /\bmovida al\b/i.test(m.content)) movidas++
-    const masivo = /(\d+) actividad(?:es)? movidas? al\b/i.exec(m.content)
-    if (!t && masivo) movidas += Number(masivo[1])
-    const meta = metaDe(m)
-    if (t === 'overload_lote' && typeof meta.resolution === 'string') {
-      if (/^Movidas/.test(meta.resolution)) {
-        const items = (meta.pending as { items?: unknown[] } | undefined)?.items
-        movidas += items?.length ?? 1
-      }
-    }
-  }
-  return { actividades, errores, movidas, porDecidir: messages.filter(preguntaAbierta) }
 }
 
 // Lumix escribe con emojis al inicio ("✅ Actividad creada", "📨 Notificacion enviada"). El

@@ -15,6 +15,7 @@ import { cx } from '@shared/utils/cx'
 import { navItems, type NavItem } from './navItems'
 import { abrirPaletaDeComandos } from './paletaEventos'
 import { useEquipos } from './useEquipos'
+import { LogroRacha } from './LogroRacha'
 
 // Los modulos de uso diario van a la vista en la barra; el resto, en "Mas". Notificaciones
 // tiene su campana propia.
@@ -214,6 +215,7 @@ export function TopBar() {
                   </label>
                 )}
               </div>
+              <LogroRacha />
               <OpcionMenu
                 onClick={() => {
                   navigate('/profile')

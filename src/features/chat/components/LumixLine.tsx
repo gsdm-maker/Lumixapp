@@ -30,8 +30,9 @@ export function LumixFirma({
       className={cx('text-sm text-fg-muted leading-relaxed', className)}
       title={timestamp ? hora(timestamp) : undefined}
     >
-      <span className="inline-flex items-center gap-1.5 font-semibold text-accent mr-1.5 align-[-3px]">
-        {/* firma-marca: MessageLine la oculta cuando el avatar de la linea ya es Lumix. */}
+      <span className="firma-nombre inline-flex items-center gap-1.5 font-semibold text-accent mr-1.5 align-[-3px]">
+        {/* firma-nombre: dentro de la burbuja de Lumix (MessageLine) se oculta, el nucleo ya
+            dice quien habla. */}
         <LumixIcon size="sm" className="firma-marca !w-4 !h-4 !rounded-[4px]" />
         Lumix
       </span>

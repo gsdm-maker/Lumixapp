@@ -19,7 +19,12 @@ import {
 } from '@features/chat/components/ActivityListMessage'
 import { BulkCreateModal } from '@features/chat/components/BulkCreateModal'
 import { Composer } from '@features/chat/components/Composer'
-import { ChatSidePanel } from '@features/chat/components/ChatSidePanel'
+import { PanelLumix } from '@features/chat/components/PanelLumix'
+import { SugerenciaLumix } from '@features/chat/components/SugerenciaLumix'
+import { TarjetasResultado } from '@features/chat/components/TarjetasResultado'
+import { usePanelLumix } from '@features/chat/hooks/usePanelLumix'
+import { esNuevaConversacion, sesionesDe } from '@features/chat/components/log/sesiones'
+import type { Tarjeta } from '@features/chat/agente/tipos'
 import { EditActivityModal } from '@features/chat/components/EditActivityModal'
 import { LumixFirma } from '@features/chat/components/LumixLine'
 import { MessageLine } from '@features/chat/components/MessageLine'
@@ -36,8 +41,8 @@ import {
   esPregunta,
   etiquetaDia,
   filtrar,
+  hora,
   metaDe,
-  resumenDelDia,
   tipoDe,
   type Filtro,
 } from '@features/chat/components/log/registro'
@@ -85,6 +90,7 @@ export function ChatPage() {
     editActivityFields,
     listMembers,
     confirmarEliminarActividad,
+    nuevaConversacion,
   } = chat
   const { vivas } = useActividadesVivas(messages)
 
@@ -141,7 +147,13 @@ export function ChatPage() {
   const entradas = useMemo(() => agrupar(messages), [messages])
   const visibles = useMemo(() => filtrar(entradas, filtro), [entradas, filtro])
   const porDecidir = useMemo(() => entradas.filter(entradaPorDecidir).length, [entradas])
-  const resumen = useMemo(() => resumenDelDia(messages), [messages])
+  const sesiones = useMemo(() => sesionesDe(messages), [messages])
+  const { panel, recargar: recargarPanel } = usePanelLumix({
+    teamId: profile?.team_id ?? '',
+    userId: user?.id,
+    veTodo: canViewAllActivities,
+    version: messages.length,
+  })
 
   useEffect(() => {
     scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight)
@@ -317,6 +329,16 @@ export function ChatPage() {
     const meta = metaDe(msg)
     const tipo = tipoDe(msg)
 
+    // Lo que hizo el agente: el texto y, debajo, las tarjetas de lo que quedo hecho.
+    if (tipo === 'agente_resultado') {
+      return (
+        <>
+          <LumixFirma text={msg.content} timestamp={msg.created_at} />
+          <TarjetasResultado tarjetas={(meta.tarjetas as Tarjeta[]) ?? []} />
+        </>
+      )
+    }
+
     if (tipo === 'activity_card') {
       return (
         <>
@@ -425,6 +447,18 @@ export function ChatPage() {
       new Date(e.msg.created_at).getTime() - new Date(previo.msg.created_at).getTime() < 5 * 60_000
     // Solo lo que llega mientras se mira entra animado; el historial no.
     const fresh = new Date(e.msg.created_at).getTime() > abiertoEn
+    if (e.kind === 'lumix' && esNuevaConversacion(e.msg))
+      return (
+        <div
+          key={e.msg.id}
+          data-msg-id={e.msg.id}
+          className="flex items-center gap-3 px-5 py-4 text-2xs font-mono uppercase tracking-[0.12em] text-fg-faint"
+        >
+          <span className="h-px flex-1 bg-border" />
+          Nueva conversación · {hora(e.msg.created_at)}
+          <span className="h-px flex-1 bg-border" />
+        </div>
+      )
     return (
       <Fragment key={e.msg.id}>
         {e.kind === 'persona' ? (
@@ -483,7 +517,7 @@ export function ChatPage() {
   })
 
   return (
-    <div className="flex flex-col h-full bg-panel">
+    <div className="flex flex-col h-full">
       <PageHeader
         title="Chat general"
         meta={[teamName, !loading && `${messages.length} mensajes`].filter(Boolean).join(' · ')}
@@ -565,6 +599,11 @@ export function ChatPage() {
             </div>
           </div>
 
+          <SugerenciaLumix
+            sugerencia={panel?.sugerencia ?? null}
+            temas={panel?.temas ?? []}
+            onHecho={recargarPanel}
+          />
           <Composer
             inputRef={inputRef}
             tipos={tipos}
@@ -581,15 +620,15 @@ export function ChatPage() {
           />
         </div>
 
-        <ChatSidePanel
-          resumen={resumen}
-          onJump={jumpTo}
-          onCompletar={(id) => quickUpdate(id, { status: 'completado' })}
-          teamId={profile?.team_id ?? ''}
-          userId={user?.id}
-          verEquipo={canViewAllActivities}
-          version={messages.length}
-          memberName={(id) => roster.find((m) => m.id === id)?.full_name ?? 'Sin asignar'}
+        <PanelLumix
+          panel={panel}
+          nombre={profile?.full_name ?? ''}
+          sesiones={sesiones}
+          onSugerencia={(texto) => handleSend(texto, 'auto')}
+          onSesion={jumpTo}
+          onNueva={() => {
+            void nuevaConversacion()
+          }}
         />
       </div>
 

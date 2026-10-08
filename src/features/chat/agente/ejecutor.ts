@@ -11,9 +11,9 @@ import { minutesService } from '@infrastructure/supabase/minutes.service'
 import type { Capability } from '@core/auth/capabilities'
 import { semanaDe } from '@features/compromisos/hooks/useCompromisos'
 import {
+  cambiarEntrega,
   llevarActividadAMinuta,
   moverActividadUnaSemana,
-  temaDeActividad,
   yaEnMinuta,
 } from '@features/compromisos/utils/operaciones'
 import {
@@ -30,7 +30,7 @@ import { formatDateLocal } from '@shared/utils/date'
 import { nombreCorto } from '@shared/utils/nombres'
 import type { Activity, MinuteItem } from '@shared/types'
 import type { DatosAgente, Refs } from './contexto'
-import type { Llamada } from './tipos'
+import type { Llamada, Tarjeta } from './tipos'
 
 /** Acciones que el agente ya ejecuta por su cuenta (Etapa 1). */
 const PROPIAS = new Set([
@@ -155,23 +155,33 @@ export function describir(llamadas: Llamada[], ctx: Contexto): string[] {
 }
 
 /**
- * Ejecuta las acciones en orden y devuelve una linea por resultado. Un error en una no frena las
- * siguientes: se informa en su linea.
+ * Ejecuta las acciones en orden. Devuelve una linea por resultado (el texto del mensaje) y las
+ * tarjetas de lo que quedo hecho (se dibujan bajo el texto y llevan a cada cosa). Un error en una
+ * accion no frena las siguientes: se informa en su linea.
  */
-export async function ejecutar(llamadas: Llamada[], ctx: Contexto): Promise<string[]> {
+export async function ejecutar(
+  llamadas: Llamada[],
+  ctx: Contexto,
+): Promise<{ lineas: string[]; tarjetas: Tarjeta[] }> {
   const lineas: string[] = []
+  const tarjetas: Tarjeta[] = []
   for (const c of llamadas) {
     try {
-      lineas.push(await ejecutarUna(c, ctx))
+      lineas.push(await ejecutarUna(c, ctx, tarjetas))
     } catch (err) {
       console.error('Agente: fallo', c.tool, err)
       lineas.push(`⚠️ No pude: ${describir([c], ctx)[0]}.`)
     }
   }
-  return lineas
+  return { lineas, tarjetas }
 }
 
-async function ejecutarUna(c: Llamada, ctx: Contexto): Promise<string> {
+const corta = (iso: string) =>
+  new Date(iso.split('T')[0] + 'T00:00:00')
+    .toLocaleDateString('es-CL', { weekday: 'short', day: 'numeric' })
+    .toUpperCase()
+
+async function ejecutarUna(c: Llamada, ctx: Contexto, tarjetas: Tarjeta[]): Promise<string> {
   const a = c.args
   const { datos } = ctx
   const tema = datos.temas.find((t) => t.id === a.tema)
@@ -204,6 +214,14 @@ async function ejecutarUna(c: Llamada, ctx: Contexto): Promise<string> {
         created_by: ctx.yo.id,
       })
       datos.temas.push(nuevo)
+      tarjetas.push({
+        tono: 'violeta',
+        etiqueta: 'TEMA NUEVO',
+        valor: plazo ? corta(plazo) : undefined,
+        titulo: titulo,
+        detalle: responsable ? `${nombreDe(ctx, responsable)} · Minuta` : 'Minuta',
+        ruta: '/minuta',
+      })
       return `📋 Tema agregado a la minuta: «${titulo}»${responsable ? ` · ${nombreDe(ctx, responsable)}` : ''}${plazo ? ` · plazo ${fecha(plazo)}` : ''}`
     }
 
@@ -247,6 +265,15 @@ async function ejecutarUna(c: Llamada, ctx: Contexto): Promise<string> {
         )
       }
       Object.assign(tema, patch)
+      if (cambios.length)
+        tarjetas.push({
+          tono: 'violeta',
+          etiqueta: 'TEMA',
+          valor: plazo ? corta(plazo) : undefined,
+          titulo: tema.tema,
+          detalle: cambios.join(' · '),
+          ruta: '/minuta',
+        })
       return cambios.length
         ? `✏️ «${tema.tema}»: ${cambios.join(', ')}.`
         : `No vi qué cambiar en «${tema.tema}».`
@@ -269,6 +296,14 @@ async function ejecutarUna(c: Llamada, ctx: Contexto): Promise<string> {
         teamId: ctx.teamId,
       })
       tema.linked_activity_ids = [...tema.linked_activity_ids, ...ids]
+      tarjetas.push({
+        tono: 'violeta',
+        etiqueta: 'ASIGNADA',
+        valor: s(a.fecha_entrega) ? corta(s(a.fecha_entrega)!) : undefined,
+        titulo: tema.tema,
+        detalle: `${nombreDe(ctx, responsable)} · desde la Minuta`,
+        activityId: ids[0],
+      })
       return `✅ «${tema.tema}» asignado a ${nombreDe(ctx, responsable)}${s(a.fecha_entrega) ? `, entrega ${fecha(s(a.fecha_entrega)!)}` : ''}.`
     }
 
@@ -282,6 +317,13 @@ async function ejecutarUna(c: Llamada, ctx: Contexto): Promise<string> {
       const estado = conActividad ? 'en_desarrollo' : 'resuelto'
       await minutesService.update(tema.id, { estado })
       tema.estado = estado
+      tarjetas.push({
+        tono: 'verde',
+        etiqueta: 'CONVERSADO',
+        titulo: tema.tema,
+        detalle: conActividad ? 'Su actividad sigue su curso' : 'Cerrado sin actividad',
+        ruta: '/minuta',
+      })
       return conActividad
         ? `💬 «${tema.tema}» conversado: sale de la lista y su actividad sigue su curso.`
         : `💬 «${tema.tema}» conversado y cerrado sin actividad.`
@@ -299,6 +341,13 @@ async function ejecutarUna(c: Llamada, ctx: Contexto): Promise<string> {
       if (a.estado === 'completado') {
         await activitiesService.update(act.id, { status: 'completado' })
         act.status = 'completado'
+        tarjetas.push({
+          tono: 'verde',
+          etiqueta: 'HECHO',
+          titulo: act.title,
+          detalle: nombreDe(ctx, act.responsible_id),
+          activityId: act.id,
+        })
         return `✅ Hecho: «${act.title}».`
       }
       if (nueva) {
@@ -310,14 +359,15 @@ async function ejecutarUna(c: Llamada, ctx: Contexto): Promise<string> {
         // Una semana justa es "mover el compromiso": misma operacion que la hoja (sincroniza
         // el tema). Otra fecha: se cambia la entrega y tambien el plazo del tema.
         if (dias === 7) await moverActividadUnaSemana(act, datos.temas)
-        else {
-          await activitiesService.update(act.id, {
-            due_date: new Date(nueva + 'T00:00:00').toISOString(),
-          })
-          const t = temaDeActividad(datos.temas, act.id)
-          const p = t ? patchDePlazo(t, nueva) : null
-          if (t && p) await minutesService.update(t.id, p)
-        }
+        else await cambiarEntrega(act, nueva, datos.temas)
+        tarjetas.push({
+          tono: 'ambar',
+          etiqueta: 'MOVIDA',
+          valor: corta(nueva),
+          titulo: act.title,
+          detalle: nombreDe(ctx, act.responsible_id),
+          activityId: act.id,
+        })
         return `📅 «${act.title}» ahora vence el ${fecha(nueva)}.`
       }
       return `No vi qué cambiar en «${act.title}».`
@@ -330,14 +380,21 @@ async function ejecutarUna(c: Llamada, ctx: Contexto): Promise<string> {
       if (yaEnMinuta(datos.temas, act.id))
         return `«${act.title}» ya está en la minuta para conversar.`
       await llevarActividadAMinuta(act, { teamId: ctx.teamId, userId: ctx.yo.id })
+      tarjetas.push({
+        tono: 'ambar',
+        etiqueta: 'A LA MINUTA',
+        titulo: act.title,
+        detalle: 'Para conversarlo en la reunión',
+        ruta: '/minuta',
+      })
       return `📋 «${act.title}» quedó en la minuta para conversarlo.`
     }
 
     case 'consultar_compromisos':
-      return consultarCompromisos(a, ctx)
+      return consultarCompromisos(a, ctx, tarjetas)
 
     case 'cerrar_semana':
-      return cerrarSemana(a.pendientes as string, ctx)
+      return cerrarSemana(a.pendientes as string, ctx, tarjetas)
 
     default:
       return `Eso todavía no lo sé hacer desde el chat (${c.tool}).`
@@ -349,7 +406,36 @@ function visibles(ctx: Contexto, lista: Activity[]) {
   return lista.filter((a) => ctx.veTodo || a.responsible_id === ctx.yo.id)
 }
 
-function consultarCompromisos(a: Record<string, unknown>, ctx: Contexto): string {
+/** Tarjeta de un compromiso pendiente: rojo si ya vencio, ambar si viene. */
+function tarjetaPendiente(c: Activity, ctx: Contexto): Tarjeta {
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+  const vence = new Date(c.due_date.split('T')[0] + 'T00:00:00')
+  const dias = Math.round((hoy.getTime() - vence.getTime()) / 86_400_000)
+  return dias > 0
+    ? {
+        tono: 'rojo',
+        etiqueta: 'VENCIDA',
+        valor: `HACE ${dias} D`,
+        titulo: c.title,
+        detalle: nombreDe(ctx, c.responsible_id),
+        activityId: c.id,
+      }
+    : {
+        tono: 'ambar',
+        etiqueta: 'VENCE',
+        valor: corta(c.due_date),
+        titulo: c.title,
+        detalle: nombreDe(ctx, c.responsible_id),
+        activityId: c.id,
+      }
+}
+
+function consultarCompromisos(
+  a: Record<string, unknown>,
+  ctx: Contexto,
+  tarjetas: Tarjeta[],
+): string {
   const { datos } = ctx
   const persona = idDePersona(ctx, a.responsable)
   const dePersona = (l: Activity[]) => (persona ? l.filter((x) => x.responsible_id === persona) : l)
@@ -359,6 +445,7 @@ function consultarCompromisos(a: Record<string, unknown>, ctx: Contexto): string
       visibles(ctx, compromisosVencidosAbiertos(datos.actividades, datos.temas)),
     )
     if (!vencidos.length) return '🎉 No hay compromisos vencidos sin cerrar.'
+    vencidos.slice(0, 6).forEach((c) => tarjetas.push(tarjetaPendiente(c, ctx)))
     return [
       `⏰ ${vencidos.length} compromiso${vencidos.length === 1 ? '' : 's'} vencido${vencidos.length === 1 ? '' : 's'} sin cerrar:`,
       ...vencidos
@@ -379,6 +466,15 @@ function consultarCompromisos(a: Record<string, unknown>, ctx: Contexto): string
   if (!st.total) return `No hay compromisos para la semana ${etiqueta}.`
   const pendientes = lista.filter((c) => c.status !== 'completado')
   const tono = st.porcentaje! >= st.meta ? '🟢' : st.porcentaje! >= 60 ? '🟡' : '🔴'
+  tarjetas.push({
+    tono: st.porcentaje! >= st.meta ? 'verde' : st.porcentaje! >= 60 ? 'ambar' : 'rojo',
+    etiqueta: 'COMPROMISOS',
+    valor: `${st.porcentaje}%`,
+    titulo: `${st.cumplidos} de ${st.total} cumplidos`,
+    detalle: `${pendientes.length ? `faltan ${pendientes.length} · ` : ''}meta ${st.meta}%`,
+    ruta: '/compromisos',
+  })
+  pendientes.slice(0, 5).forEach((c) => tarjetas.push(tarjetaPendiente(c, ctx)))
   return [
     `${tono} Semana ${etiqueta}: ${st.porcentaje}% cumplido (${st.cumplidos} de ${st.total}) · meta ${st.meta}%.`,
     ...(pendientes.length
@@ -392,7 +488,11 @@ function consultarCompromisos(a: Record<string, unknown>, ctx: Contexto): string
   ].join('\n')
 }
 
-async function cerrarSemana(pendientes: string, ctx: Contexto): Promise<string> {
+async function cerrarSemana(
+  pendientes: string,
+  ctx: Contexto,
+  tarjetas: Tarjeta[],
+): Promise<string> {
   if (!ctx.can('compromisos.conducir')) return '🔒 No tienes permiso para cerrar la semana.'
   const { datos } = ctx
   const { desde, hasta, etiqueta } = semanaDe(0)
@@ -400,6 +500,19 @@ async function cerrarSemana(pendientes: string, ctx: Contexto): Promise<string> 
   const st = compromisoStats(lista)
   const abiertos = lista.filter((c) => c.status !== 'completado')
   const cabecera = `Semana ${etiqueta}: cierra con ${st.porcentaje ?? 0}% (${st.cumplidos} de ${st.total}).`
+  tarjetas.push({
+    tono: (st.porcentaje ?? 0) >= st.meta ? 'verde' : 'ambar',
+    etiqueta: 'SEMANA CERRADA',
+    valor: `${st.porcentaje ?? 0}%`,
+    titulo: `${st.cumplidos} de ${st.total} cumplidos`,
+    detalle:
+      pendientes === 'mover'
+        ? 'Lo pendiente pasa a la próxima'
+        : pendientes === 'minuta'
+          ? 'Lo pendiente va a la minuta'
+          : 'Sin cambios en lo pendiente',
+    ruta: '/compromisos',
+  })
   if (!abiertos.length || pendientes === 'dejar')
     return `${cabecera} ${abiertos.length ? `Quedan ${abiertos.length} abiertos, sin cambios.` : 'No queda nada abierto.'}`
 

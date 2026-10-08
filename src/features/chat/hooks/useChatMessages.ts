@@ -1300,7 +1300,14 @@ export function useChatMessages() {
   //
   // Se excluye el mensaje que se esta clasificando: va aparte en el prompt.
   function recentHistory(exceptId: string): HistoryTurn[] {
-    return messagesRef.current
+    // "Nueva conversacion" corta el contexto: lo anterior a la marca ya no le llega a la IA.
+    const todos = messagesRef.current
+    let desde = 0
+    todos.forEach((m, i) => {
+      if ((m.metadata as { type?: string } | null)?.type === 'nueva_conversacion') desde = i + 1
+    })
+    return todos
+      .slice(desde)
       .filter((m) => m.id !== exceptId && !!m.content)
       .slice(-6)
       .map((m) => ({
@@ -2827,8 +2834,12 @@ export function useChatMessages() {
         return true
       }
 
-      const lineas = await ejecutar(llamadas, ctx)
-      await aiSay(lineas.join('\n'))
+      const { lineas, tarjetas } = await ejecutar(llamadas, ctx)
+      await aiSay(
+        lineas.join('\n'),
+        null,
+        tarjetas.length ? { type: 'agente_resultado', tarjetas } : undefined,
+      )
       return true
     } catch (err) {
       // Agente caido o sin desplegar: el chat sigue funcionando con el flujo de siempre.
@@ -2842,8 +2853,15 @@ export function useChatMessages() {
     if (!(await resolveInteractive(messageId, 'Confirmado'))) return
     setAiProcessing(true)
     try {
-      const lineas = await ejecutar(llamadas, contextoAgente(await cargarDatosAgente()))
-      await aiSay(lineas.join('\n'))
+      const { lineas, tarjetas } = await ejecutar(
+        llamadas,
+        contextoAgente(await cargarDatosAgente()),
+      )
+      await aiSay(
+        lineas.join('\n'),
+        null,
+        tarjetas.length ? { type: 'agente_resultado', tarjetas } : undefined,
+      )
     } catch (err) {
       console.error('Agente: fallo al ejecutar lo confirmado', err)
       await aiSay('No pude completar lo que confirmaste. Inténtalo de nuevo.')
@@ -3430,6 +3448,8 @@ export function useChatMessages() {
     // Si no quiere borrar, la pregunta queda resuelta igual que las demas, sin quedar colgada.
     descartarEliminar: (messageId: string) => resolveInteractive(messageId, 'No se elimino'),
     confirmarAgente,
+    /** Marca en el registro el inicio de una conversacion nueva (ver recentHistory). */
+    nuevaConversacion: () => aiSay('Nueva conversación', null, { type: 'nueva_conversacion' }),
     descartarAgente: (messageId: string) => resolveInteractive(messageId, 'Cancelado'),
     responderAgente,
     confirmarReclasificarProyecto,

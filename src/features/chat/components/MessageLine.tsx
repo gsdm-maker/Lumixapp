@@ -1,6 +1,6 @@
 import { forwardRef, type ReactNode } from 'react'
 import { Avatar } from '@shared/components/ui/Avatar'
-import { LumixIcon } from '@shared/components/ui/LumixIcon'
+import { Nucleo } from '@shared/components/ui/Nucleo'
 import { Icon } from '@shared/components/ui/Icon'
 import { cx } from '@shared/utils/cx'
 import { hora } from '@features/chat/components/log/registro'
@@ -25,7 +25,7 @@ interface Props {
   /** Sigue a un mensaje de la misma persona hace poco: sin avatar ni nombre (agrupado). */
   continuation?: boolean
   category?: string | null
-  /** Mensaje propio: un tinte del acento muy suave, no una burbuja de color. */
+  /** Mensaje propio: burbuja de tinta a la derecha. */
   own?: boolean
   optimistic?: boolean
   /** Recien llegado: entra con una animacion corta (el historial al cargar no se anima). */
@@ -33,16 +33,15 @@ interface Props {
   quoted?: ReactNode
   content?: string
   onReply?: () => void
-  /** Lo que Lumix hizo con este mensaje, colgado debajo. */
+  /** Lo que Lumix hizo con este mensaje: va en su propia burbuja, con el nucleo. */
   children?: ReactNode
 }
 
 /**
- * Una linea del chat: avatar, autor y texto, con lo que Lumix hizo colgado debajo.
- *
- * Mantiene la idea del registro de trabajo (quien dijo que y que salio) con los gestos de una
- * mensajeria moderna: avatares, mensajes seguidos agrupados, acciones flotantes al pasar el
- * mouse y una entrada suave de lo nuevo.
+ * Una entrada del chat (rediseno Orbita): el mensaje de la persona en burbuja -propio a la
+ * derecha en tinta, ajeno a la izquierda con su avatar- y lo que Lumix hizo con el, en una
+ * burbuja propia con el nucleo. Sigue siendo un registro de trabajo (quien dijo que y que salio)
+ * con los gestos de una mensajeria: agrupar seguidos, responder al pasar el mouse, entrada suave.
  */
 export const MessageLine = forwardRef<HTMLDivElement, Props>(function MessageLine(
   {
@@ -68,78 +67,85 @@ export const MessageLine = forwardRef<HTMLDivElement, Props>(function MessageLin
       ref={ref}
       data-msg-id={msgId}
       className={cx(
-        'group relative grid grid-cols-[2rem_minmax(0,1fr)] gap-x-3 mx-1.5 sm:mx-2 px-2 sm:px-3 rounded-xl transition-colors duration-500',
-        continuation ? 'pt-0.5 pb-1' : 'pt-2.5 pb-1.5 mt-1',
-        own ? 'bg-accent-soft/40 hover:bg-accent-soft/60' : 'hover:bg-surface-soft',
+        'group relative px-3 sm:px-5 rounded-2xl transition-colors duration-500',
+        continuation ? 'pt-1' : 'pt-3',
         fresh && 'animate-aparecer',
       )}
     >
-      {/* Columna izquierda: avatar al comenzar un grupo; en los mensajes siguientes, la hora
-          aparece al pasar el mouse (como en Slack). */}
-      <div className="pt-0.5">
-        {continuation ? (
-          <time
-            dateTime={timestamp}
-            className="block text-right text-2xs leading-5 text-fg-faint tabular-nums opacity-0 group-hover:opacity-100"
-          >
-            {hora(timestamp)}
-          </time>
-        ) : lumixSolo ? (
-          <LumixIcon size="md" className="!w-8 !h-8 rounded-lg" />
-        ) : (
-          <Avatar name={author} src={avatarSrc} size="sm" className="!w-8 !h-8" />
-        )}
-      </div>
-
-      <div className="min-w-0">
-        {/* Una linea solo de Lumix no lleva encabezado: el avatar y la firma ya lo dicen. */}
-        {!continuation && author && (
-          <div className="flex items-baseline gap-2 min-w-0">
-            <span className="text-sm font-semibold text-fg truncate">{author}</span>
-            <time dateTime={timestamp} className="text-xs text-fg-faint tabular-nums">
-              {hora(timestamp)}
-            </time>
-            {category && (
-              <span className="text-xs text-fg-faint">· {CATEGORIA[category] ?? category}</span>
-            )}
-            {optimistic && <span className="text-xs text-fg-faint">· enviando…</span>}
-          </div>
-        )}
-        {quoted && <div className="mt-1">{quoted}</div>}
-        {content && (
-          <p
-            className={cx(
-              'text-sm text-fg-body leading-relaxed whitespace-pre-wrap break-words',
-              !continuation && 'mt-0.5',
-              optimistic && 'opacity-60',
-            )}
-          >
-            {content}
-          </p>
-        )}
-        {children && (
+      {!lumixSolo && (
+        <div className={cx('flex gap-2.5', own ? 'justify-end' : 'justify-start')}>
+          {!own && (
+            <div className="w-8 shrink-0 pt-5">
+              {!continuation && (
+                <Avatar name={author} src={avatarSrc} size="sm" className="!w-8 !h-8" />
+              )}
+            </div>
+          )}
           <div
             className={cx(
-              'space-y-2',
-              !lumixSolo && 'mt-2',
-              lumixSolo && 'pt-1 [&_.firma-marca]:hidden',
+              'min-w-0 max-w-[min(36rem,85%)] flex flex-col',
+              own ? 'items-end' : 'items-start',
             )}
           >
+            {!continuation && (
+              <div className="flex items-baseline gap-2 min-w-0 px-1 mb-1">
+                {!own && <span className="text-xs font-semibold text-fg truncate">{author}</span>}
+                <time dateTime={timestamp} className="text-2xs text-fg-faint tabular-nums">
+                  {hora(timestamp)}
+                </time>
+                {category && (
+                  <span className="text-2xs text-fg-faint">
+                    · {CATEGORIA[category] ?? category}
+                  </span>
+                )}
+                {optimistic && <span className="text-2xs text-fg-faint">· enviando…</span>}
+              </div>
+            )}
+            {quoted && <div className="mb-1 w-full">{quoted}</div>}
+            {content && (
+              <p
+                className={cx(
+                  'px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words shadow-xs',
+                  own
+                    ? 'bg-fg text-shell rounded-[20px] rounded-br-md'
+                    : 'bg-panel text-fg-body border border-border rounded-[20px] rounded-bl-md',
+                  optimistic && 'opacity-60',
+                )}
+              >
+                {content}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {children && (
+        <div className={cx('flex gap-2.5 max-w-[42rem]', !lumixSolo && 'mt-2')}>
+          <div className="w-8 shrink-0 grid place-items-start justify-center pt-1">
+            <Nucleo size={24} />
+          </div>
+          {/* La burbuja de Lumix ya muestra el nucleo: la firma no repite "Lumix" ni su icono. */}
+          <div className="min-w-0 flex-1 space-y-2 rounded-[20px] rounded-tl-md border border-border bg-panel px-4 py-3 shadow-xs [&_.firma-marca]:hidden [&_.firma-nombre]:hidden">
             {children}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Acciones flotantes: aparecen sobre el borde al pasar el mouse. En tactil quedan
-          siempre visibles, chicas, porque ahi no hay hover. */}
+      {/* Acciones flotantes: aparecen al pasar el mouse. En tactil quedan siempre visibles,
+          chicas, porque ahi no hay hover. */}
       {onReply && !optimistic && (
-        <div className="absolute right-2 top-1 md:-top-3 flex items-center rounded-lg border border-border-strong bg-panel shadow-sm md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 transition-opacity">
+        <div
+          className={cx(
+            'absolute top-1 md:top-0 flex items-center rounded-full border border-border bg-panel shadow-sm md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 transition-opacity',
+            own ? 'left-3 sm:left-5' : 'right-3 sm:right-5',
+          )}
+        >
           <button
             type="button"
             onClick={onReply}
             aria-label="Responder"
             title="Responder"
-            className="inline-flex items-center gap-1.5 h-7 px-2 rounded-lg text-xs text-fg-muted hover:text-fg hover:bg-surface"
+            className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full text-xs text-fg-muted hover:text-fg hover:bg-surface"
           >
             <Icon name="reply" size={14} />
             <span className="hidden md:inline">Responder</span>

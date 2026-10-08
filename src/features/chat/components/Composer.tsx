@@ -219,7 +219,7 @@ export function Composer({
 
         {/* Tarjeta flotante: campo, tipo, vista previa y enviar viven juntos. El foco marca el
             borde completo, no solo el texto. */}
-        <div className="relative rounded-2xl border border-border-strong bg-field shadow-lg shadow-black/5 transition-[border-color,box-shadow] focus-within:border-accent focus-within:ring-4 focus-within:ring-accent/10">
+        <div className="vidrio relative rounded-[28px] transition-[border-color,box-shadow] focus-within:border-accent focus-within:ring-4 focus-within:ring-accent/15">
           {replyTo && (
             <div className="px-2 pt-2">
               <QuotedMessage reply={replyTo} onCancel={onCancelReply} />
