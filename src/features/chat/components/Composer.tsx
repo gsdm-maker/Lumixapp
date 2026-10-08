@@ -272,8 +272,6 @@ export function Composer({
             className="block w-full resize-none overflow-y-auto max-h-40 bg-transparent px-4 pt-3 pb-1 text-base sm:text-sm text-fg placeholder:text-fg-faint focus:outline-none"
           />
 
-          <div className="px-4 pb-1 text-xs text-fg-faint min-h-[1.25rem]">{estado}</div>
-
           <div className="flex items-center gap-2 px-2 pb-2 pt-1">
             {/* Tipo como botones a la vista (no un desplegable): cada uno con el color e icono
                 del modulo al que va. En el celular se desplazan de lado. */}
@@ -321,8 +319,14 @@ export function Composer({
           </div>
         </div>
 
-        <div className="hidden md:flex justify-end items-center gap-1 mt-1.5 text-2xs text-fg-faint">
-          <Kbd>/</Kbd> comandos · <Kbd>Enter</Kbd> enviar · <Kbd>Shift+Enter</Kbd> nueva línea
+        {/* Bajo el campo: que hara Lumix (o que esta haciendo) a la izquierda, atajos a la derecha. */}
+        <div className="flex items-center gap-3 mt-1.5 px-2 min-h-5 text-2xs text-fg-faint">
+          <span className="min-w-0 flex-1 truncate" aria-live="polite">
+            {estado}
+          </span>
+          <span className="hidden md:flex shrink-0 items-center gap-1">
+            <Kbd>/</Kbd> comandos · <Kbd>Enter</Kbd> enviar · <Kbd>Shift+Enter</Kbd> nueva línea
+          </span>
         </div>
       </div>
     </div>
