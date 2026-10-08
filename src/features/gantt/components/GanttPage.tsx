@@ -10,6 +10,7 @@ import { useState } from 'react'
 import {
   DndContext,
   DragOverlay,
+  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
@@ -45,6 +46,7 @@ export function GanttPage() {
   const {
     rows,
     atrasadas,
+    moverLocal,
     loading,
     error,
     days,
@@ -68,7 +70,11 @@ export function GanttPage() {
   const toast = useToast()
   const esMovil = useEsMovil()
   const canEdit = canEditAllActivities || selectedActivity?.responsible_id === profile?.id
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+  // Mouse/touch y tambien teclado (Espacio toma la tarjeta, flechas la mueven, Espacio la suelta).
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor),
+  )
 
   // Lo atrasado tambien se puede arrastrar (desde su columna en el calendario).
   const todas = [...rows.flatMap((r) => r.days.flatMap((d) => d.activities)), ...atrasadas]
@@ -90,6 +96,9 @@ export function GanttPage() {
     const oldDueDate = new Date(activity.due_date)
     if (newDueDate.toDateString() === oldDueDate.toDateString()) return
 
+    const antes = activity.due_date.split('T')[0]
+    // Se mueve en pantalla al instante; si no se puede guardar, se vuelve a cargar lo real.
+    moverLocal(activity.id, date)
     setDropping(true)
     try {
       // Mismo cambio de fecha que el resto de la app: si nacio de un tema, su plazo tambien.
@@ -98,9 +107,28 @@ export function GanttPage() {
         ...(await minutesService.getByTeam(activity.team_id, 'proyecto')),
       ]
       await cambiarEntrega(activity, date, temas)
+      const dia = new Date(date + 'T00:00:00').toLocaleDateString('es-CL', {
+        weekday: 'short',
+        day: 'numeric',
+      })
+      toast.success(`«${activity.title}» movida al ${dia}`, {
+        action: {
+          label: 'Deshacer',
+          onClick: () => {
+            moverLocal(activity.id, antes)
+            cambiarEntrega({ ...activity, due_date: date }, antes, temas)
+              .then(reload)
+              .catch(() => {
+                toast.error('No se pudo deshacer')
+                reload()
+              })
+          },
+        },
+      })
       reload()
     } catch {
       toast.error('No se pudo mover la actividad')
+      reload()
     } finally {
       setDropping(false)
     }
@@ -139,7 +167,7 @@ export function GanttPage() {
         {/* Personas con su % de saturacion de la semana (horas / 42 h). */}
         {!esMovil && vista === 'semana' && rows.length > 0 && (
           <div
-            role="radiogroup"
+            role="group"
             aria-label="Persona"
             className="flex flex-wrap items-center gap-1.5 px-3 sm:px-5 pb-3"
           >
@@ -194,6 +222,20 @@ export function GanttPage() {
         ) : (
           <DndContext
             sensors={sensors}
+            accessibility={{
+              screenReaderInstructions: {
+                draggable:
+                  'Para mover la actividad a otro día: Espacio para tomarla, flechas para moverla, Espacio para soltarla y Escape para cancelar. Enter abre el detalle.',
+              },
+              announcements: {
+                onDragStart: () => 'Actividad tomada.',
+                onDragOver: ({ over }) =>
+                  over ? `Sobre el día ${over.id}.` : 'Fuera de los días.',
+                onDragEnd: ({ over }) =>
+                  over ? `Actividad soltada en el día ${over.id}.` : 'Sin cambios.',
+                onDragCancel: () => 'Movimiento cancelado.',
+              },
+            }}
             onDragStart={(e: DragStartEvent) => setArrastrandoId(e.active.id as string)}
             onDragEnd={alSoltar}
             onDragCancel={() => setArrastrandoId(null)}
@@ -298,8 +340,7 @@ function ChipPersona({
   return (
     <button
       type="button"
-      role="radio"
-      aria-checked={activo}
+      aria-pressed={activo}
       onClick={onClick}
       title={detalle}
       aria-label={`${nombre}: ${pct}% de saturación, ${detalle}`}

@@ -5,21 +5,14 @@ import { fechaRelativa } from '@shared/utils/date'
 import { cx } from '@shared/utils/cx'
 import { fmtHoras } from '@features/gantt/utils/carga'
 import type { Sesion } from '@features/chat/components/log/sesiones'
-import type { NivelCarga, usePanelLumix } from '@features/chat/hooks/usePanelLumix'
+import type { usePanelLumix } from '@features/chat/hooks/usePanelLumix'
+import { Carita } from '@shared/components/ui/Carita'
+import { TEXTO_NIVEL } from '@shared/utils/nivelCarga'
 
 type Panel = NonNullable<ReturnType<typeof usePanelLumix>['panel']>
 
-const SUGERENCIAS = ['Cerrar la semana', '¿Qué está vencido?', '¿Cómo vamos con los compromisos?']
-
-const CARITA: Record<NivelCarga, { fondo: string; texto: string }> = {
-  libre: { fondo: 'radial-gradient(circle at 35% 30%, #c8f5df, #2fbf85 70%)', texto: 'libre' },
-  normal: { fondo: 'radial-gradient(circle at 35% 30%, #e3d9ff, #7b5cff 70%)', texto: 'normal' },
-  alta: { fondo: 'radial-gradient(circle at 35% 30%, #ffe2b8, #f59e0b 70%)', texto: 'carga alta' },
-  saturado: {
-    fondo: 'radial-gradient(circle at 35% 30%, #ffd0c8, #e5533d 70%)',
-    texto: 'saturado',
-  },
-}
+// Distintas de los atajos del campo de mensaje (sin repetir) y, como ellos, solo rellenan.
+const SUGERENCIAS = ['Cerrar la semana', 'Preparar la reunión', 'Equilibrar mi semana']
 
 function saludo(): string {
   const h = new Date().getHours()
@@ -44,6 +37,7 @@ export function PanelLumix({
   onSugerencia,
   onSesion,
   onNueva,
+  enPanel = false,
 }: {
   panel: Panel | null
   nombre: string
@@ -51,6 +45,8 @@ export function PanelLumix({
   onSugerencia: (texto: string) => void
   onSesion: (id: string) => void
   onNueva: () => void
+  /** Dentro de un panel lateral (pantallas sin espacio para la columna). */
+  enPanel?: boolean
 }) {
   const navigate = useNavigate()
   const pct = panel?.porcentaje
@@ -62,7 +58,11 @@ export function PanelLumix({
   return (
     <aside
       aria-label="Lumix y accesos rápidos"
-      className="hidden xl:flex w-[360px] 2xl:w-[400px] shrink-0 flex-col gap-3.5 overflow-y-auto pl-1 pr-5 py-4"
+      className={
+        enPanel
+          ? 'flex flex-col gap-3.5'
+          : 'hidden xl:flex w-[360px] 2xl:w-[400px] shrink-0 flex-col gap-3.5 overflow-y-auto pl-1 pr-5 py-4'
+      }
     >
       {/* Saludo de Lumix */}
       <section className="vidrio rounded-3xl p-5 flex flex-col gap-3">
@@ -117,8 +117,8 @@ export function PanelLumix({
                 key={d.ymd}
                 type="button"
                 onClick={() => navigate('/gantt')}
-                aria-label={`${d.dia} ${d.numero}: ${CARITA[d.nivel].texto}, ${fmtHoras(d.horas)}`}
-                title={`${fmtHoras(d.horas)} · ${CARITA[d.nivel].texto}`}
+                aria-label={`${d.dia} ${d.numero}: ${TEXTO_NIVEL[d.nivel]}, ${fmtHoras(d.horas)}`}
+                title={`${fmtHoras(d.horas)} · ${TEXTO_NIVEL[d.nivel]}`}
                 aria-current={d.esHoy ? 'date' : undefined}
                 className={cx(
                   'flex flex-col items-center gap-1 rounded-2xl border border-border bg-panel py-2 text-2xs text-fg-faint',
@@ -129,6 +129,9 @@ export function PanelLumix({
                 {d.dia}
                 <Carita nivel={d.nivel} />
                 <b className="text-sm text-fg">{d.numero}</b>
+                <span className="text-[10px] leading-none text-fg-muted">
+                  {TEXTO_NIVEL[d.nivel]}
+                </span>
               </button>
             ))}
           </div>
@@ -219,9 +222,7 @@ export function PanelLumix({
                   onClick={() => onSesion(s.id)}
                   className={cx(
                     'w-full text-left px-3 py-2 rounded-xl border-l-[3px] transition-colors',
-                    i === 0
-                      ? 'border-accent bg-accent-soft/60'
-                      : 'border-transparent hover:bg-surface',
+                    'border-transparent hover:bg-surface hover:border-accent',
                   )}
                 >
                   <span className="block truncate text-sm font-medium text-fg">{s.titulo}</span>
@@ -233,6 +234,7 @@ export function PanelLumix({
                       minute: '2-digit',
                     })}
                     {s.acciones > 0 && ` · ${s.acciones} acci${s.acciones === 1 ? 'ón' : 'ones'}`}
+                    {i === 0 && ' · la más reciente'}
                   </span>
                 </button>
               </li>
@@ -241,25 +243,6 @@ export function PanelLumix({
         )}
       </section>
     </aside>
-  )
-}
-
-export function Carita({ nivel, size = 22 }: { nivel: NivelCarga; size?: number }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="relative inline-block rounded-full"
-      style={{ width: size, height: size, background: CARITA[nivel].fondo }}
-    >
-      <i
-        className="absolute bg-white/95 rounded-sm"
-        style={{ top: size * 0.32, left: size * 0.27, width: size * 0.16, height: size * 0.2 }}
-      />
-      <i
-        className="absolute bg-white/95 rounded-sm"
-        style={{ top: size * 0.32, right: size * 0.27, width: size * 0.16, height: size * 0.2 }}
-      />
-    </span>
   )
 }
 

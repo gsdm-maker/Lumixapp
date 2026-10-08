@@ -116,7 +116,7 @@ export function CargaPanel({ carga }: { carga: CargaPersona[] }) {
                   style={{ width: `${(c.enProceso / (c.total || 1)) * 100}%` }}
                 />
                 <i
-                  className="h-full bg-tag-blue-soft"
+                  className="h-full bg-tag-blue-soft ring-1 ring-inset ring-tag-blue"
                   style={{ width: `${(c.pendiente / (c.total || 1)) * 100}%` }}
                 />
                 <i
@@ -236,6 +236,7 @@ export function ListaActividades({
                 className={cx('mt-0.5', BANDERA[a.priority] ?? 'text-fg-faint')}
                 aria-label={`Prioridad ${a.priority}`}
               />
+              <span className="sr-only">Prioridad {a.priority}</span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium leading-snug text-fg">
                   {a.title}

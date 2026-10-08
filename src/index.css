@@ -70,8 +70,12 @@
   --warning-soft: 251 240 224;
   --danger: 180 35 24;
   --danger-soft: 251 233 231;
-  --blocked: 91 75 176;
-  --blocked-soft: 238 236 250;
+  /* Relleno rojo con texto blanco encima (boton Eliminar, contadores): >= 4.5:1 en ambos temas. */
+  --danger-fill: 180 35 24;
+  /* Bloqueado en pizarra (no violeta): el violeta es la marca y "normal"; un color, un
+     significado. */
+  --blocked: 78 82 108;
+  --blocked-soft: 234 235 242;
 
   /* Color con significado, al estilo de Todoist: prioridad, cercania de la fecha y una paleta
      de "etiquetas" para modulos, proyectos y avatares. Siempre un tono fuerte (texto/icono) y
@@ -145,8 +149,9 @@
   --warning-soft: 43 33 18;
   --danger: 240 112 95;
   --danger-soft: 45 23 20;
-  --blocked: 167 156 240;
-  --blocked-soft: 30 27 52;
+  --danger-fill: 185 50 38;
+  --blocked: 176 180 202;
+  --blocked-soft: 34 36 48;
 
   --p1: 255 176 169;
   --p2: 254 181 125;
@@ -337,6 +342,7 @@
   --color-warning-soft: rgb(var(--warning-soft));
   --color-danger: rgb(var(--danger));
   --color-danger-soft: rgb(var(--danger-soft));
+  --color-danger-fill: rgb(var(--danger-fill));
   --color-blocked: rgb(var(--blocked));
   --color-blocked-soft: rgb(var(--blocked-soft));
 
@@ -545,8 +551,8 @@ textarea {
   background-image: linear-gradient(
     90deg,
     rgb(var(--a-600)),
-    rgb(61 107 255),
-    rgb(47 199 168),
+    rgb(50 95 235),
+    rgb(13 125 104),
     rgb(var(--a-600))
   );
   background-size: 200% 100%;

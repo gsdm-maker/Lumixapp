@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useOverlay } from '@shared/hooks/useOverlay'
 import { Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
@@ -16,6 +17,9 @@ import { cx } from '@shared/utils/cx'
 
 export function AppLayout() {
   const [menuAbierto, setMenuAbierto] = useState(false)
+  // Abierto: Escape lo cierra y el foco entra y vuelve (useOverlay). Cerrado: `inert`, asi el
+  // teclado no entra a enlaces que no se ven.
+  const menuRef = useOverlay(menuAbierto, () => setMenuAbierto(false))
   const { pathname } = useLocation()
   const { profile } = useAuth()
   const { menu } = useTheme()
@@ -44,6 +48,13 @@ export function AppLayout() {
         height: 'var(--app-height, 100dvh)',
       }}
     >
+      {/* Saltar al contenido (WCAG 2.4.1): primer elemento enfocable, visible solo con teclado. */}
+      <a
+        href="#contenido"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[90] focus:rounded-full focus:bg-panel focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-fg focus:shadow-lg"
+      >
+        Saltar al contenido
+      </a>
       <NovedadesModal />
       <CommandPalette />
 
@@ -58,6 +69,12 @@ export function AppLayout() {
           menu superior (TopBar). Corte en md (768px): un notebook con escalado de Windows al
           125-150% reporta ~900-1100px logicos, y con lg caia del lado movil. */}
       <div
+        ref={menuRef}
+        id="menu-movil"
+        role="dialog"
+        aria-modal={menuAbierto}
+        aria-label="Menú"
+        inert={!menuAbierto}
         className={cx(
           'fixed inset-y-0 left-0 z-50 transform transition-transform duration-200 ease-out md:hidden',
           menuAbierto ? 'translate-x-0' : '-translate-x-full',
@@ -81,6 +98,8 @@ export function AppLayout() {
           <IconButton
             icon="menu"
             label="Abrir menú"
+            aria-expanded={menuAbierto}
+            aria-controls="menu-movil"
             size="md"
             onClick={() => setMenuAbierto(true)}
           />
@@ -90,7 +109,12 @@ export function AppLayout() {
 
         {/* key = equipo activo: al cambiar de equipo (sin recargar) la pantalla se vuelve a
             montar y ningun hook queda con datos del equipo anterior. */}
-        <main className="flex-1 overflow-hidden" key={profile?.team_id ?? 'sin-equipo'}>
+        <main
+          id="contenido"
+          tabIndex={-1}
+          className="flex-1 overflow-hidden outline-none"
+          key={profile?.team_id ?? 'sin-equipo'}
+        >
           <Outlet />
         </main>
 

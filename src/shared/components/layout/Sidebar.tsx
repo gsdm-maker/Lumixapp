@@ -183,7 +183,7 @@ function NavItemLink({
       {badge !== undefined && (
         <span
           aria-label={`${badge} sin leer`}
-          className="min-w-5 h-5 px-1.5 inline-flex items-center justify-center rounded-full bg-danger text-on-accent text-2xs font-semibold"
+          className="min-w-5 h-5 px-1.5 inline-flex items-center justify-center rounded-full bg-danger-fill text-on-accent text-2xs font-semibold"
         >
           {badge > 99 ? '99+' : badge}
         </span>

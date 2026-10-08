@@ -19,6 +19,8 @@ import {
 import { BulkCreateModal } from '@features/chat/components/BulkCreateModal'
 import { Composer } from '@features/chat/components/Composer'
 import { PanelLumix } from '@features/chat/components/PanelLumix'
+import { SidePanel } from '@shared/components/ui/SidePanel'
+import { Icon } from '@shared/components/ui/Icon'
 import { SugerenciaLumix } from '@features/chat/components/SugerenciaLumix'
 import { TarjetasResultado } from '@features/chat/components/TarjetasResultado'
 import { usePanelLumix } from '@features/chat/hooks/usePanelLumix'
@@ -42,6 +44,7 @@ import {
   filtrar,
   hora,
   metaDe,
+  textoLumix,
   tipoDe,
   type Filtro,
 } from '@features/chat/components/log/registro'
@@ -69,6 +72,8 @@ export function ChatPage() {
   const [bulkParsing, setBulkParsing] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const [prellenar, setPrellenar] = useState<{ texto: string; n: number } | undefined>()
+  const [verPanel, setVerPanel] = useState(false)
 
   useEffect(() => {
     if (teamId) teamsService.getById(teamId).then((t) => setTeamName(t?.name || ''))
@@ -147,6 +152,12 @@ export function ChatPage() {
   const visibles = useMemo(() => filtrar(entradas, filtro), [entradas, filtro])
   const porDecidir = useMemo(() => entradas.filter(entradaPorDecidir).length, [entradas])
   const sesiones = useMemo(() => sesionesDe(messages), [messages])
+  // Ultima respuesta de Lumix llegada mientras se mira: se lee en voz alta (lector de pantalla).
+  const anuncioLumix = useMemo(() => {
+    const ultima = [...messages].reverse().find((m) => esLumix(m))
+    if (!ultima || new Date(ultima.created_at).getTime() <= abiertoEn) return ''
+    return `Lumix: ${textoLumix(ultima.content).text}`
+  }, [messages, abiertoEn])
   const { panel, recargar: recargarPanel } = usePanelLumix({
     teamId: profile?.team_id ?? '',
     userId: user?.id,
@@ -201,7 +212,7 @@ export function ChatPage() {
       const ir = () => {
         const el = lineaDe(id)
         if (!el) return
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        el.scrollIntoView({ behavior: movimiento(), block: 'center' })
         const marca = ['ring-2', 'ring-inset', 'ring-accent', 'rounded-md']
         el.classList.add(...marca)
         setTimeout(() => el.classList.remove(...marca), 1200)
@@ -246,14 +257,15 @@ export function ChatPage() {
     vistasRef.current.add(nueva.id)
     // block 'nearest' y sin foco: mover el foco a un boton cerraria el teclado del celular
     // en medio de la escritura.
-    lineaDe(nueva.id)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    lineaDe(nueva.id)?.scrollIntoView({ behavior: movimiento(), block: 'nearest' })
   }, [messages, loading, user?.id, lineaDe])
 
   const handleSend = useCallback(
-    async (text: string, tipo: TipoMensaje) => {
+    async (text: string, tipo: TipoMensaje): Promise<boolean> => {
       const sent = await sendMessage({ content: text, category: null, reply_to: replyTo })
+      // Sin enviar: el Composer avisa y conserva el texto (y la cita) para reintentar.
+      if (!sent) return false
       setReplyTo(null)
-      if (!sent) return
       if (tipo === 'masivo') {
         setBulkParsing(true)
         try {
@@ -267,6 +279,7 @@ export function ChatPage() {
       } else {
         classifyAndAct(sent, tipo)
       }
+      return true
     },
     [replyTo, sendMessage, classifyAndAct, parseBulk],
   )
@@ -521,16 +534,26 @@ export function ChatPage() {
         <div className="flex flex-1 min-w-0 flex-col">
           <div className="flex items-center gap-2 px-4 sm:px-6 pt-3 pb-1 min-h-11">
             <h1 className="text-sm font-bold text-fg">Chat</h1>
-            <span className="text-xs text-fg-faint truncate">
+            <span className="text-xs text-fg-muted truncate">
               {[teamName, !loading && `${messages.length} mensajes`].filter(Boolean).join(' · ')}
             </span>
+            <span className="ml-auto" />
+            {/* Sin espacio para el panel de Lumix (bajo 1280 px): se abre aparte. */}
+            <button
+              type="button"
+              onClick={() => setVerPanel(true)}
+              className="xl:hidden inline-flex items-center gap-1.5 min-h-8 px-3 rounded-full border border-border bg-panel text-xs font-semibold text-fg-muted hover:text-fg"
+            >
+              <Icon name="sparkles" size={14} className="text-accent" />
+              Mi semana
+            </button>
             {(porDecidir > 0 || filtro === 'decidir') && (
               <button
                 type="button"
                 aria-pressed={filtro === 'decidir'}
                 onClick={() => setFiltro(filtro === 'decidir' ? 'todo' : 'decidir')}
                 className={cx(
-                  'ml-auto inline-flex items-center gap-1.5 min-h-8 px-3 rounded-full text-xs font-semibold transition-shadow',
+                  'inline-flex items-center gap-1.5 min-h-8 px-3 rounded-full text-xs font-semibold transition-shadow',
                   filtro === 'decidir'
                     ? 'bg-accent-soft text-accent shadow-[inset_0_0_0_2px_rgb(var(--accent))]'
                     : 'border border-border bg-panel text-fg-muted hover:text-fg',
@@ -600,6 +623,9 @@ export function ChatPage() {
             temas={panel?.temas ?? []}
             onHecho={recargarPanel}
           />
+          <p className="sr-only" role="status" aria-live="polite">
+            {anuncioLumix}
+          </p>
           <Composer
             inputRef={inputRef}
             tipos={tipos}
@@ -613,6 +639,7 @@ export function ChatPage() {
             members={canAssignOthers ? roster : []}
             tipo={tipo}
             onTipoChange={setTipo}
+            prellenar={prellenar}
           />
         </div>
 
@@ -620,12 +647,28 @@ export function ChatPage() {
           panel={panel}
           nombre={profile?.full_name ?? ''}
           sesiones={sesiones}
-          onSugerencia={(texto) => handleSend(texto, 'auto')}
+          onSugerencia={(texto) => setPrellenar((p) => ({ texto, n: (p?.n ?? 0) + 1 }))}
           onSesion={jumpTo}
           onNueva={() => {
             void nuevaConversacion()
           }}
         />
+        <SidePanel open={verPanel} onClose={() => setVerPanel(false)} title="Mi semana">
+          <PanelLumix
+            enPanel
+            panel={panel}
+            nombre={profile?.full_name ?? ''}
+            sesiones={sesiones}
+            onSugerencia={(texto) => setPrellenar((p) => ({ texto, n: (p?.n ?? 0) + 1 }))}
+            onSesion={(id) => {
+              setVerPanel(false)
+              jumpTo(id)
+            }}
+            onNueva={() => {
+              void nuevaConversacion()
+            }}
+          />
+        </SidePanel>
       </div>
 
       {editTarget && (
@@ -647,4 +690,9 @@ export function ChatPage() {
       )}
     </div>
   )
+}
+
+/** Desplazamiento suave, salvo que la persona pida menos movimiento. */
+function movimiento(): ScrollBehavior {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
 }

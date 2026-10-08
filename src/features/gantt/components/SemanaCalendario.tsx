@@ -8,30 +8,21 @@ import type { Activity } from '@shared/types'
 import type { GanttRow } from '@features/gantt/hooks/useGantt'
 import { CAPACIDAD_DIA, fmtHoras, horasDe, hoyYMD } from '@features/gantt/utils/carga'
 import { nivelDia, type Nivel } from '@features/gantt/utils/niveles'
+import { Carita } from '@shared/components/ui/Carita'
+import { TEXTO_NIVEL } from '@shared/utils/nivelCarga'
 import { DiaDroppable } from './ActividadChip'
 
-const CARITA: Record<Nivel, string> = {
-  libre: 'radial-gradient(circle at 35% 30%, #c8f5df, #2fbf85 70%)',
-  normal: 'radial-gradient(circle at 35% 30%, #e3d9ff, #7b5cff 70%)',
-  alta: 'radial-gradient(circle at 35% 30%, #ffe2b8, #f59e0b 70%)',
-  saturado: 'radial-gradient(circle at 35% 30%, #ffd0c8, #e5533d 70%)',
-}
 const BARRA: Record<Nivel, string> = {
   libre: '#2fbf85',
   normal: '#7b5cff',
   alta: '#f59e0b',
   saturado: '#e5533d',
 }
-const TEXTO_NIVEL: Record<Nivel, string> = {
-  libre: 'libre',
-  normal: 'carga normal',
-  alta: 'carga alta',
-  saturado: 'saturado',
-}
 
 // Cabecera de la tarjeta segun como viene (texto blanco: cada degradado da >= 4.5).
 const CABECERA = {
   violeta: 'linear-gradient(90deg, #5b3fd9, #7759f7)',
+  azul: 'linear-gradient(90deg, #1d55a8, #2563c4)',
   ambar: 'linear-gradient(90deg, #9a5800, #aa6400)',
   rojo: 'linear-gradient(90deg, #b23a29, #c94a37)',
   gris: 'linear-gradient(90deg, #5b5873, #747190)',
@@ -49,26 +40,9 @@ function cabecera(a: Activity, hoy: string): { tono: keyof typeof CABECERA; text
     return { tono: 'rojo', texto: dias === 1 ? 'VENCIDA · AYER' : `VENCIDA · HACE ${dias} D` }
   }
   if (dia === hoy) return { tono: 'ambar', texto: 'VENCE HOY' }
-  return { tono: 'violeta', texto: a.status === 'en_proceso' ? 'EN PROCESO' : 'PENDIENTE' }
-}
-
-export function Carita({ nivel, size = 20 }: { nivel: Nivel; size?: number }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="relative inline-block shrink-0 rounded-full"
-      style={{ width: size, height: size, background: CARITA[nivel] }}
-    >
-      <i
-        className="absolute rounded-sm bg-white/95"
-        style={{ top: size * 0.3, left: size * 0.27, width: size * 0.15, height: size * 0.2 }}
-      />
-      <i
-        className="absolute rounded-sm bg-white/95"
-        style={{ top: size * 0.3, right: size * 0.27, width: size * 0.15, height: size * 0.2 }}
-      />
-    </span>
-  )
+  return a.status === 'en_proceso'
+    ? { tono: 'azul', texto: 'EN PROCESO' }
+    : { tono: 'violeta', texto: 'PENDIENTE' }
 }
 
 /**
@@ -108,6 +82,7 @@ export function TarjetaActividad({
       onKeyDown={(e) => {
         if (e.key === 'Enter') onSelect(activity)
       }}
+      aria-label={`${activity.title}, ${cab.texto.toLowerCase()}, ${fmtHoras(h)}`}
       title={movible ? `${activity.title} · arrastra para cambiar de día` : activity.title}
       style={{ minHeight: Math.max(76, h * 14 + 34) }}
       className={cx(
@@ -168,7 +143,10 @@ export function SemanaCalendario({
   const visibles = personaId ? rows.filter((r) => r.member.id === personaId) : rows
   const nombreDe = (id: string) => rows.find((r) => r.member.id === id)?.member.full_name ?? ''
   const capacidad = CAPACIDAD_DIA * Math.max(1, visibles.length)
-  const habiles = days.slice(0, 5)
+  // Lunes a viernes; sabado y domingo aparecen solo si algo vence esos dias (que no se pierda).
+  const conActividad = (date: string) =>
+    visibles.some((r) => (r.days.find((x) => x.date === date)?.activities.length ?? 0) > 0)
+  const habiles = days.filter((d, i) => i < 5 || conActividad(d.date))
   const atrasadasVisibles = atrasadas.filter((a) => !personaId || a.responsible_id === personaId)
 
   return (
@@ -176,9 +154,9 @@ export function SemanaCalendario({
       {atrasadasVisibles.length > 0 && (
         <aside
           className="lamina w-full lg:w-56 shrink-0 p-3.5 flex flex-col gap-2.5"
-          aria-label="Atrasadas"
+          aria-label="Vencidas"
         >
-          <span className="etiqueta-orbita">Atrasadas · {atrasadasVisibles.length}</span>
+          <span className="etiqueta-orbita">Vencidas · {atrasadasVisibles.length}</span>
           <p className="text-xs text-fg-faint">Arrástralas a un día para reprogramarlas.</p>
           {atrasadasVisibles.map((a) => (
             <TarjetaActividad
@@ -193,7 +171,13 @@ export function SemanaCalendario({
 
       <section className="lamina overflow-clip flex-1 min-w-0 w-full" aria-label="Semana">
         <div className="overflow-x-auto">
-          <div className="grid grid-cols-5 min-w-[760px]">
+          <div
+            className="grid"
+            style={{
+              gridTemplateColumns: `repeat(${habiles.length}, minmax(150px, 1fr))`,
+              minWidth: habiles.length * 152,
+            }}
+          >
             {habiles.map((d) => {
               const acts = visibles.flatMap(
                 (r) => r.days.find((x) => x.date === d.date)?.activities ?? [],
@@ -220,10 +204,13 @@ export function SemanaCalendario({
                         {nombreDia} {fecha.getDate()}
                         {esHoy && ' · hoy'}
                       </b>
-                      <span className="ml-auto text-2xs text-fg-faint tabular-nums">
+                      <span className="ml-auto text-2xs text-fg-muted tabular-nums">
                         {fmtHoras(horas).replace(' h', '')} / {fmtHoras(capacidad)}
                       </span>
                     </div>
+                    <span className="text-2xs font-semibold text-fg-muted">
+                      {TEXTO_NIVEL[nivel]}
+                    </span>
                     <div className="h-1.5 rounded-full bg-surface overflow-hidden">
                       <i
                         className="block h-full rounded-full"

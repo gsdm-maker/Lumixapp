@@ -20,7 +20,8 @@ interface Props {
   inputRef: RefObject<HTMLTextAreaElement | null>
   /** Tipos que esta persona puede forzar (mismo filtro de permisos que los chips de antes). */
   tipos: TipoMensaje[]
-  onSend: (text: string, tipo: TipoMensaje) => Promise<void>
+  /** false si no se pudo enviar: el texto queda en el campo para reintentar. */
+  onSend: (text: string, tipo: TipoMensaje) => Promise<boolean | void>
   sending: boolean
   aiProcessing: boolean
   bulkParsing: boolean
@@ -32,6 +33,8 @@ interface Props {
   /** Tipo elegido. Vive en ChatPage para que el panel lateral ("Crear rapido") lo pueda fijar. */
   tipo: TipoMensaje
   onTipoChange: (t: TipoMensaje) => void
+  /** Texto para dejar en el campo (sugerencias del panel); `n` cambia en cada pedido. */
+  prellenar?: { texto: string; n: number }
 }
 
 const COMANDO_RE = /^\/(\p{L}+)\s+/u
@@ -54,10 +57,22 @@ export function Composer({
   members,
   tipo,
   onTipoChange: setTipo,
+  prellenar,
 }: Props) {
   const [input, setInput] = useState('')
   const [menuIdx, setMenuIdx] = useState(0)
   const [menuCerrado, setMenuCerrado] = useState(false)
+  // No se pudo enviar el ultimo mensaje: se avisa y el texto sigue en el campo (Nielsen 9).
+  const [fallo, setFallo] = useState(false)
+
+  // Una sugerencia del panel deja su texto en el campo: enviar sigue siendo decision tuya, igual
+  // que los atajos de aca abajo (mismo gesto en los dos lugares).
+  useEffect(() => {
+    if (!prellenar) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- el pedido llega desde afuera
+    setInput(prellenar.texto)
+    inputRef.current?.focus()
+  }, [prellenar, inputRef])
 
   // Si cambian los permisos (cambio de equipo sin recargar) y el tipo elegido ya no esta
   // permitido, se vuelve a Auto en vez de enviar con un tipo prohibido.
@@ -96,7 +111,12 @@ export function Composer({
   const handleSend = async () => {
     const text = input.trim()
     if (!text || busy) return
-    await onSend(text, tipoVigente)
+    setFallo(false)
+    const ok = await onSend(text, tipoVigente)
+    if (ok === false) {
+      setFallo(true)
+      return
+    }
     setInput('')
   }
 
@@ -149,7 +169,13 @@ export function Composer({
   ]
 
   let estado: React.ReactNode
-  if (bulkParsing || aiProcessing) {
+  if (fallo) {
+    estado = (
+      <span className="font-semibold text-danger">
+        No se pudo enviar. Tu mensaje sigue en el campo: revisa la conexión y vuelve a enviarlo.
+      </span>
+    )
+  } else if (bulkParsing || aiProcessing) {
     estado = (
       <span className="inline-flex items-center gap-1.5">
         <Spinner size={12} />
@@ -228,28 +254,31 @@ export function Composer({
 
           {sugerencias.length > 0 && (
             <ul
+              id="lista-comandos"
               role="listbox"
               aria-label="Comandos"
               className="absolute bottom-full left-2 mb-2 w-60 rounded-xl border border-border-strong bg-panel shadow-lg py-1 z-10"
             >
               {sugerencias.map((t, i) => (
-                <li key={t} role="option" aria-selected={i === idx}>
-                  <button
-                    type="button"
-                    // mousedown y no click: el click llega despues del blur del campo y en el
-                    // celular el teclado alcanzaba a cerrarse.
-                    onMouseDown={(e) => {
-                      e.preventDefault()
-                      elegir(t)
-                    }}
-                    className={cx(
-                      'w-full flex items-center justify-between px-3 h-8 text-left text-sm',
-                      i === idx ? 'bg-surface text-fg' : 'text-fg-muted hover:bg-surface',
-                    )}
-                  >
-                    <span className="font-mono text-xs text-accent">/{t}</span>
-                    <span className="text-xs text-fg-faint">{TIPO_LABEL[t]}</span>
-                  </button>
+                // mousedown y no click: el click llega despues del blur del campo y en el celular
+                // el teclado alcanzaba a cerrarse. Sin boton adentro: una opcion no lleva otro
+                // control interactivo (WCAG 4.1.2).
+                <li
+                  key={t}
+                  id={`comando-${t}`}
+                  role="option"
+                  aria-selected={i === idx}
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    elegir(t)
+                  }}
+                  className={cx(
+                    'w-full flex items-center justify-between px-3 h-8 text-sm cursor-pointer',
+                    i === idx ? 'bg-surface text-fg' : 'text-fg-muted hover:bg-surface',
+                  )}
+                >
+                  <span className="font-mono text-xs text-accent">/{t}</span>
+                  <span className="text-xs text-fg-faint">{TIPO_LABEL[t]}</span>
                 </li>
               ))}
             </ul>
@@ -267,6 +296,14 @@ export function Composer({
             }
             rows={1}
             aria-label="Mensaje"
+            data-composer=""
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={sugerencias.length > 0}
+            aria-controls={sugerencias.length > 0 ? 'lista-comandos' : undefined}
+            aria-activedescendant={
+              sugerencias.length > 0 ? `comando-${sugerencias[idx]}` : undefined
+            }
             // text-base (16px) en movil: Safari/iOS hace zoom automatico al enfocar un campo
             // con letra menor a 16px (bug real reportado). En escritorio vuelve a la escala.
             className="block w-full resize-none overflow-y-auto max-h-40 bg-transparent px-4 pt-3 pb-1 text-base sm:text-sm text-fg placeholder:text-fg-faint focus:outline-none"
@@ -276,9 +313,9 @@ export function Composer({
             {/* Tipo como botones a la vista (no un desplegable): cada uno con el color e icono
                 del modulo al que va. En el celular se desplazan de lado. */}
             <div
-              role="radiogroup"
+              role="group"
               aria-label="Tipo de mensaje"
-              className="min-w-0 flex-1 flex gap-1 overflow-x-auto [scrollbar-width:none]"
+              className="min-w-0 flex-1 flex gap-1 overflow-x-auto py-1 -my-1 px-0.5 [scrollbar-width:none]"
             >
               {tipos.map((t) => {
                 const est = TIPO_ESTILO[t]
@@ -289,8 +326,7 @@ export function Composer({
                   <button
                     key={t}
                     type="button"
-                    role="radio"
-                    aria-checked={activo}
+                    aria-pressed={activo}
                     onClick={() => {
                       setTipo(t)
                       inputRef.current?.focus()

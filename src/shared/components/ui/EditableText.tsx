@@ -154,7 +154,7 @@ export function EditableText({
           onClick={abrir}
           title="Editar"
           aria-label="Editar"
-          className="shrink-0 mt-0.5 p-0.5 -m-0.5 rounded text-fg-faint hover:text-accent hover:bg-surface transition-colors"
+          className="shrink-0 -my-0.5 w-6 h-6 grid place-items-center rounded-full text-fg-faint hover:text-accent hover:bg-surface transition-colors"
         >
           <Icon name="pencil" size={13} />
         </button>

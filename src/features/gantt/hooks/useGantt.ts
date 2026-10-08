@@ -156,6 +156,34 @@ export function useGantt() {
     }
   }, [days, isColaborador, teamId, user, refreshKey])
 
+  /**
+   * Mueve una actividad a otra fecha EN PANTALLA, al instante (antes de guardar): la tarjeta no
+   * vuelve a su dia mientras se guarda (umbral de Doherty). Quien llama guarda y recarga.
+   */
+  const moverLocal = (id: string, fecha: string) => {
+    const act =
+      rows.flatMap((r) => r.days.flatMap((d) => d.activities)).find((a) => a.id === id) ??
+      atrasadas.find((a) => a.id === id)
+    if (!act) return
+    const movida = { ...act, due_date: new Date(fecha + 'T00:00:00').toISOString() }
+    setRows((prev) =>
+      prev.map((r) => ({
+        ...r,
+        days: r.days.map((d) => {
+          const resto = d.activities.filter((a) => a.id !== id)
+          const suma = r.member.id === act.responsible_id && d.date === fecha ? [movida] : []
+          return { ...d, activities: [...resto, ...suma], count: resto.length + suma.length }
+        }),
+      })),
+    )
+    const hoy = new Date()
+    const hoyYMD = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`
+    setAtrasadas((prev) => {
+      const resto = prev.filter((a) => a.id !== id)
+      return fecha < hoyYMD ? [...resto, movida] : resto
+    })
+  }
+
   const prevWeek = () => setWeekOffset((w) => w - 1)
   const nextWeek = () => setWeekOffset((w) => w + 1)
   const currentWeek = () => setWeekOffset(0)
@@ -164,6 +192,7 @@ export function useGantt() {
   return {
     rows,
     atrasadas,
+    moverLocal,
     loading,
     error,
     days,

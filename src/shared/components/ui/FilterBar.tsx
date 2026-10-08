@@ -43,7 +43,7 @@ export function FilterChip({
         type="button"
         onClick={onRemove}
         aria-label={`Quitar filtro ${label}`}
-        className="p-0.5 rounded-full text-fg-faint hover:text-fg hover:bg-surface"
+        className="w-6 h-6 grid place-items-center rounded-full text-fg-faint hover:text-fg hover:bg-surface"
       >
         <Icon name="x" size={13} />
       </button>
@@ -82,7 +82,7 @@ export function SearchInput({
           type="button"
           onClick={() => onChange('')}
           aria-label="Limpiar búsqueda"
-          className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-fg-faint hover:text-fg"
+          className="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 grid place-items-center rounded-full text-fg-faint hover:text-fg"
         >
           <Icon name="x" size={13} />
         </button>

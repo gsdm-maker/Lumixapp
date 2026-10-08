@@ -89,7 +89,11 @@ export const MessageLine = forwardRef<HTMLDivElement, Props>(function MessageLin
           >
             {!continuation && (
               <div className="flex items-baseline gap-2 min-w-0 px-1 mb-1">
-                {!own && <span className="text-xs font-semibold text-fg truncate">{author}</span>}
+                {own ? (
+                  <span className="sr-only">Tú</span>
+                ) : (
+                  <span className="text-xs font-semibold text-fg truncate">{author}</span>
+                )}
                 <time dateTime={timestamp} className="text-2xs text-fg-faint tabular-nums">
                   {hora(timestamp)}
                 </time>
@@ -136,7 +140,7 @@ export const MessageLine = forwardRef<HTMLDivElement, Props>(function MessageLin
       {onReply && !optimistic && (
         <div
           className={cx(
-            'absolute top-1 md:top-0 flex items-center rounded-full border border-border bg-panel shadow-sm md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 transition-opacity',
+            'absolute top-1 md:top-0 flex items-center rounded-full border border-border bg-panel shadow-sm md:opacity-50 md:group-hover:opacity-100 md:focus-within:opacity-100 transition-opacity',
             own ? 'left-3 sm:left-5' : 'right-3 sm:right-5',
           )}
         >

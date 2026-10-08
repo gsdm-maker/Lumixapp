@@ -220,7 +220,7 @@ export function DashboardPage() {
 
               <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-3">
                 <Panel
-                  title="Atrasado"
+                  title="Vencidas"
                   nota={d.vencidas.length > LISTA ? `${LISTA} de ${d.vencidas.length}` : undefined}
                   accion={<VerTodo to="/activities">Ver en Actividades</VerTodo>}
                 >

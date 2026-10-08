@@ -51,12 +51,18 @@ export function BottomNav({ onMore }: { onMore: () => void }) {
             <span className="truncate max-w-full px-0.5">{i.label}</span>
           </NavLink>
         ))}
-      <button type="button" onClick={onMore} className={cx(item, 'relative text-fg-faint')}>
+      <button
+        type="button"
+        onClick={onMore}
+        aria-controls="menu-movil"
+        aria-label={unreadCount > 0 ? `Más, ${unreadCount} notificaciones sin leer` : 'Más'}
+        className={cx(item, 'relative text-fg-faint')}
+      >
         <Icon name="menu" size={20} />
         <span>Más</span>
         {unreadCount > 0 && (
           <span
-            aria-label={`${unreadCount} notificaciones sin leer`}
+            aria-hidden="true"
             className="absolute top-1 left-1/2 ml-2 w-2 h-2 rounded-full bg-danger"
           />
         )}

@@ -4,7 +4,9 @@
 import type { GanttRow } from '@features/gantt/hooks/useGantt'
 import { HORAS_SEMANA } from './carga'
 
-export type Nivel = 'libre' | 'normal' | 'alta' | 'saturado'
+import type { NivelCarga } from '@shared/utils/nivelCarga'
+
+export type Nivel = NivelCarga
 
 /** Nivel de carga de un dia contra su capacidad (mismos cortes que el mapa de calor). */
 export function nivelDia(horas: number, capacidad: number): Nivel {

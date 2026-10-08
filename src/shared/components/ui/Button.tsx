@@ -23,7 +23,7 @@ const VARIANT: Record<ButtonVariant, string> = {
     'bg-accent-fill relleno-orbita text-on-accent hover:brightness-110 border border-transparent shadow-md shadow-accent-fill/30',
   secondary: 'bg-panel text-fg border border-border-strong shadow-xs hover:bg-surface',
   ghost: 'text-fg-muted border border-transparent hover:bg-surface hover:text-fg',
-  danger: 'bg-danger text-on-accent hover:brightness-110 border border-transparent',
+  danger: 'bg-danger-fill text-on-accent hover:brightness-110 border border-transparent',
 }
 
 const SIZE: Record<ButtonSize, string> = {

@@ -295,6 +295,12 @@ function useOcupado() {
       await fn()
     } finally {
       setOcupado(null)
+      // La pregunta resuelta deja de tener botones: el foco vuelve al campo de mensaje en vez
+      // de caer al inicio de la pagina (WCAG 2.4.3).
+      requestAnimationFrame(() => {
+        if (document.activeElement === document.body)
+          document.querySelector<HTMLTextAreaElement>('textarea[data-composer]')?.focus()
+      })
     }
   }
   return { ocupado, correr }

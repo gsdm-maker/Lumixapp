@@ -42,8 +42,18 @@ export function SugerenciaLumix({
   const mover = async () => {
     setMoviendo(true)
     try {
+      const antes = actividad.due_date.split('T')[0]
       await cambiarEntrega(actividad, hacia.ymd, temas)
-      toast.success(`«${actividad.title}» ahora vence el ${hacia.dia} ${hacia.numero}`)
+      toast.success(`«${actividad.title}» ahora vence el ${hacia.dia} ${hacia.numero}`, {
+        action: {
+          label: 'Deshacer',
+          onClick: () => {
+            cambiarEntrega(actividad, antes, temas)
+              .then(onHecho)
+              .catch(() => toast.error('No se pudo deshacer'))
+          },
+        },
+      })
       onHecho()
     } catch {
       toast.error('No se pudo mover la actividad')

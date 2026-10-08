@@ -145,7 +145,7 @@ export function BotonRedondo({
 export function ContadorNoLeidas({ n }: { n: number }) {
   if (n <= 0) return null
   return (
-    <span className="absolute -top-0.5 -right-0.5 min-w-5 h-5 px-1 inline-flex items-center justify-center rounded-full bg-danger text-on-accent text-2xs font-bold ring-2 ring-shell">
+    <span className="absolute -top-0.5 -right-0.5 min-w-5 h-5 px-1 inline-flex items-center justify-center rounded-full bg-danger-fill text-on-accent text-2xs font-bold ring-2 ring-shell">
       {n > 99 ? '99+' : n}
     </span>
   )
