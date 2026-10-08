@@ -8,8 +8,10 @@ interface DesplegableProps {
   /** Nombre del boton para lectores de pantalla (si `boton` no tiene texto). */
   label?: string
   botonClassName?: string
-  /** Lado al que se alinea el panel. */
+  /** Lado al que se alinea el panel (cuando se abre hacia abajo). */
   alinear?: 'izquierda' | 'derecha'
+  /** Hacia donde se abre: abajo (menu superior) o al costado (menu lateral, desde abajo). */
+  abrirHacia?: 'abajo' | 'izquierda' | 'derecha'
   panelClassName?: string
   /** Recibe `cerrar` para que una opcion cierre el menu al elegirse. */
   children: (cerrar: () => void) => ReactNode
@@ -25,6 +27,7 @@ export function Desplegable({
   label,
   botonClassName,
   alinear = 'derecha',
+  abrirHacia = 'abajo',
   panelClassName,
   children,
 }: DesplegableProps) {
@@ -63,8 +66,14 @@ export function Desplegable({
           role="menu"
           tabIndex={-1}
           className={cx(
-            'absolute top-full mt-2 z-50 min-w-56 rounded-2xl border border-border bg-panel p-1.5 shadow-lg outline-none animate-in fade-in-0 zoom-in-95 duration-150',
-            alinear === 'derecha' ? 'right-0 origin-top-right' : 'left-0 origin-top-left',
+            'absolute z-50 min-w-56 rounded-2xl border border-border bg-panel p-1.5 shadow-lg outline-none animate-in fade-in-0 zoom-in-95 duration-150',
+            abrirHacia === 'izquierda'
+              ? 'bottom-0 right-full mr-3 origin-bottom-right'
+              : abrirHacia === 'derecha'
+                ? 'bottom-0 left-full ml-3 origin-bottom-left'
+                : alinear === 'derecha'
+                  ? 'top-full mt-2 right-0 origin-top-right'
+                  : 'top-full mt-2 left-0 origin-top-left',
             panelClassName,
           )}
         >

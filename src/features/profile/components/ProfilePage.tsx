@@ -12,7 +12,7 @@ import { SectionLabel } from '@shared/components/ui/Indicators'
 import { NovedadesDialog } from '@shared/components/ui/NovedadesModal'
 import { useAuth } from '@core/auth/hooks/useAuth'
 import { useTheme } from '@core/theme/ThemeContext'
-import { ACCENTS } from '@core/theme/apariencia'
+import { ACCENTS, POSICIONES_MENU } from '@core/theme/apariencia'
 import { SegmentedControl } from '@shared/components/ui/SegmentedControl'
 import { supabase } from '@infrastructure/supabase/client'
 import { profilesService } from '@infrastructure/supabase/profiles.service'
@@ -84,7 +84,16 @@ const CAPACIDADES: { title: string; desc: string }[] = [
 
 export function ProfilePage() {
   const { profile, user, signOut } = useAuth()
-  const { preference, setPreference, accent, setAccent } = useTheme()
+  const {
+    preference,
+    setPreference,
+    accent,
+    setAccent,
+    menu,
+    setMenu,
+    menuNombres,
+    setMenuNombres,
+  } = useTheme()
   const navigate = useNavigate()
   const toast = useToast()
   const [fullName, setFullName] = useState(profile?.full_name ?? '')
@@ -311,6 +320,27 @@ export function ProfilePage() {
                   ))}
                 </div>
               </div>
+            </div>
+            {/* Donde va el menu de modulos en escritorio (en el celular siempre va abajo). */}
+            <div className="hidden md:flex flex-wrap items-center gap-3">
+              <span className="w-14 text-xs text-fg-faint">Menú</span>
+              <SegmentedControl
+                label="Posición del menú"
+                value={menu}
+                onChange={setMenu}
+                options={POSICIONES_MENU}
+              />
+              {menu !== 'arriba' && (
+                <SegmentedControl
+                  label="Menú lateral"
+                  value={menuNombres ? 'nombres' : 'iconos'}
+                  onChange={(v) => setMenuNombres(v === 'nombres')}
+                  options={[
+                    { value: 'iconos', label: 'Solo íconos' },
+                    { value: 'nombres', label: 'Con nombres' },
+                  ]}
+                />
+              )}
             </div>
             <p className="text-xs text-fg-faint mt-3">Se guarda en este dispositivo.</p>
           </section>

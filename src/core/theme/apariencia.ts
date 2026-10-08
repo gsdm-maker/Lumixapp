@@ -66,3 +66,33 @@ export function aplicarApariencia(preference: ThemePreference, theme: Theme, acc
   guardar(STORAGE_TEMA, preference)
   guardar(STORAGE_ACENTO, accent)
 }
+
+// --- Menu de modulos (escritorio) ------------------------------------------------------------
+// Cada persona elige donde va el menu: arriba (barra flotante, el default) o como barra
+// vertical a la izquierda o a la derecha; en las laterales, solo iconos o con nombres. En el
+// celular no aplica: ahi siempre va el menu inferior.
+
+export type PosicionMenu = 'arriba' | 'izquierda' | 'derecha'
+
+export const POSICIONES_MENU: { value: PosicionMenu; label: string }[] = [
+  { value: 'arriba', label: 'Arriba' },
+  { value: 'izquierda', label: 'Izquierda' },
+  { value: 'derecha', label: 'Derecha' },
+]
+
+const STORAGE_MENU = 'lumix-menu'
+const STORAGE_MENU_NOMBRES = 'lumix-menu-nombres'
+
+export function leerMenu(): PosicionMenu {
+  const v = leer(STORAGE_MENU)
+  return v === 'izquierda' || v === 'derecha' ? v : 'arriba'
+}
+
+export function leerMenuNombres(): boolean {
+  return leer(STORAGE_MENU_NOMBRES) === 'si'
+}
+
+export function guardarMenu(posicion: PosicionMenu, nombres: boolean) {
+  guardar(STORAGE_MENU, posicion)
+  guardar(STORAGE_MENU_NOMBRES, nombres ? 'si' : 'no')
+}

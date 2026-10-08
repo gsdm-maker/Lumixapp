@@ -1,15 +1,19 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import {
   aplicarApariencia,
+  guardarMenu,
   leerAcento,
+  leerMenu,
+  leerMenuNombres,
   leerPreferencia,
   resolverTema,
   type Accent,
+  type PosicionMenu,
   type Theme,
   type ThemePreference,
 } from './apariencia'
 
-export type { Accent, Theme, ThemePreference }
+export type { Accent, PosicionMenu, Theme, ThemePreference }
 
 interface ThemeContextValue {
   /** Lo que eligio la persona (incluye "sistema"). */
@@ -19,6 +23,12 @@ interface ThemeContextValue {
   accent: Accent
   setPreference: (p: ThemePreference) => void
   setAccent: (a: Accent) => void
+  /** Donde va el menu de modulos en escritorio. */
+  menu: PosicionMenu
+  setMenu: (m: PosicionMenu) => void
+  /** Menu lateral con los nombres de los modulos (si no, solo iconos). */
+  menuNombres: boolean
+  setMenuNombres: (v: boolean) => void
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined)
@@ -33,6 +43,8 @@ const ThemeContext = createContext<ThemeContextValue | undefined>(undefined)
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [preference, setPreference] = useState<ThemePreference>(leerPreferencia)
   const [accent, setAccent] = useState<Accent>(leerAcento)
+  const [menu, setMenu] = useState<PosicionMenu>(leerMenu)
+  const [menuNombres, setMenuNombres] = useState<boolean>(leerMenuNombres)
   const [sistemaOscuro, setSistemaOscuro] = useState(
     () => window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false,
   )
@@ -53,8 +65,24 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     aplicarApariencia(preference, theme, accent)
   }, [preference, theme, accent])
 
+  useEffect(() => {
+    guardarMenu(menu, menuNombres)
+  }, [menu, menuNombres])
+
   return (
-    <ThemeContext.Provider value={{ preference, theme, accent, setPreference, setAccent }}>
+    <ThemeContext.Provider
+      value={{
+        preference,
+        theme,
+        accent,
+        setPreference,
+        setAccent,
+        menu,
+        setMenu,
+        menuNombres,
+        setMenuNombres,
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   )

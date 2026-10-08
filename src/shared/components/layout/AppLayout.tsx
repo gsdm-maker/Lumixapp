@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
+import { MenuLateral } from './MenuLateral'
+import { useTheme } from '@core/theme/ThemeContext'
 import { BottomNav } from './BottomNav'
 import { navItems } from './navItems'
 import { NovedadesModal } from '@shared/components/ui/NovedadesModal'
@@ -16,6 +18,7 @@ export function AppLayout() {
   const [menuAbierto, setMenuAbierto] = useState(false)
   const { pathname } = useLocation()
   const { profile } = useAuth()
+  const { menu } = useTheme()
   useAppHeight()
 
   // Titulo de la seccion en el encabezado movil (en escritorio lo da la barra lateral).
@@ -63,8 +66,11 @@ export function AppLayout() {
         <Sidebar onClose={() => setMenuAbierto(false)} />
       </div>
 
+      {/* Escritorio: el menu de modulos va donde la persona eligio (Perfil > Apariencia). */}
+      {menu !== 'arriba' && <MenuLateral lado={menu} />}
+
       <div className="flex-1 flex flex-col min-w-0">
-        <TopBar />
+        {menu === 'arriba' && <TopBar />}
         <header
           className="md:hidden shrink-0 flex items-center gap-2 px-2 border-b border-border vidrio"
           style={{
