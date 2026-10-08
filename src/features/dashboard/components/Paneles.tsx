@@ -29,14 +29,9 @@ export function Panel({
   className?: string
 }) {
   return (
-    <section
-      className={cx(
-        'flex min-w-0 flex-col rounded-xl border border-border bg-panel shadow-xs',
-        className,
-      )}
-    >
+    <section className={cx('flex min-w-0 flex-col lamina', className)}>
       <header className="flex flex-wrap items-center gap-x-2 gap-y-1 px-4 pt-3.5">
-        <h2 className="text-sm font-semibold tracking-tight text-fg">{title}</h2>
+        <h2 className="etiqueta-orbita">{title}</h2>
         {nota && <span className="text-xs text-fg-faint">{nota}</span>}
         {accion && <span className="ml-auto">{accion}</span>}
       </header>

@@ -36,14 +36,14 @@ export function FilterChip({
   onRemove: () => void
 }) {
   return (
-    <span className="inline-flex items-center gap-1.5 h-7 pl-2 pr-1 rounded-md border border-border-strong bg-panel text-xs text-fg-muted">
+    <span className="inline-flex items-center gap-1.5 h-7 pl-2.5 pr-1 rounded-full border border-border-strong bg-panel text-xs text-fg-muted">
       <span className="font-medium text-fg">{label}</span>
       <span className="truncate max-w-[160px]">{value}</span>
       <button
         type="button"
         onClick={onRemove}
         aria-label={`Quitar filtro ${label}`}
-        className="p-0.5 rounded text-fg-faint hover:text-fg hover:bg-surface"
+        className="p-0.5 rounded-full text-fg-faint hover:text-fg hover:bg-surface"
       >
         <Icon name="x" size={13} />
       </button>
@@ -75,7 +75,7 @@ export function SearchInput({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         aria-label={placeholder}
-        className="w-full h-8 rounded-md border border-border-strong bg-field pl-8 pr-7 text-base sm:text-sm text-fg placeholder:text-fg-faint focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 [&::-webkit-search-cancel-button]:hidden"
+        className="w-full h-8 rounded-full border border-border-strong bg-field pl-8 pr-7 text-base sm:text-sm text-fg placeholder:text-fg-faint focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 [&::-webkit-search-cancel-button]:hidden"
       />
       {value && (
         <button

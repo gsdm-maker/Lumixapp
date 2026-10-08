@@ -162,10 +162,7 @@ function ItemIndice({
 /** Bloque con ancla para el indice. */
 function Bloque({ id, children }: { id: string; children: ReactNode }) {
   return (
-    <section
-      id={`guia-${id}`}
-      className="scroll-mt-5 rounded-xl border border-border bg-panel p-4 shadow-xs sm:p-5"
-    >
+    <section id={`guia-${id}`} className="scroll-mt-5 lamina p-4 shadow-xs sm:p-5">
       {children}
     </section>
   )

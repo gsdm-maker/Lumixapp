@@ -122,7 +122,7 @@ export function GanttChart({
           etiqueta mide maximo 2 lineas (tema + responsable): la fecha de inicio se edita desde
           el panel de detalle, no aca, para no romper esta alineacion (bug real reportado). */}
       <div className="overflow-x-auto">
-        <div className="grid grid-cols-[160px_1fr] min-w-[600px] rounded-lg border border-border bg-panel p-3">
+        <div className="grid grid-cols-[160px_1fr] min-w-[600px] lamina p-3">
           {/* Columna de nombres */}
           <div className="flex flex-col gap-1 border-r border-border pr-3">
             <div className="h-6" />

@@ -58,7 +58,8 @@ export function SidePanel({
         tabIndex={-1}
         className={cx(
           'fixed z-40 inset-0 sm:inset-auto sm:top-0 sm:bottom-0 sm:right-0 w-full flex flex-col',
-          'bg-panel border-l border-border shadow-lg outline-none',
+          // Orbita: flota separado del borde, con esquinas de tarjeta (en el celular, pantalla completa).
+          'bg-panel border-border shadow-lg outline-none sm:m-2 sm:rounded-3xl sm:border overflow-hidden',
           // Entra deslizandose desde la derecha (estilo "sheet" de shadcn/ui).
           'animate-in slide-in-from-right duration-300 ease-out',
           WIDTH[width],

@@ -68,7 +68,7 @@ export function MembersTable({
   }
 
   return (
-    <div className="rounded-lg border border-border bg-panel">
+    <div className="lamina">
       <div
         aria-hidden="true"
         className={`hidden ${COLS} px-3 py-1.5 border-b border-border bg-surface-soft text-xs font-medium text-fg-faint rounded-t-lg`}

@@ -295,18 +295,20 @@ export function CompromisosPage() {
             description={`Aquí solo aparece lo asignado desde la minuta o un proyecto con entrega entre el ${etiqueta}. Las actividades creadas por el chat o el listado no son compromisos del equipo.`}
           />
         ) : (
-          <CompromisosTabla
-            personas={lista}
-            grupos={porGrupoActivo ? porGrupo : null}
-            soloVencidos={verVencidos}
-            meta={resumen.meta}
-            estaAbierta={estaAbierta}
-            alternar={alternar}
-            grupoAbierto={(id) => gruposAbiertos.has(id)}
-            alternarGrupo={alternarGrupo}
-            plegable={!soloUno}
-            acciones={acciones}
-          />
+          <div className="lamina overflow-clip mx-3 sm:mx-5 my-3">
+            <CompromisosTabla
+              personas={lista}
+              grupos={porGrupoActivo ? porGrupo : null}
+              soloVencidos={verVencidos}
+              meta={resumen.meta}
+              estaAbierta={estaAbierta}
+              alternar={alternar}
+              grupoAbierto={(id) => gruposAbiertos.has(id)}
+              alternarGrupo={alternarGrupo}
+              plegable={!soloUno}
+              acciones={acciones}
+            />
+          </div>
         )}
       </div>
 

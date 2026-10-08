@@ -310,14 +310,14 @@ export function MinutaPage({ tipo = 'minuta' }: { tipo?: HojaTipo } = {}) {
             }
           />
         ) : (
-          <>
+          <div className="lamina overflow-clip mx-3 sm:mx-5 my-3">
             <div className="lg:hidden">
               <MinutaLista items={items} hoja={hoja} />
             </div>
             <div className="hidden lg:block">
               <MinutaTabla items={items} hoja={hoja} seleccionado={detalleId} />
             </div>
-          </>
+          </div>
         )}
       </div>
 

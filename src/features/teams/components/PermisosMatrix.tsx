@@ -95,7 +95,7 @@ export function PermisosMatrix({
         </span>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-border bg-panel">
+      <div className="overflow-x-auto lamina">
         <table className="text-xs border-collapse">
           <thead>
             <tr className="bg-surface-soft">

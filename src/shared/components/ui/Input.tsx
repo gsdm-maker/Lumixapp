@@ -12,7 +12,7 @@ import { Icon } from './Icon'
 // text-base (16px) en movil, text-sm desde sm: Safari/iOS hace zoom automatico al enfocar un
 // campo con letra menor a 16px. En escritorio se vuelve a la escala compacta.
 const CAMPO =
-  'w-full rounded-md border border-border-strong bg-field text-fg placeholder:text-fg-faint text-base sm:text-sm transition-colors hover:border-fg-faint focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:opacity-60 disabled:cursor-not-allowed'
+  'w-full rounded-xl border border-border-strong bg-field text-fg placeholder:text-fg-faint text-base sm:text-sm transition-colors hover:border-fg-faint focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:opacity-60 disabled:cursor-not-allowed'
 
 /** Etiqueta de un campo de formulario. */
 export function FieldLabel({

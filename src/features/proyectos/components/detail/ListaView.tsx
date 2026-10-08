@@ -33,7 +33,7 @@ export function ListaView({
   onOpen,
 }: ListaViewProps) {
   return (
-    <div className="rounded-lg border border-border bg-panel overflow-hidden">
+    <div className="lamina overflow-hidden">
       <div
         className={cx(
           'hidden items-center px-3 py-2 border-b border-border text-2xs font-semibold uppercase tracking-wide text-fg-faint',

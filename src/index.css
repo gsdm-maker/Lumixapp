@@ -458,7 +458,8 @@ textarea {
 
 /* --- Orbita: vidrio, halos y nucleo -------------------------------------------------------- */
 /* Vidrio: para lo que flota (menu superior, paneles del chat). Brillo de 1px arriba. */
-.vidrio {
+.vidrio,
+.lamina {
   background: rgb(var(--vidrio) / var(--vidrio-alfa));
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
@@ -467,10 +468,26 @@ textarea {
     var(--sombra-md),
     inset 0 1px 0 rgb(var(--vidrio-brillo) / 0.08);
 }
-:root:not([data-theme='dark']) .vidrio {
+:root:not([data-theme='dark']) .vidrio,
+:root:not([data-theme='dark']) .lamina {
   box-shadow:
     var(--sombra-md),
     inset 0 1px 0 rgb(var(--vidrio-brillo) / 0.9);
+}
+/* Lamina: el vidrio con esquinas de tarjeta. Contenedor de tablas, listas y tarjetas de todas
+   las hojas (Card, paneles del Dashboard, Guia...). Sin overflow propio: quien lo necesite le
+   suma overflow-clip (bordes redondos sin romper encabezados fijos) u overflow-x-auto. */
+.lamina {
+  border-radius: var(--radius-2xl);
+}
+/* Etiqueta de seccion Orbita: mono, mayusculas, en el acento ("TU SEMANA · CARGA"). */
+.etiqueta-orbita {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgb(var(--accent));
 }
 /* Dos manchas de luz suaves en las esquinas (no lavan la pantalla). */
 .fondo-orbita {

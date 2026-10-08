@@ -198,7 +198,7 @@ export function ErrorsPage() {
             }
           />
         ) : (
-          <>
+          <div className="lamina overflow-clip mx-3 sm:mx-5 my-3">
             {/* Escritorio: tabla */}
             <table className="hidden sm:table w-full text-sm">
               <thead className="sticky top-0 z-10 bg-panel">
@@ -321,7 +321,7 @@ export function ErrorsPage() {
                 )
               })}
             </ul>
-          </>
+          </div>
         )}
       </div>
     </div>

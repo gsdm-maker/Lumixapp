@@ -38,7 +38,7 @@ export function SegmentedControl<T extends string>({
       aria-label={label}
       className={cx(
         // Pista gris con la opcion activa como una pastilla blanca con sombra (Tabs de shadcn/ui).
-        'inline-flex shrink-0 gap-0.5 rounded-lg bg-surface p-[3px]',
+        'inline-flex shrink-0 gap-0.5 rounded-full bg-surface p-[3px]',
         className,
       )}
     >
@@ -53,7 +53,7 @@ export function SegmentedControl<T extends string>({
             disabled={o.disabled}
             onClick={() => onChange(o.value)}
             className={cx(
-              'inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md font-medium transition-[background-color,color,box-shadow] duration-150 disabled:opacity-40',
+              'inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-full font-medium transition-[background-color,color,box-shadow] duration-150 disabled:opacity-40',
               size === 'sm' ? 'h-[26px] px-2.5 text-xs' : 'h-8 px-3 text-sm',
               activo ? 'bg-panel text-fg shadow-sm' : 'text-fg-muted hover:text-fg',
             )}

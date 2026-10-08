@@ -52,7 +52,7 @@ export function PersonaSemana({
         <StatusLabel {...estado} />
       </p>
 
-      <ol className="rounded-lg border border-border bg-panel divide-y divide-border">
+      <ol className="lamina divide-y divide-border">
         {row.days.map((cell, i) => {
           const horas = horasDia(cell.activities)
           const esHoy = cell.date === hoy

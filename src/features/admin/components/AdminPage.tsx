@@ -119,7 +119,7 @@ export function AdminPage() {
           <section className="space-y-3">
             <SectionLabel>Crear usuario</SectionLabel>
             <form
-              className="rounded-lg border border-border bg-panel p-4 space-y-3"
+              className="lamina p-4 space-y-3"
               onSubmit={(e) => {
                 e.preventDefault()
                 void handleCreateUser()
@@ -228,7 +228,7 @@ export function AdminPage() {
             {teamsLoading ? (
               <LoadingState />
             ) : (
-              <div className="rounded-lg border border-border bg-panel divide-y divide-border">
+              <div className="lamina divide-y divide-border">
                 {teams.map((team) => {
                   const abierto = selectedTeam === team.id
                   return (

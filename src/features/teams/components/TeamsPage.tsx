@@ -67,7 +67,7 @@ export function TeamsPage() {
               }
             />
           ) : (
-            <div className="rounded-lg border border-border bg-panel divide-y divide-border">
+            <div className="lamina divide-y divide-border">
               {teams.map((team) => {
                 const abierto = selectedTeam === team.id
                 const actual = profile?.team_id === team.id

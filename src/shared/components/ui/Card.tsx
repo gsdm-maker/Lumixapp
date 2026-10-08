@@ -15,15 +15,5 @@ const PADDING = { none: '', sm: 'p-3', md: 'p-4', lg: 'p-5' }
  * docs/design-system.md).
  */
 export function Card({ children, className, padding = 'md' }: CardProps) {
-  return (
-    <div
-      className={cx(
-        'rounded-xl border border-border bg-panel shadow-xs',
-        PADDING[padding],
-        className,
-      )}
-    >
-      {children}
-    </div>
-  )
+  return <div className={cx('lamina', PADDING[padding], className)}>{children}</div>
 }

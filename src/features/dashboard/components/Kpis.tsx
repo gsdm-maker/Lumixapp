@@ -70,7 +70,7 @@ function Kpi({
       {pie}
     </>
   )
-  const clase = 'grid gap-2 rounded-xl border border-border bg-panel p-4 shadow-xs min-w-0'
+  const clase = 'grid gap-2 lamina p-4 shadow-xs min-w-0'
   return to ? (
     <Link to={to} className={cx(clase, 'transition-colors hover:border-border-strong')}>
       {cuerpo}

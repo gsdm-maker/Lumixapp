@@ -51,9 +51,9 @@ export function Modal({
             if (!dismissible) e.preventDefault()
           }}
           className={cx(
-            'fixed z-50 flex flex-col w-full bg-panel border border-border-strong shadow-lg outline-none',
-            'max-h-[90dvh] bottom-0 left-0 rounded-t-2xl',
-            'sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl',
+            'fixed z-50 flex flex-col w-full bg-panel border border-border shadow-lg outline-none overflow-hidden',
+            'max-h-[90dvh] bottom-0 left-0 rounded-t-3xl',
+            'sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl',
             'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
             'data-[state=open]:slide-in-from-bottom-6 sm:data-[state=open]:slide-in-from-bottom-0 sm:data-[state=open]:zoom-in-95 sm:data-[state=closed]:zoom-out-95 duration-200',
             SIZE[size],
@@ -73,7 +73,7 @@ export function Modal({
               </div>
               <Dialog.Close
                 aria-label="Cerrar"
-                className="-mr-2 -mt-1 inline-flex items-center justify-center w-8 h-8 rounded-md text-fg-faint hover:text-fg hover:bg-surface transition-colors"
+                className="-mr-2 -mt-1 inline-flex items-center justify-center w-8 h-8 rounded-full text-fg-faint hover:text-fg hover:bg-surface transition-colors"
               >
                 <Icon name="x" size={16} />
               </Dialog.Close>

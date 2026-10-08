@@ -84,7 +84,7 @@ export function ProyectosPage() {
             }
           />
         ) : (
-          <>
+          <div className="lamina overflow-clip mx-3 sm:mx-5 my-3">
             {/* Escritorio: tabla comparable. */}
             <table className="hidden md:table w-full text-sm border-collapse">
               <thead>
@@ -193,7 +193,7 @@ export function ProyectosPage() {
                 </li>
               ))}
             </ul>
-          </>
+          </div>
         )}
       </div>
 

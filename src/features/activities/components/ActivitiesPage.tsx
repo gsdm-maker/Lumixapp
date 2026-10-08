@@ -310,15 +310,17 @@ export function ActivitiesPage() {
             verTodosLosEquipos={() => act.setFilterTeam('todas')}
           />
         ) : (
-          <ActivitiesTable
-            grupos={grupos}
-            plano={agrupacion === 'ninguno'}
-            selectedId={selected?.id ?? cursorId}
-            nombrePersona={nombrePersona}
-            teamNames={teamNames}
-            onOpen={(a) => openActivity(a)}
-            onAccion={accionDeFila}
-          />
+          <div className="lamina overflow-clip mx-3 sm:mx-5 my-3">
+            <ActivitiesTable
+              grupos={grupos}
+              plano={agrupacion === 'ninguno'}
+              selectedId={selected?.id ?? cursorId}
+              nombrePersona={nombrePersona}
+              teamNames={teamNames}
+              onOpen={(a) => openActivity(a)}
+              onAccion={accionDeFila}
+            />
+          </div>
         )}
       </div>
 

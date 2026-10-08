@@ -72,7 +72,7 @@ export function AiAccuracyPanel() {
         Últimos 30 días. “Corregidas” = el usuario cambió la categoría o editó la actividad poco
         después de creada.
       </p>
-      <div className="overflow-x-auto rounded-lg border border-border bg-panel">
+      <div className="overflow-x-auto lamina">
         <table className="w-full text-sm">
           <thead className="bg-surface-soft">
             <tr className="text-xs text-fg-faint text-left border-b border-border">

@@ -116,7 +116,7 @@ export function NotificationsPage() {
               {groups.map((g) => (
                 <section key={g.label} aria-label={g.label} className="space-y-1.5">
                   <SectionLabel>{g.label}</SectionLabel>
-                  <ul className="rounded-lg border border-border bg-panel divide-y divide-border">
+                  <ul className="lamina divide-y divide-border">
                     {g.items.map((n) => (
                       <NotificationRow
                         key={n.id}
