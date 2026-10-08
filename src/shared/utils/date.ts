@@ -46,3 +46,14 @@ export function fechaRelativa(iso: string): { text: string; tone: DueTone; days:
     .replace('.', '')
   return { text, tone: 'normal', days }
 }
+
+/** Suma dias habiles (lunes a viernes) a una fecha. */
+export function addBusinessDays(date: Date, days: number): Date {
+  const r = new Date(date)
+  let added = 0
+  while (added < days) {
+    r.setDate(r.getDate() + 1)
+    if (r.getDay() !== 0 && r.getDay() !== 6) added++
+  }
+  return r
+}

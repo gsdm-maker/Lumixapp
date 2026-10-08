@@ -15,6 +15,7 @@ import { Modal } from '@shared/components/ui/Modal'
 import { useToast } from '@shared/components/ui/Toast'
 import { LumixPrompt } from '@features/chat/components/prompts/LumixPrompt'
 import { metaDe, tipoDe } from '@features/chat/components/log/registro'
+import type { Llamada } from '@features/chat/agente/tipos'
 
 type Hook = ReturnType<typeof useChatMessages>
 
@@ -40,6 +41,9 @@ export type AccionesPregunta = Pick<
   | 'descartarReclasificarIngesta'
   | 'confirmarReclasificarError'
   | 'descartarReclasificarError'
+  | 'confirmarAgente'
+  | 'descartarAgente'
+  | 'responderAgente'
 >
 
 // Un mismo "elegir persona" sirve para tres casos: crear una actividad, reasignar una
@@ -222,9 +226,57 @@ export function InteractivePrompt({ msg, acciones, ajena, decidedBy, me }: Props
         />
       )
     }
+    // Agente del chat: lo que va a hacer (avisa a otros o toca varias cosas) espera un OK.
+    case 'agente_confirmar':
+      return (
+        <Confirmacion
+          base={base}
+          label="Confirmar"
+          onConfirm={() => acciones.confirmarAgente(msg.id, meta.llamadas as Llamada[])}
+          onCancel={() => acciones.descartarAgente(msg.id)}
+        />
+      )
+    // Agente del chat: le falta un dato. Las opciones son atajos; tambien se puede escribir.
+    case 'agente_aclaracion':
+      return (
+        <Opciones
+          base={base}
+          opciones={Array.isArray(meta.opciones) ? (meta.opciones as string[]) : []}
+          onElegir={(o) => acciones.responderAgente(msg.id, o)}
+        />
+      )
     default:
       return null
   }
+}
+
+function Opciones({
+  base,
+  opciones,
+  onElegir,
+}: {
+  base: Base
+  opciones: string[]
+  onElegir: (opcion: string) => Promise<unknown>
+}) {
+  const { ocupado, correr } = useOcupado()
+  if (!opciones.length) return <LumixPrompt {...base}>{null}</LumixPrompt>
+  return (
+    <LumixPrompt {...base}>
+      {opciones.map((o) => (
+        <Button
+          key={o}
+          size="xs"
+          variant="secondary"
+          loading={ocupado === o}
+          disabled={!!ocupado}
+          onClick={() => correr(o, () => onElegir(o))}
+        >
+          {o}
+        </Button>
+      ))}
+    </LumixPrompt>
+  )
 }
 
 type Base = {

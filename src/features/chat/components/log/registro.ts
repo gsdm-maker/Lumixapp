@@ -15,6 +15,8 @@ export const PROMPT_TYPES = [
   'reclass_proyecto_confirm',
   'reclass_ingesta_confirm',
   'reclass_error_confirm',
+  'agente_confirmar',
+  'agente_aclaracion',
 ] as const
 
 export type PromptType = (typeof PROMPT_TYPES)[number]

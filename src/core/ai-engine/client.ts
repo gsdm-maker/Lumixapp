@@ -179,3 +179,26 @@ export async function askQuestion(
   if (error) throw new Error(error.message)
   return (data as { answer: string }).answer
 }
+
+/** Respuesta del agente del chat: las acciones del catalogo que eligio (no ejecuta nada). */
+export interface AgenteResult {
+  llamadas: { tool: string; args: Record<string, unknown> }[]
+  texto: string
+  model?: string
+}
+
+export async function pedirAgente(body: {
+  mensaje: string
+  contexto: unknown
+  pistas: unknown
+  historial: HistoryTurn[]
+}): Promise<AgenteResult> {
+  const { data, error } = await supabase.functions.invoke('ai-agente', { body })
+  if (error) throw new Error(error.message)
+  const r = data as AgenteResult
+  return {
+    llamadas: Array.isArray(r?.llamadas) ? r.llamadas : [],
+    texto: r?.texto ?? '',
+    model: r?.model,
+  }
+}

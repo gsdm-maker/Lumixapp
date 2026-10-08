@@ -6,6 +6,7 @@ import {
   classifyBulk,
   resolveUpdate,
   askQuestion,
+  pedirAgente,
   type ClassifyResult,
   type BulkActivity,
   type HistoryTurn,
@@ -29,6 +30,19 @@ import { useCapabilities } from '@core/auth/hooks/useCapabilities'
 import { formatDateLocal } from '@shared/utils/date'
 import type { ChatMessage, SendMessagePayload } from '@features/chat/types'
 import type { Activity, ActivityStatus, HojaTipo } from '@shared/types'
+import { agenteActivo } from '@features/chat/agente/activo'
+import { armarContexto, type DatosAgente } from '@features/chat/agente/contexto'
+import { calcularPistas } from '@features/chat/agente/pistas'
+import { aplicarGuardas } from '@features/chat/agente/guardas'
+import {
+  decidir,
+  describir,
+  ejecutar,
+  requiereConfirmacion,
+  resolverRefs,
+  type Contexto as ContextoAgente,
+} from '@features/chat/agente/ejecutor'
+import type { Llamada } from '@features/chat/agente/tipos'
 
 const STATUS_LABELS: Record<string, string> = {
   pendiente: 'Pendiente',
@@ -540,6 +554,9 @@ export function useChatMessages() {
   // Capacidades segun el rol del EQUIPO ACTIVO (una persona puede ser jefatura en un equipo
   // y colaboradora en otro). isAdmin = admin global (ve toda la conversacion del equipo).
   const {
+    can,
+    role,
+    canViewAllActivities,
     isColaborador,
     isGlobalAdmin: isAdmin,
     canAssignOthers,
@@ -2730,6 +2747,118 @@ export function useChatMessages() {
     })
   }
 
+  // ---------------------------------------------------------------------------------------
+  // Agente del chat (ver features/chat/agente). La IA propone acciones; aca se revisan
+  // (guardas), se confirman si avisan a otros o tocan varias cosas, y se ejecutan con los
+  // permisos de quien escribe.
+  // ---------------------------------------------------------------------------------------
+
+  async function cargarDatosAgente(): Promise<DatosAgente> {
+    const [actividades, minuta, proyectos, ingestas, errores, miembros] = await Promise.all([
+      activitiesService.getByTeam(teamId),
+      minutesService.getByTeam(teamId, 'minuta'),
+      minutesService.getByTeam(teamId, 'proyecto'),
+      minutesService.getByTeam(teamId, 'ingesta'),
+      errorsService.getByTeam(teamId),
+      profilesService.getByTeam(teamId),
+    ])
+    return { actividades, temas: [...minuta, ...proyectos, ...ingestas], errores, miembros }
+  }
+
+  const contextoAgente = (datos: DatosAgente): ContextoAgente => ({
+    datos,
+    yo: { id: user!.id, nombre: profile?.full_name ?? '' },
+    teamId,
+    can,
+    veTodo: isAdmin || canViewAllActivities,
+  })
+
+  /** true si el agente resolvio el mensaje; false para seguir con el flujo de siempre. */
+  async function intentarAgente(message: ChatMessage, content: string): Promise<boolean> {
+    if (!user) return false
+    // Si habia una pregunta del agente abierta y la persona contesto escribiendo (sin tocar
+    // una opcion), este mensaje ES la respuesta: la pregunta se da por resuelta.
+    for (const m of messagesRef.current) {
+      const meta = (m.metadata ?? {}) as Record<string, unknown>
+      if (meta.type === 'agente_aclaracion' && !meta.resolved && m.id !== message.id)
+        void resolveInteractive(m.id, 'Respondida')
+    }
+    try {
+      const datos = await cargarDatosAgente()
+      const { contexto, refs } = armarContexto(
+        datos,
+        { id: user.id, nombre: profile?.full_name ?? '', rol: role },
+        {
+          veTodo: isAdmin || canViewAllActivities,
+          ultimoMencionadoId: ultimaActividadRef.current?.id,
+        },
+      )
+      const pistas = calcularPistas(content, contexto.miembros)
+      const { llamadas: propuestas } = await pedirAgente({
+        mensaje: content,
+        contexto,
+        pistas,
+        historial: recentHistory(message.id),
+      })
+      // Se decide con lo que pidio el modelo (antes de las guardas): una guarda puede cambiar
+      // la accion por una pregunta, y la pregunta debe salir solo si el tema era de la Etapa 1.
+      if (decidir(propuestas) !== 'agente') return false
+      const llamadas = aplicarGuardas(resolverRefs(propuestas, refs), pistas)
+      const ctx = contextoAgente(datos)
+
+      const aclaracion = llamadas.find((c) => c.tool === 'pedir_aclaracion')
+      if (aclaracion) {
+        const opciones = Array.isArray(aclaracion.args.opciones)
+          ? (aclaracion.args.opciones as unknown[]).map(String).slice(0, 6)
+          : []
+        await aiSay(String(aclaracion.args.pregunta ?? '¿Me das más detalles?'), null, {
+          type: 'agente_aclaracion',
+          opciones,
+        })
+        return true
+      }
+
+      if (requiereConfirmacion(llamadas)) {
+        const pasos = describir(llamadas, ctx)
+        await aiSay(`Voy a hacer esto:\n${pasos.map((p) => `• ${p}`).join('\n')}`, null, {
+          type: 'agente_confirmar',
+          llamadas,
+        })
+        return true
+      }
+
+      const lineas = await ejecutar(llamadas, ctx)
+      await aiSay(lineas.join('\n'))
+      return true
+    } catch (err) {
+      // Agente caido o sin desplegar: el chat sigue funcionando con el flujo de siempre.
+      console.error('Agente no disponible, sigue el flujo de siempre:', err)
+      return false
+    }
+  }
+
+  /** "Confirmar" en la tarjeta del agente: ejecuta lo propuesto con datos frescos. */
+  const confirmarAgente = async (messageId: string, llamadas: Llamada[]) => {
+    if (!(await resolveInteractive(messageId, 'Confirmado'))) return
+    setAiProcessing(true)
+    try {
+      const lineas = await ejecutar(llamadas, contextoAgente(await cargarDatosAgente()))
+      await aiSay(lineas.join('\n'))
+    } catch (err) {
+      console.error('Agente: fallo al ejecutar lo confirmado', err)
+      await aiSay('No pude completar lo que confirmaste. Inténtalo de nuevo.')
+    } finally {
+      setAiProcessing(false)
+    }
+  }
+
+  /** Respuesta a una pregunta del agente: se envia como mensaje y el agente completa la orden. */
+  const responderAgente = async (messageId: string, opcion: string) => {
+    if (!(await resolveInteractive(messageId, opcion))) return
+    const enviado = await sendMessage({ content: opcion, category: null })
+    if (enviado) await classifyAndAct(enviado, 'auto')
+  }
+
   const classifyAndAct = async (message: ChatMessage, forcedType?: string) => {
     if (!message.content || message.category) return
     setAiProcessing(true)
@@ -2832,6 +2961,19 @@ export function useChatMessages() {
       // nueva titulada "borrala", que es exactamente el tipo de basura que esto viene a limpiar.
       if (DESHACER_RE.test(content)) {
         await deshacerUltima()
+        setAiProcessing(false)
+        return
+      }
+
+      // AGENTE (Etapa 1, solo donde esta encendido): ordenes de Minuta y Compromisos. Si el
+      // agente no sabe resolver el mensaje completo -o falla- sigue el flujo de siempre, asi
+      // que nada de lo que ya funcionaba cambia. Un acta con viñetas sigue su camino propio.
+      if (
+        isAutoMode &&
+        agenteActivo(teamId) &&
+        contarVinetas(content) < MINUTA_ESTRUCTURADA_MIN_VINETAS &&
+        (await intentarAgente(message, content))
+      ) {
         setAiProcessing(false)
         return
       }
@@ -3287,6 +3429,9 @@ export function useChatMessages() {
     confirmarEliminarActividad,
     // Si no quiere borrar, la pregunta queda resuelta igual que las demas, sin quedar colgada.
     descartarEliminar: (messageId: string) => resolveInteractive(messageId, 'No se elimino'),
+    confirmarAgente,
+    descartarAgente: (messageId: string) => resolveInteractive(messageId, 'Cancelado'),
+    responderAgente,
     confirmarReclasificarProyecto,
     descartarReclasificar: (messageId: string) =>
       resolveInteractive(messageId, 'Se dejo como actividad'),

@@ -2,11 +2,15 @@ import { useState, useEffect, useCallback } from 'react'
 import { minutesService } from '@infrastructure/supabase/minutes.service'
 import { activitiesService } from '@infrastructure/supabase/activities.service'
 import { profilesService } from '@infrastructure/supabase/profiles.service'
-import { notificationsService } from '@infrastructure/supabase/notifications.service'
 import { teamsService, type GrupoTrabajo } from '@infrastructure/supabase/teams.service'
 import { useAuth } from '@core/auth/hooks/useAuth'
 import { useCapabilities } from '@core/auth/hooks/useCapabilities'
-import { formatDateLocal, parseDateLocal } from '@shared/utils/date'
+import { parseDateLocal } from '@shared/utils/date'
+import {
+  crearActividadesDeTema,
+  moverEntregasDelTema,
+  patchDePlazo,
+} from '@features/minuta/utils/operaciones'
 import { deriveEstado } from '@shared/utils/compromisos'
 import type {
   Activity,
@@ -60,16 +64,6 @@ export const esActivaIngesta = (estado?: EstadoIngesta | null): boolean =>
 export interface DecoratedItem extends MinuteItem {
   effectiveEstado: MinuteEstado
   linkedActivities: Activity[]
-}
-
-function addBusinessDays(date: Date, days: number): Date {
-  const r = new Date(date)
-  let added = 0
-  while (added < days) {
-    r.setDate(r.getDate() + 1)
-    if (r.getDay() !== 0 && r.getDay() !== 6) added++
-  }
-  return r
 }
 
 /**
@@ -425,34 +419,12 @@ export function useMinuta(tipo: HojaTipo = 'minuta') {
   // Cambio de plazo con trazabilidad. La PRIMERA asignacion no cuenta como cambio;
   // el contador solo sube cuando ya habia una fecha previa.
   const changePlazo = async (item: MinuteItem, newPlazo: string | null) => {
-    if ((item.plazo ?? null) === (newPlazo ?? null)) return
-    const hadPlazo = !!item.plazo
-    const history = [...(item.plazo_history ?? [])]
-    if (newPlazo) history.push({ date: newPlazo, at: new Date().toISOString() })
+    const patch = patchDePlazo(item, newPlazo)
+    if (!patch) return
     // Mismo criterio que updateItem: se pinta primero y se guarda despues.
-    await updateItem(item.id, {
-      plazo: newPlazo,
-      plazo_change_count: (item.plazo_change_count ?? 0) + (hadPlazo ? 1 : 0),
-      plazo_history: history,
-    })
-
-    // El plazo tambien es la entrega de los compromisos que nacieron de este tema (ver
-    // createActivitiesFromItem). Sin este paso, Compromisos seguia mostrando la fecha vieja
-    // aunque el equipo ya la hubiera renegociado en la Minuta -y la marcaba vencida sin
-    // estarlo-. Las actividades ya completadas no se tocan: su cierre es historia, no algo
-    // que renegociar.
-    if (newPlazo) {
-      const dueDateISO = new Date(newPlazo + 'T00:00:00').toISOString()
-      const pendientes = item.linked_activity_ids
-        .map((id) => activitiesById[id])
-        .filter((a): a is Activity => !!a && a.status !== 'completado')
-      if (pendientes.length) {
-        await Promise.all(
-          pendientes.map((a) => activitiesService.update(a.id, { due_date: dueDateISO })),
-        )
-        await load()
-      }
-    }
+    await updateItem(item.id, patch)
+    // El plazo tambien es la entrega de los compromisos del tema (ver moverEntregasDelTema).
+    if (newPlazo && (await moverEntregasDelTema(item, newPlazo, activitiesById))) await load()
   }
 
   const removeItem = async (id: string) => {
@@ -481,66 +453,9 @@ export function useMinuta(tipo: HojaTipo = 'minuta') {
     },
   ) => {
     if (!user || !teamId) return
-    const due = opts.dueDate
-      ? new Date(opts.dueDate + 'T00:00:00').toISOString()
-      : addBusinessDays(new Date(), 6).toISOString()
-    const newIds: string[] = []
-
-    // Desde Proyectos el origen es el proyecto raiz, no la minuta (antes decia siempre "Minuta
-    // semanal", aunque la actividad viniera de una subtarea de un proyecto).
-    let raiz: MinuteItem = item
-    while (raiz.parent_item_id) {
-      const padre = items.find((i) => i.id === raiz.parent_item_id)
-      if (!padre) break
-      raiz = padre
-    }
-    const esProyecto = item.tipo === 'proyecto'
-    const origen = esProyecto ? `Proyecto: ${raiz.tema}` : 'Minuta semanal'
-
-    for (const rid of opts.responsibleIds) {
-      const activity = await activitiesService.create({
-        title: item.tema,
-        description:
-          item.comentarios ||
-          (esProyecto ? `Proyecto ${raiz.tema}: ${item.tema}` : `Foco de reunion: ${item.tema}`),
-        responsible_id: rid,
-        priority: opts.priority,
-        status: 'pendiente',
-        due_date: due,
-        dependencies: [],
-        observations: `Origen: ${origen}`,
-        team_id: teamId,
-        created_by: user.id,
-      })
-      newIds.push(activity.id)
-      if (rid !== user.id) {
-        try {
-          await notificationsService.send(rid, {
-            title: esProyecto ? 'Nueva actividad (Proyecto)' : 'Nueva actividad (Minuta)',
-            body: `"${item.tema}"${esProyecto && raiz.id !== item.id ? ` (${raiz.tema})` : ''} - Entrega: ${formatDateLocal(due)}`,
-            type: 'deadline_soon',
-            metadata: { activity_id: activity.id },
-          })
-        } catch (err) {
-          console.error('Notify failed:', err)
-        }
-      }
-    }
-
-    // responsables_text (nombre libre de un tema cargado desde planilla) se limpia en la RPC
-    // al asignar de verdad: si no, responsablesLabel() lo seguia sumando y mostraba un nombre
-    // viejo junto al responsable real (caso real: "Felipe Quintanilla" colgado despues de
-    // reasignar a "Juan Diaz").
-    await minutesService.vincularActividades(
-      item.id,
-      newIds,
-      opts.responsibleIds,
-      opts.fechaInicio !== undefined
-        ? { inicio: opts.fechaInicio, plazo: opts.dueDate }
-        : undefined,
-    )
+    const ids = await crearActividadesDeTema({ ...opts, item, items, userId: user.id, teamId })
     await load()
-    return newIds.length
+    return ids.length
   }
 
   return {

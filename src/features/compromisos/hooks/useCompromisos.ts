@@ -42,6 +42,11 @@ import {
   compromisoStats,
 } from '@shared/utils/compromisos'
 import type { Activity, MinuteItem, Profile } from '@shared/types'
+import {
+  llevarActividadAMinuta,
+  moverActividadUnaSemana,
+  temaDeActividad,
+} from '@features/compromisos/utils/operaciones'
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
 
@@ -194,13 +199,8 @@ export function useCompromisos() {
     canViewAllActivities || isGlobalAdmin || a.responsible_id === profile?.id
   const visibles = compromisosEnVentana(todas, temas, desde, hasta).filter(puedeVer)
 
-  // Tema que trajo esta actividad a Compromisos (el que la tiene en linked_activity_ids). Si
-  // viene de un proyecto se prefiere ese item: llevarla a la minuta crea un segundo tema con
-  // el mismo vinculo, y el origen real sigue siendo el proyecto.
-  const temaEn = (lista: MinuteItem[], activityId: string) =>
-    lista.find((t) => t.tipo === 'proyecto' && t.linked_activity_ids.includes(activityId)) ??
-    lista.find((t) => t.linked_activity_ids.includes(activityId))
-  const temaDe = (activityId: string) => temaEn(temas, activityId)
+  // Tema que trajo esta actividad (prefiere el proyecto): ver temaDeActividad.
+  const temaDe = (activityId: string) => temaDeActividad(temas, activityId)
 
   // Sube por parent_item_id hasta el tema raiz. Todos los ancestros estan en `temas` -mismo
   // equipo, y la cadena nunca cruza de hoja-, asi que nunca queda cortada a mitad.
@@ -316,32 +316,15 @@ export function useCompromisos() {
   const moverUnaSemana = async (a: Activity) => {
     const nueva = new Date(a.due_date)
     nueva.setDate(nueva.getDate() + 7)
-    const iso = nueva.toISOString()
-    setTodas((cur) => cur.map((x) => (x.id === a.id ? { ...x, due_date: iso } : x)))
+    setTodas((cur) => cur.map((x) => (x.id === a.id ? { ...x, due_date: nueva.toISOString() } : x)))
     try {
-      await activitiesService.update(a.id, { due_date: iso })
-      // Mismo mecanismo que `changePlazo` en useMinuta.ts, pero al reves: ese sincroniza
-      // Minuta -> actividades vinculadas; esto sincroniza Compromisos -> el tema que las
-      // originó. Sin esto, mover la fecha desde aca dejaba a Minuta mostrando el plazo
-      // viejo (bug real reportado: "en minuta plazo no cuadra con lo que se ve en
-      // compromisos"). Actividades ya completadas nunca llegan aca (moverUnaSemana solo se
-      // ofrece en lo no cumplido), asi que no hace falta ese filtro en este sentido.
-      const tema = temaEn(temasRef.current, a.id)
+      // Sincroniza tambien el plazo del tema que la origino (ver moverActividadUnaSemana).
+      // Se lee temasRef y no `temas`: en un lote, dos actividades del mismo tema calculaban el
+      // historial desde el mismo valor viejo y se pisaban.
+      const { tema } = await moverActividadUnaSemana(a, temasRef.current)
       if (tema) {
-        const nuevaFecha = iso.split('T')[0]
-        const hadPlazo = !!tema.plazo
-        const history = [
-          ...(tema.plazo_history ?? []),
-          { date: nuevaFecha, at: new Date().toISOString() },
-        ]
-        const patch = {
-          plazo: nuevaFecha,
-          plazo_change_count: (tema.plazo_change_count ?? 0) + (hadPlazo ? 1 : 0),
-          plazo_history: history,
-        }
-        temasRef.current = temasRef.current.map((t) => (t.id === tema.id ? { ...t, ...patch } : t))
+        temasRef.current = temasRef.current.map((t) => (t.id === tema.id ? tema : t))
         setTemas(temasRef.current)
-        await minutesService.update(tema.id, patch)
       }
     } catch (err) {
       // Se revierte SOLO esta actividad: en un lote, una foto de todas tomada al principio
@@ -381,33 +364,14 @@ export function useCompromisos() {
     // clic antes de que el estado se actualice.
     if (escaladas.has(a.id)) return
     setEscaladas((cur) => new Set(cur).add(a.id))
-    const existentes = await minutesService.getByTeam(teamId, 'minuta')
-    await minutesService
-      .create({
-        team_id: teamId,
-        tipo: 'minuta',
-        orden: existentes.length,
-        tema: a.title,
-        para_todos: false,
-        responsables: a.responsible_id ? [a.responsible_id] : [],
-        responsables_text: '',
-        estado: 'definir',
-        plazo: a.due_date.split('T')[0],
-        // Antes traia un texto fijo ("Vino de la hoja de compromisos: ...") que quedaba dando
-        // vueltas en el campo de comentarios -a pedido de Sebastian se saca, queda en blanco
-        // para que la persona escriba su propia nota real.
-        comentarios: '',
-        linked_activity_ids: [a.id],
-        created_by: profile.id,
+    await llevarActividadAMinuta(a, { teamId, userId: profile.id }).catch((err) => {
+      setEscaladas((cur) => {
+        const n = new Set(cur)
+        n.delete(a.id)
+        return n
       })
-      .catch((err) => {
-        setEscaladas((cur) => {
-          const n = new Set(cur)
-          n.delete(a.id)
-          return n
-        })
-        throw err
-      })
+      throw err
+    })
   }
 
   return {
