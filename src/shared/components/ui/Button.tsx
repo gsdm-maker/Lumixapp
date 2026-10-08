@@ -16,11 +16,11 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children?: ReactNode
 }
 
-// Compactos a proposito (brief: "keep them compact"). La accion principal se distingue por el
-// relleno del acento, no por el tamano.
+// Compactos a proposito (brief: "keep them compact"). Orbita: pastillas; la accion principal se
+// distingue por el degradado del acento (relleno-orbita, index.css), no por el tamano.
 const VARIANT: Record<ButtonVariant, string> = {
   primary:
-    'bg-accent-fill text-on-accent hover:brightness-110 border border-transparent shadow-sm shadow-accent-fill/20',
+    'bg-accent-fill relleno-orbita text-on-accent hover:brightness-110 border border-transparent shadow-md shadow-accent-fill/30',
   secondary: 'bg-panel text-fg border border-border-strong shadow-xs hover:bg-surface',
   ghost: 'text-fg-muted border border-transparent hover:bg-surface hover:text-fg',
   danger: 'bg-danger text-on-accent hover:brightness-110 border border-transparent',
@@ -55,7 +55,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       type={type}
       disabled={disabled || loading}
       className={cx(
-        'inline-flex items-center justify-center rounded-md font-medium whitespace-nowrap transition-[background-color,border-color,filter,color,transform] duration-150 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100',
+        'inline-flex items-center justify-center rounded-full font-semibold whitespace-nowrap transition-[background-color,border-color,filter,color,transform] duration-150 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100',
         VARIANT[variant],
         SIZE[size],
         className,
@@ -94,7 +94,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
       aria-label={label}
       title={label}
       className={cx(
-        'inline-flex items-center justify-center rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+        'inline-flex items-center justify-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
         variant === 'ghost'
           ? 'text-fg-faint hover:text-fg hover:bg-surface'
           : 'text-fg-muted bg-panel border border-border-strong hover:text-fg hover:bg-surface',

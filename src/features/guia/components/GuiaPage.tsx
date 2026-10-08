@@ -60,7 +60,7 @@ export function GuiaPage() {
     document.getElementById(`guia-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
   return (
-    <div className="flex h-full flex-col bg-shell">
+    <div className="flex h-full flex-col">
       <PageHeader title="Guía de Lumix" meta="cómo funciona, hoja por hoja" />
 
       <div className="flex-1 overflow-y-auto">

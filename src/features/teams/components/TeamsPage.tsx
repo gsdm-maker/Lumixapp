@@ -41,7 +41,7 @@ export function TeamsPage() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-shell">
+    <div className="flex flex-col h-full">
       <PageHeader
         title="Equipos"
         meta={!loading && teams.length > 0 ? `${teams.length}` : undefined}

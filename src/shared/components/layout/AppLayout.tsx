@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
+import { TopBar } from './TopBar'
 import { BottomNav } from './BottomNav'
 import { navItems } from './navItems'
 import { NovedadesModal } from '@shared/components/ui/NovedadesModal'
@@ -28,7 +29,7 @@ export function AppLayout() {
 
   return (
     <div
-      className="flex bg-shell text-fg-body"
+      className="flex fondo-orbita text-fg-body"
       // position: fixed + top/height tomados en vivo de visualViewport (useAppHeight): el
       // layout pinta siempre donde el navegador dice que esta lo visible. Arregla el salto de
       // la parte de arriba al cerrar el teclado en iOS (ver useAppHeight.ts).
@@ -50,12 +51,12 @@ export function AppLayout() {
         />
       )}
 
-      {/* Barra lateral: fija en escritorio, deslizable en movil. Corte en md (768px): un
-          notebook con escalado de Windows al 125-150% reporta ~900-1100px logicos, y con lg
-          caia del lado movil. */}
+      {/* Menu lateral: solo en el celular (deslizable, se abre con "Mas"). En escritorio manda el
+          menu superior (TopBar). Corte en md (768px): un notebook con escalado de Windows al
+          125-150% reporta ~900-1100px logicos, y con lg caia del lado movil. */}
       <div
         className={cx(
-          'fixed inset-y-0 left-0 z-50 transform transition-transform duration-200 ease-out md:relative md:translate-x-0',
+          'fixed inset-y-0 left-0 z-50 transform transition-transform duration-200 ease-out md:hidden',
           menuAbierto ? 'translate-x-0' : '-translate-x-full',
         )}
       >
@@ -63,8 +64,9 @@ export function AppLayout() {
       </div>
 
       <div className="flex-1 flex flex-col min-w-0">
+        <TopBar />
         <header
-          className="md:hidden shrink-0 flex items-center gap-2 px-2 border-b border-border bg-panel"
+          className="md:hidden shrink-0 flex items-center gap-2 px-2 border-b border-border vidrio"
           style={{
             height: 'calc(3rem + env(safe-area-inset-top))',
             paddingTop: 'env(safe-area-inset-top)',

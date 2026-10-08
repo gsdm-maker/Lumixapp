@@ -110,7 +110,7 @@ export function ErrorsPage() {
     )
 
   return (
-    <div className="flex flex-col h-full bg-shell">
+    <div className="flex flex-col h-full">
       <PageHeader
         title={
           <span className="inline-flex items-center gap-2">

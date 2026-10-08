@@ -171,7 +171,7 @@ export function ProfilePage() {
   const nombre = profile?.full_name ?? 'Usuario'
 
   return (
-    <div className="flex flex-col h-full bg-shell">
+    <div className="flex flex-col h-full">
       <PageHeader title="Perfil" />
 
       <div className="flex-1 overflow-y-auto">

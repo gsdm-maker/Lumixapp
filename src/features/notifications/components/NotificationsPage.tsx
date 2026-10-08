@@ -88,7 +88,7 @@ export function NotificationsPage() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-shell">
+    <div className="flex flex-col h-full">
       <PageHeader
         title="Notificaciones"
         meta={unreadCount > 0 ? `${unreadCount} nuevas` : undefined}

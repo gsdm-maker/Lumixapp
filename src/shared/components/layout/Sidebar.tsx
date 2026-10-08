@@ -1,20 +1,18 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
 import { Avatar } from '@shared/components/ui/Avatar'
 import { LumixIcon } from '@shared/components/ui/LumixIcon'
 import { Icon, type IconName } from '@shared/components/ui/Icon'
 import { IconButton } from '@shared/components/ui/Button'
 import { InstalarApp } from '@shared/components/ui/InstalarApp'
-import { useToast } from '@shared/components/ui/Toast'
 import { useAuth } from '@core/auth/hooks/useAuth'
 import { useCapabilities } from '@core/auth/hooks/useCapabilities'
 import { useNotificationsContext } from '@core/notifications/NotificationContext'
-import { teamsService } from '@infrastructure/supabase/teams.service'
 import { cx } from '@shared/utils/cx'
 import { TAG, type TagColor } from '@shared/utils/colores'
 import { ROLE_LABEL } from '@core/auth/roles'
 import { navItems } from './navItems'
 import { abrirPaletaDeComandos } from './paletaEventos'
+import { useEquipos } from './useEquipos'
 
 interface SidebarProps {
   onClose?: () => void
@@ -25,35 +23,12 @@ interface SidebarProps {
  * marca con una linea del acento y texto en tinta, sin un bloque de color.
  */
 export function Sidebar({ onClose }: SidebarProps) {
-  const { profile, teamRole, signOut, user, switchTeam } = useAuth()
+  const { profile, teamRole, signOut } = useAuth()
   const { can } = useCapabilities()
   const { unreadCount } = useNotificationsContext()
   const navigate = useNavigate()
-  const toast = useToast()
   const isAdmin = profile?.role === 'admin'
-  const [teams, setTeams] = useState<{ id: string; name: string }[]>([])
-  const [switching, setSwitching] = useState(false)
-
-  useEffect(() => {
-    if (!user) return
-    teamsService.getMyTeams(user.id).then(setTeams)
-  }, [user])
-
-  const equipoActual = teams.find((t) => t.id === profile?.team_id)
-  const puedeCambiar = isAdmin ? teams.length > 0 : teams.length > 1
-
-  const cambiarEquipo = async (teamId: string) => {
-    if (!profile || teamId === profile.team_id) return
-    setSwitching(true)
-    const { error } = await switchTeam(teamId)
-    setSwitching(false)
-    if (error) {
-      toast.error(`No se pudo cambiar de equipo: ${error}`)
-      return
-    }
-    toast.success(`Ahora estás en ${teams.find((t) => t.id === teamId)?.name ?? 'el equipo'}`)
-    onClose?.()
-  }
+  const { teams, equipoActual, puedeCambiar, cambiarEquipo, switching } = useEquipos(onClose)
 
   const salir = async () => {
     await signOut()
@@ -62,7 +37,7 @@ export function Sidebar({ onClose }: SidebarProps) {
 
   return (
     <aside
-      className="flex flex-col h-full w-60 bg-shell border-r border-border"
+      className="flex flex-col h-full w-64 bg-panel border-r border-border shadow-lg"
       style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
       <div className="flex items-center gap-2.5 px-4 h-12 shrink-0">

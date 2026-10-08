@@ -27,7 +27,9 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <header className={cx('shrink-0 border-b border-border bg-panel', className)}>
+    // Orbita: el encabezado flota sobre el fondo de la app (sin franja blanca), separado por
+    // una linea suave.
+    <header className={cx('shrink-0 border-b border-border', className)}>
       <div className="flex items-center gap-3 min-h-12 px-3 sm:px-5 py-2">
         {leading}
         <div className="flex items-baseline gap-2 min-w-0 flex-1">

@@ -24,14 +24,14 @@
 @custom-variant light (&:where([data-theme='light'], [data-theme='light'] *));
 
 @font-face {
-  font-family: 'Geist';
+  font-family: 'Plus Jakarta Sans';
   font-style: normal;
-  font-weight: 400 600;
+  font-weight: 400 800;
   font-display: swap;
-  /* Geist (Vercel, licencia OFL), la tipografia de la familia shadcn/ui. Alojada en el propio
-     sitio: la CSP (netlify.toml) solo permite font-src 'self'. Subconjunto latino: todo el
-     espanol. Reemplazo a IBM Plex, que se sentia "corporativa antigua" (feedback). */
-  src: url('/fonts/geist-latin.woff2') format('woff2');
+  /* Plus Jakarta Sans (OFL), la tipografia del rediseno Orbita: geometrica y calida, se lee
+     moderna sin ser fria. Alojada en el propio sitio: la CSP (netlify.toml) solo permite
+     font-src 'self'. Subconjunto latino: todo el espanol. */
+  src: url('/fonts/plus-jakarta-latin.woff2') format('woff2');
   unicode-range:
     U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
     U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
@@ -49,18 +49,19 @@
 /* --- Tema claro (default) ------------------------------------------------------------------ */
 :root {
   /* Neutros: tinta fria sobre papel casi blanco. */
-  --shell: 244 245 247; /* fondo general de la app */
+  /* Orbita: papel lavanda, tinta violeta muy oscura. */
+  --shell: 243 240 255; /* fondo general de la app */
   --panel: 255 255 255; /* encabezados, tablas, paneles, dialogos */
-  --surface: 238 240 242; /* controles en reposo, filas de grupo */
+  --surface: 241 237 253; /* controles en reposo, filas de grupo */
   --field: 255 255 255; /* inputs */
-  --surface-2: 226 229 233; /* hover, avatares */
-  --surface-soft: 243 244 246; /* insets sutiles: subtareas, seleccion suave */
-  --border: 220 223 228; /* divisores */
-  --border-strong: 133 142 153; /* bordes de inputs y contenedores */
-  --fg: 21 25 30; /* titulos y datos */
-  --fg-body: 43 50 58; /* texto de cuerpo */
-  --fg-muted: 74 83 93; /* texto secundario */
-  --fg-faint: 95 104 117; /* metadatos */
+  --surface-2: 228 222 250; /* hover, avatares */
+  --surface-soft: 248 246 255; /* insets sutiles: subtareas, seleccion suave */
+  --border: 232 227 250; /* divisores */
+  --border-strong: 128 120 160; /* bordes de inputs y contenedores */
+  --fg: 23 20 43; /* titulos y datos */
+  --fg-body: 46 42 70; /* texto de cuerpo */
+  --fg-muted: 74 69 102; /* texto secundario */
+  --fg-faint: 107 103 136; /* metadatos */
 
   /* Semantica: solo para comunicar estado, nunca para decorar. */
   --success: 29 122 70;
@@ -108,28 +109,35 @@
   --tag-pink: 155 51 108;
   --tag-pink-soft: 255 224 237;
 
-  --sombra-xs: 0 1px 2px rgb(16 18 22 / 0.05);
-  --sombra-sm: 0 1px 3px rgb(16 18 22 / 0.08), 0 1px 2px -1px rgb(16 18 22 / 0.08);
-  --sombra-md: 0 4px 10px -2px rgb(16 18 22 / 0.08), 0 2px 4px -2px rgb(16 18 22 / 0.06);
-  --sombra-lg: 0 12px 32px -10px rgb(16 18 22 / 0.22), 0 4px 10px -6px rgb(16 18 22 / 0.12);
+  /* Sombras tenidas de violeta: en papel lavanda una sombra gris se ve sucia. */
+  --sombra-xs: 0 1px 2px rgb(60 40 140 / 0.06);
+  --sombra-sm: 0 2px 6px -2px rgb(60 40 140 / 0.12), 0 1px 2px -1px rgb(60 40 140 / 0.08);
+  --sombra-md: 0 10px 24px -12px rgb(60 40 140 / 0.25), 0 2px 6px -3px rgb(60 40 140 / 0.1);
+  --sombra-lg: 0 18px 44px -18px rgb(60 40 140 / 0.38), 0 6px 14px -8px rgb(60 40 140 / 0.14);
+  /* Vidrio (paneles flotantes) y halos del fondo. */
+  --vidrio: 255 255 255;
+  --vidrio-alfa: 0.72;
+  --vidrio-brillo: 255 255 255;
+  --halo-1: 168 85 247;
+  --halo-2: 99 102 241;
 
   color-scheme: light;
 }
 
 /* --- Tema oscuro ------------------------------------------------------------------------- */
 [data-theme='dark'] {
-  --shell: 17 20 23;
-  --panel: 23 27 31;
-  --surface: 30 35 40;
-  --field: 23 27 31;
-  --surface-2: 42 48 54;
-  --surface-soft: 20 24 27;
-  --border: 46 53 60;
-  --border-strong: 107 118 130;
-  --fg: 232 235 238;
-  --fg-body: 204 210 216;
-  --fg-muted: 170 178 187;
-  --fg-faint: 160 168 178;
+  --shell: 11 11 18;
+  --panel: 19 19 28;
+  --surface: 27 27 39;
+  --field: 19 19 28;
+  --surface-2: 38 38 54;
+  --surface-soft: 16 16 24;
+  --border: 36 36 50;
+  --border-strong: 112 110 140;
+  --fg: 238 238 246;
+  --fg-body: 205 205 218;
+  --fg-muted: 179 179 199;
+  --fg-faint: 150 150 172;
 
   --success: 76 194 127;
   --success-soft: 19 39 28;
@@ -163,8 +171,13 @@
 
   --sombra-xs: 0 1px 2px rgb(0 0 0 / 0.4);
   --sombra-sm: 0 1px 3px rgb(0 0 0 / 0.5), 0 1px 2px -1px rgb(0 0 0 / 0.4);
-  --sombra-md: 0 6px 14px -4px rgb(0 0 0 / 0.55);
-  --sombra-lg: 0 18px 40px -12px rgb(0 0 0 / 0.7), 0 6px 14px -8px rgb(0 0 0 / 0.5);
+  --sombra-md: 0 10px 24px -12px rgb(0 0 0 / 0.7);
+  --sombra-lg: 0 18px 50px -18px rgb(0 0 0 / 0.75), 0 6px 14px -8px rgb(0 0 0 / 0.5);
+  --vidrio: 24 24 36;
+  --vidrio-alfa: 0.7;
+  --vidrio-brillo: 255 255 255;
+  --halo-1: 123 92 255;
+  --halo-2: 61 123 255;
 
   color-scheme: dark;
 }
@@ -173,6 +186,21 @@
    Cada opcion define los 11 tonos. Toda la app usa el acento a traves de estos tonos (y de
    `indigo-*`, que apunta aca: ver @theme). Agregar una opcion nueva = un bloque mas. */
 :root,
+[data-accent='violeta'] {
+  /* Orbita: 600 = #613be7 (6.5:1 sobre blanco), 400 legible sobre el grafito. */
+  --a-50: 243 240 255;
+  --a-100: 233 227 254;
+  --a-200: 212 200 253;
+  --a-300: 181 161 251;
+  --a-400: 157 132 255;
+  --a-500: 117 82 238;
+  --a-600: 97 59 231;
+  --a-700: 81 48 207;
+  --a-800: 66 39 168;
+  --a-900: 54 34 133;
+  --a-950: 31 20 80;
+}
+
 [data-accent='petroleo'] {
   --a-50: 234 245 246;
   --a-100: 207 232 234;
@@ -229,7 +257,7 @@
 }
 
 @theme {
-  --font-sans: 'Geist', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
 
   /* Escala de texto compacta (5 tamanos de uso real). text-base queda en 16px a proposito: es
@@ -249,11 +277,11 @@
 
   /* Esquinas al estilo shadcn/ui: 8px controles, 10-12px contenedores, 16px el campo del chat.
      Las de 5-6px se sentian rectas y antiguas (feedback). */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 12px;
-  --radius-2xl: 16px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-2xl: 24px;
 
   /* Sombras en capas, suaves: dan profundidad sin peso. Cambian con el tema (en oscuro una
      sombra suave no se ve, necesita mas opacidad). */
@@ -426,6 +454,97 @@ textarea {
 * {
   scrollbar-width: thin;
   scrollbar-color: rgb(var(--border-strong)) transparent;
+}
+
+/* --- Orbita: vidrio, halos y nucleo -------------------------------------------------------- */
+/* Vidrio: para lo que flota (menu superior, paneles del chat). Brillo de 1px arriba. */
+.vidrio {
+  background: rgb(var(--vidrio) / var(--vidrio-alfa));
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgb(var(--border));
+  box-shadow:
+    var(--sombra-md),
+    inset 0 1px 0 rgb(var(--vidrio-brillo) / 0.08);
+}
+:root:not([data-theme='dark']) .vidrio {
+  box-shadow:
+    var(--sombra-md),
+    inset 0 1px 0 rgb(var(--vidrio-brillo) / 0.9);
+}
+/* Dos manchas de luz suaves en las esquinas (no lavan la pantalla). */
+.fondo-orbita {
+  background-color: rgb(var(--shell));
+  background-image:
+    radial-gradient(640px 640px at -8% -18%, rgb(var(--halo-1) / 0.22), transparent 65%),
+    radial-gradient(720px 720px at 108% 118%, rgb(var(--halo-2) / 0.18), transparent 65%);
+}
+/* Degradado del acento, para lo principal (boton primario, enviar). */
+.relleno-orbita {
+  background-image: linear-gradient(135deg, rgb(var(--a-600)), rgb(61 107 255));
+}
+@keyframes nucleo-girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes nucleo-flotar {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+@keyframes nucleo-latir {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.35);
+  }
+}
+@keyframes nucleo-destello {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.4) rotate(0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1) rotate(45deg);
+  }
+}
+@keyframes texto-degradado {
+  to {
+    background-position: 200% 50%;
+  }
+}
+/* Texto que se celebra (el % de la semana): degradado animado, solo ahi. */
+.texto-orbita {
+  background-image: linear-gradient(
+    90deg,
+    rgb(var(--a-600)),
+    rgb(61 107 255),
+    rgb(47 199 168),
+    rgb(var(--a-600))
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: texto-degradado 6s linear infinite;
+}
+[data-theme='dark'] .texto-orbita {
+  background-image: linear-gradient(
+    90deg,
+    rgb(var(--a-400)),
+    rgb(110 150 255),
+    rgb(70 220 180),
+    rgb(var(--a-400))
+  );
 }
 
 /* PWA safe area */

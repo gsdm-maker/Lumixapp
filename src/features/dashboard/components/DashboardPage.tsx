@@ -75,7 +75,7 @@ export function DashboardPage() {
     })
 
   return (
-    <div className="flex h-full flex-col bg-shell">
+    <div className="flex h-full flex-col">
       <PageHeader
         title="Resumen del equipo"
         meta={meta}
