@@ -1,5 +1,6 @@
 import { useId, type ReactNode } from 'react'
 import { cx } from '@shared/utils/cx'
+import { useEsMovil } from '@shared/hooks/useEsMovil'
 import { useOverlay } from '@shared/hooks/useOverlay'
 import { IconButton } from './Button'
 
@@ -39,6 +40,7 @@ export function SidePanel({
   footer,
   width = 'md',
 }: SidePanelProps) {
+  const esMovil = useEsMovil()
   const ref = useOverlay(open, onClose, { lockScroll: false })
   const titleId = useId()
 
@@ -54,6 +56,8 @@ export function SidePanel({
       <aside
         ref={ref}
         role="dialog"
+        // En el celular tapa toda la pantalla: modal. En escritorio convive con la pagina.
+        aria-modal={esMovil || undefined}
         aria-labelledby={title ? titleId : undefined}
         tabIndex={-1}
         className={cx(

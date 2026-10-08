@@ -1,4 +1,12 @@
-import type { ReactNode } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FocusEvent,
+  type PointerEvent,
+  type ReactNode,
+} from 'react'
+import { createPortal } from 'react-dom'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '@shared/components/ui/Avatar'
 import { Icon, type IconName } from '@shared/components/ui/Icon'
@@ -22,20 +30,79 @@ const claseItem = (activo: boolean, compacto: boolean) =>
     activo ? 'bg-fg text-shell' : 'text-fg-muted hover:text-fg hover:bg-surface',
   )
 
-/** Nombre del item: a la vista, o (compacto) en una etiqueta del lado del contenido al pasar el mouse. */
-function Nombre({ texto, compacto, lado }: { texto: string; compacto: boolean; lado: Lado }) {
-  if (!compacto) return <span className="truncate">{texto}</span>
-  return (
-    <span
-      aria-hidden="true"
-      className={cx(
-        'pointer-events-none absolute top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-fg px-2.5 py-1 text-xs font-medium text-shell opacity-0 shadow-md transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100',
-        lado === 'derecha' ? 'right-full mr-3' : 'left-full ml-3',
-      )}
-    >
-      {texto}
-    </span>
-  )
+type Etiqueta = { texto: string; top: number; x: number } | null
+type HandlersEtiqueta = {
+  onPointerEnter: (e: PointerEvent<HTMLElement>) => void
+  onPointerLeave: () => void
+  onFocus: (e: FocusEvent<HTMLElement>) => void
+  onBlur: () => void
+}
+
+/**
+ * Nombre de cada item en el modo compacto, como etiqueta flotante (WCAG 1.4.13): aparece con el
+ * mouse o el foco, se puede pasar el mouse sobre ella sin que se vaya, y se cierra con Escape. Va
+ * en un portal fijo a la pantalla: asi la lista de modulos puede tener scroll sin cortarla.
+ */
+function useEtiqueta(lado: Lado, activa: boolean) {
+  const [etiqueta, setEtiqueta] = useState<Etiqueta>(null)
+  const temporizador = useRef<number | undefined>(undefined)
+
+  useEffect(() => {
+    if (!etiqueta) return
+    const alTeclear = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setEtiqueta(null)
+    }
+    window.addEventListener('keydown', alTeclear)
+    return () => window.removeEventListener('keydown', alTeclear)
+  }, [etiqueta])
+
+  const cancelar = () => window.clearTimeout(temporizador.current)
+  const ocultarLuego = () => {
+    cancelar()
+    temporizador.current = window.setTimeout(() => setEtiqueta(null), 150)
+  }
+  const mostrar = (texto: string, el: HTMLElement) => {
+    cancelar()
+    const r = el.getBoundingClientRect()
+    setEtiqueta({
+      texto,
+      top: r.top + r.height / 2,
+      x: lado === 'derecha' ? window.innerWidth - r.left + 12 : r.right + 12,
+    })
+  }
+
+  const props = (texto: string): HandlersEtiqueta | Record<string, never> =>
+    activa
+      ? {
+          onPointerEnter: (e) => mostrar(texto, e.currentTarget),
+          onPointerLeave: ocultarLuego,
+          onFocus: (e) => mostrar(texto, e.currentTarget),
+          onBlur: () => setEtiqueta(null),
+        }
+      : {}
+
+  const nodo =
+    activa && etiqueta
+      ? createPortal(
+          <span
+            role="tooltip"
+            onPointerEnter={cancelar}
+            onPointerLeave={ocultarLuego}
+            style={{
+              position: 'fixed',
+              top: etiqueta.top,
+              [lado === 'derecha' ? 'right' : 'left']: etiqueta.x,
+              transform: 'translateY(-50%)',
+            }}
+            className="z-[80] whitespace-nowrap rounded-lg bg-fg px-2.5 py-1 text-xs font-medium text-shell shadow-md animate-in fade-in-0 duration-100"
+          >
+            {etiqueta.texto}
+          </span>,
+          document.body,
+        )
+      : null
+
+  return { props, nodo }
 }
 
 function Accion({
@@ -44,7 +111,7 @@ function Accion({
   onClick,
   activo = false,
   compacto,
-  lado,
+  etiqueta,
   children,
 }: {
   label: string
@@ -52,7 +119,7 @@ function Accion({
   onClick: () => void
   activo?: boolean
   compacto: boolean
-  lado: Lado
+  etiqueta: ReturnType<typeof useEtiqueta>['props']
   children?: ReactNode
 }) {
   return (
@@ -61,12 +128,13 @@ function Accion({
       onClick={onClick}
       aria-label={label}
       className={claseItem(activo, compacto)}
+      {...etiqueta(label)}
     >
       <span className="relative">
         <Icon name={icon} size={18} />
         {children}
       </span>
-      <Nombre texto={label} compacto={compacto} lado={lado} />
+      {!compacto && <span className="truncate">{label}</span>}
     </button>
   )
 }
@@ -84,6 +152,7 @@ export function MenuLateral({ lado }: { lado: Lado }) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const compacto = !menuNombres
+  const etiqueta = useEtiqueta(lado, compacto)
 
   return (
     <nav
@@ -111,9 +180,9 @@ export function MenuLateral({ lado }: { lado: Lado }) {
         />
       </div>
 
-      {/* En compacto sin scroll propio: las etiquetas salen del borde y un overflow las cortaria. */}
+      {/* Con poca altura (o zoom) la lista se desplaza; las etiquetas van en un portal. */}
       <div
-        className={cx('flex flex-col gap-1 min-h-0', compacto ? 'items-center' : 'overflow-y-auto')}
+        className={cx('flex flex-col gap-1 min-h-0 overflow-y-auto', compacto && 'items-center')}
       >
         {modulos.map((n) => (
           <NavLink
@@ -121,11 +190,12 @@ export function MenuLateral({ lado }: { lado: Lado }) {
             to={n.to}
             aria-label={compacto ? n.label : undefined}
             className={({ isActive }) => claseItem(isActive, compacto)}
+            {...etiqueta.props(n.label)}
           >
             {({ isActive }) => (
               <>
                 <Icon name={n.icon} size={18} className={isActive ? undefined : tonoIcono(n)} />
-                <Nombre texto={n.label} compacto={compacto} lado={lado} />
+                {!compacto && <span className="truncate">{n.label}</span>}
               </>
             )}
           </NavLink>
@@ -143,14 +213,14 @@ export function MenuLateral({ lado }: { lado: Lado }) {
           icon="search"
           onClick={abrirPaletaDeComandos}
           compacto={compacto}
-          lado={lado}
+          etiqueta={etiqueta.props}
         />
         <Accion
           label={theme === 'dark' ? 'Tema claro' : 'Tema oscuro'}
           icon={theme === 'dark' ? 'sun' : 'moon'}
           onClick={() => setPreference(theme === 'dark' ? 'light' : 'dark')}
           compacto={compacto}
-          lado={lado}
+          etiqueta={etiqueta.props}
         />
         <Accion
           label={unreadCount ? `Notificaciones (${unreadCount})` : 'Notificaciones'}
@@ -158,7 +228,7 @@ export function MenuLateral({ lado }: { lado: Lado }) {
           onClick={() => navigate('/notifications')}
           activo={pathname.startsWith('/notifications')}
           compacto={compacto}
-          lado={lado}
+          etiqueta={etiqueta.props}
         >
           <ContadorNoLeidas n={unreadCount} />
         </Accion>
@@ -184,6 +254,7 @@ export function MenuLateral({ lado }: { lado: Lado }) {
           {(cerrar) => <MenuPersona cerrar={cerrar} />}
         </Desplegable>
       </div>
+      {etiqueta.nodo}
     </nav>
   )
 }

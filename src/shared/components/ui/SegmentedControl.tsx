@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { KeyboardEvent, ReactNode } from 'react'
 import { cx } from '@shared/utils/cx'
 
 export interface SegmentOption<T extends string> {
@@ -32,10 +32,26 @@ export function SegmentedControl<T extends string>({
   size = 'sm',
   className,
 }: SegmentedControlProps<T>) {
+  // Patron radiogroup de WAI-ARIA: una sola parada de Tab (la opcion elegida) y las flechas
+  // mueven y eligen.
+  const habilitadas = options.filter((o) => !o.disabled)
+  const alTeclear = (e: KeyboardEvent<HTMLDivElement>) => {
+    const paso = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key]
+    if (!paso || habilitadas.length === 0) return
+    e.preventDefault()
+    const i = habilitadas.findIndex((o) => o.value === value)
+    const siguiente = habilitadas[(i + paso + habilitadas.length) % habilitadas.length]
+    onChange(siguiente.value)
+    const botones = e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]')
+    botones[options.indexOf(siguiente)]?.focus()
+  }
+  const hayElegida = options.some((o) => o.value === value)
+
   return (
     <div
       role="radiogroup"
       aria-label={label}
+      onKeyDown={alTeclear}
       className={cx(
         // Pista gris con la opcion activa como una pastilla blanca con sombra (Tabs de shadcn/ui).
         'inline-flex shrink-0 gap-0.5 rounded-full bg-surface p-[3px]',
@@ -50,6 +66,7 @@ export function SegmentedControl<T extends string>({
             type="button"
             role="radio"
             aria-checked={activo}
+            tabIndex={activo || (!hayElegida && o === habilitadas[0]) ? 0 : -1}
             disabled={o.disabled}
             onClick={() => onChange(o.value)}
             className={cx(

@@ -18,9 +18,10 @@ interface DesplegableProps {
 }
 
 /**
- * Menu desplegable simple (menu de usuario, "Mas" del menu superior). Se cierra con Escape
- * (respetando la pila de capas: si hay un dialogo encima, cierra el dialogo primero), con un clic
- * afuera y al elegir una opcion.
+ * Panel desplegable (menu de la persona, cambio de equipo). Patron "boton que despliega" de
+ * WAI-ARIA, no role="menu": adentro hay de todo (textos, selectores, enlaces) y se recorre con Tab
+ * como cualquier contenido. Se cierra con Escape (respetando la pila de capas), con un clic afuera,
+ * al salir con Tab y al elegir una opcion.
  */
 export function Desplegable({
   boton,
@@ -47,11 +48,17 @@ export function Desplegable({
   }, [abierto])
 
   return (
-    <div ref={raizRef} className="relative">
+    <div
+      ref={raizRef}
+      className="relative"
+      // El foco salio del boton y del panel (Tab): se cierra, para no dejarlo abierto atras.
+      onBlur={(e) => {
+        if (abierto && !raizRef.current?.contains(e.relatedTarget as Node | null)) setAbierto(false)
+      }}
+    >
       <button
         type="button"
         aria-label={label}
-        aria-haspopup="menu"
         aria-expanded={abierto}
         aria-controls={id}
         onClick={() => setAbierto((a) => !a)}
@@ -63,7 +70,6 @@ export function Desplegable({
         <div
           ref={panelRef}
           id={id}
-          role="menu"
           tabIndex={-1}
           className={cx(
             'absolute z-50 min-w-56 rounded-2xl border border-border bg-panel p-1.5 shadow-lg outline-none animate-in fade-in-0 zoom-in-95 duration-150',
@@ -99,7 +105,6 @@ export function OpcionMenu({
   return (
     <button
       type="button"
-      role="menuitem"
       onClick={onClick}
       className={cx(
         'w-full flex items-center gap-2.5 min-h-10 px-3 rounded-xl text-sm text-left transition-colors',

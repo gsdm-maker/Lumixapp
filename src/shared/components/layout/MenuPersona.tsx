@@ -11,9 +11,9 @@ import { useEquipos } from './useEquipos'
 import { LogroRacha } from './LogroRacha'
 
 const POSICION_ICONO: { value: PosicionMenu; label: string; icon: IconName }[] = [
-  { value: 'izquierda', label: 'Menú a la izquierda', icon: 'chevronLeft' },
-  { value: 'arriba', label: 'Menú arriba', icon: 'chevronUp' },
-  { value: 'derecha', label: 'Menú a la derecha', icon: 'chevronRight' },
+  { value: 'izquierda', label: 'Menú a la izquierda', icon: 'menuIzquierda' },
+  { value: 'arriba', label: 'Menú arriba', icon: 'menuArriba' },
+  { value: 'derecha', label: 'Menú a la derecha', icon: 'menuDerecha' },
 ]
 
 /**
@@ -66,7 +66,7 @@ export function MenuPersona({ cerrar }: { cerrar: () => void }) {
         <Icon name="layers" size={17} className="text-fg-faint" />
         Menú
         <div
-          role="radiogroup"
+          role="group"
           aria-label="Posición del menú"
           className="ml-auto flex gap-0.5 rounded-full bg-surface p-[3px]"
         >
@@ -74,8 +74,7 @@ export function MenuPersona({ cerrar }: { cerrar: () => void }) {
             <button
               key={p.value}
               type="button"
-              role="radio"
-              aria-checked={menu === p.value}
+              aria-pressed={menu === p.value}
               aria-label={p.label}
               title={p.label}
               onClick={() => setMenu(p.value)}

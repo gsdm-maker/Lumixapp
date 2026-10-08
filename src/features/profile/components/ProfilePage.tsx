@@ -186,7 +186,7 @@ export function ProfilePage() {
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-2xl mx-auto px-3 sm:px-5 py-5 space-y-6">
           {/* Identidad */}
-          <section className="flex flex-wrap items-center gap-4">
+          <section className="lamina p-5 flex flex-wrap items-center gap-4">
             <Avatar name={nombre} src={avatarUrl || null} size="lg" />
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
@@ -201,7 +201,7 @@ export function ProfilePage() {
           </section>
 
           {/* Datos personales */}
-          <section className="space-y-2 pt-5 border-t border-border">
+          <section className="lamina p-5 space-y-2">
             <SectionLabel>Datos personales</SectionLabel>
             <form
               className="flex items-end gap-2"
@@ -226,7 +226,7 @@ export function ProfilePage() {
           </section>
 
           {/* Cambiar contrasena: plegada, se usa poco. */}
-          <section className="pt-5 border-t border-border">
+          <section className="lamina p-5">
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
@@ -278,7 +278,7 @@ export function ProfilePage() {
           </section>
 
           {/* Apariencia: tema (claro por defecto desde el rediseno) y color de acento. */}
-          <section className="space-y-3 pt-5 border-t border-border">
+          <section className="lamina p-5 space-y-3">
             <SectionLabel>Apariencia</SectionLabel>
             <div className="grid gap-3">
               <div className="flex flex-wrap items-center gap-3">
@@ -346,7 +346,7 @@ export function ProfilePage() {
           </section>
 
           {/* Sobre Lumix: lista de texto, sin mosaicos de emoji. */}
-          <section className="space-y-3 pt-5 border-t border-border">
+          <section className="lamina p-5 space-y-3">
             <SectionLabel>Sobre Lumix</SectionLabel>
             <p className="text-sm text-fg-muted leading-relaxed">
               Lumix transforma tus conversaciones en acciones. Escribe en lenguaje natural lo que
@@ -371,7 +371,7 @@ export function ProfilePage() {
           </section>
 
           {/* Cerrar sesion: accion secundaria, no un bloque rojo a lo ancho. */}
-          <section className="pt-5 border-t border-border">
+          <section className="lamina p-5">
             <Button
               variant="ghost"
               icon="logout"

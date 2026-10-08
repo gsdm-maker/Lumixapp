@@ -432,19 +432,27 @@ export const SECCIONES: SeccionGuia[] = [
     ruta: '/gantt',
     capability: 'modulos.planificacion',
     resumen:
-      'Mapa de calor de horas por persona y día de la semana, para ver quién está saturado y repartir mejor las entregas.',
+      'Calendario de la semana con la carga de cada día y de cada persona, para ver quién está saturado y repartir mejor las entregas.',
     acciones: [
       {
-        t: 'Leer la carga',
-        d: 'Cada celda suma las horas de lo que vence ese día; la columna Semana muestra el total y el % de la capacidad (42 h).',
+        t: 'Semana',
+        d: 'De lunes a viernes (y el fin de semana si algo vence ahí). Arriba de cada día, su carga: carita, horas contra la capacidad y el nivel (libre, normal, alta, saturado). Cada actividad es una tarjeta; su alto crece con sus horas.',
       },
       {
-        t: 'Ver las actividades',
-        d: 'Toca una celda para ver las actividades de esa persona en la semana.',
+        t: 'Personas y % de saturación',
+        d: 'Elige a una persona o a todo el equipo. Junto a cada nombre está su % de la semana contra 42 h, en verde, violeta, ámbar o rojo.',
+      },
+      {
+        t: 'Vencidas',
+        d: 'Lo vencido y abierto queda en una columna aparte: arrástralo a un día para reprogramarlo.',
       },
       {
         t: 'Mover una entrega',
-        d: 'Arrastra una actividad a otro día para cambiarle la fecha. Solo se mueven las que puedes editar (las tuyas, o todas si editas actividades ajenas).',
+        d: 'Arrastra una tarjeta a otro día (o con el teclado: Espacio, flechas y Espacio). Se mueve al instante y el aviso ofrece Deshacer. Si nació de un tema, su plazo también cambia. Solo se mueven las que puedes editar.',
+      },
+      {
+        t: 'Carga del equipo',
+        d: 'El mapa de calor de horas por persona y día; toca una celda para ver sus actividades.',
       },
       {
         t: 'Editar',
@@ -485,7 +493,7 @@ export const SECCIONES: SeccionGuia[] = [
       },
       {
         t: 'Listas que llevan a la acción',
-        d: 'Proyectos, Atrasado, Vence pronto y Errores: cada fila abre lo que muestra.',
+        d: 'Proyectos, Vencidas, Vence pronto y Errores: cada fila abre lo que muestra.',
       },
       { t: 'Exportar', d: 'Descarga los números a un CSV para Excel.' },
     ],
@@ -631,7 +639,7 @@ export const ESTADOS: { estado: string; texto: string; tono: TagColor | 'neutral
   {
     estado: 'Bloqueado',
     texto: 'No puede avanzar; el motivo queda en observaciones.',
-    tono: 'violet',
+    tono: 'neutral',
   },
   { estado: 'Falta información', texto: 'Espera datos de alguien.', tono: 'amber' },
   { estado: 'Esperando aprobación', texto: 'Lista, falta el visto bueno.', tono: 'amber' },

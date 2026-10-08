@@ -1,5 +1,6 @@
 import { Desplegable, OpcionMenu } from '@shared/components/ui/Desplegable'
 import { Icon } from '@shared/components/ui/Icon'
+import { Spinner } from '@shared/components/ui/Spinner'
 import { useAuth } from '@core/auth/hooks/useAuth'
 import { colorDe, TAG } from '@shared/utils/colores'
 import { cx } from '@shared/utils/cx'
@@ -37,7 +38,17 @@ export function SelectorEquipo({
 }) {
   const { profile } = useAuth()
   const { teams, equipoActual, puedeCambiar, cambiarEquipo, switching } = useEquipos()
-  if (!equipoActual) return null
+  // Mientras cargan los equipos: un lugar del mismo tamaño (sin que la barra salte despues).
+  if (!equipoActual)
+    return (
+      <span
+        aria-hidden="true"
+        className={cx(
+          'vidrio block rounded-full animate-pulse',
+          compacto ? 'w-10 h-10' : 'h-10 w-40',
+        )}
+      />
+    )
 
   const contenido = (
     <>
@@ -45,8 +56,11 @@ export function SelectorEquipo({
       {!compacto && (
         <span className="min-w-0 truncate text-sm font-semibold text-fg">{equipoActual.name}</span>
       )}
-      {!compacto && puedeCambiar && (
-        <Icon name="chevronDown" size={14} className="shrink-0 text-fg-faint" />
+      {switching ? (
+        <Spinner size={14} />
+      ) : (
+        !compacto &&
+        puedeCambiar && <Icon name="chevronDown" size={14} className="shrink-0 text-fg-faint" />
       )}
     </>
   )

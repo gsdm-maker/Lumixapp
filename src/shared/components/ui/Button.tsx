@@ -45,6 +45,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     children,
     disabled,
     type = 'button',
+    onClick,
     ...props
   },
   ref,
@@ -53,9 +54,14 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     <button
       ref={ref}
       type={type}
-      disabled={disabled || loading}
+      // Cargando: aria-disabled y no `disabled`, asi el foco no salta al inicio de la pagina
+      // (un boton deshabilitado lo pierde). El clic se ignora igual.
+      disabled={disabled}
+      aria-disabled={loading || undefined}
+      aria-busy={loading || undefined}
+      onClick={loading ? (e) => e.preventDefault() : onClick}
       className={cx(
-        'inline-flex items-center justify-center rounded-full font-semibold whitespace-nowrap transition-[background-color,border-color,filter,color,transform] duration-150 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100',
+        'inline-flex items-center justify-center rounded-full font-semibold whitespace-nowrap transition-[background-color,border-color,filter,color,transform] duration-150 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 aria-busy:cursor-wait aria-busy:opacity-80',
         VARIANT[variant],
         SIZE[size],
         className,

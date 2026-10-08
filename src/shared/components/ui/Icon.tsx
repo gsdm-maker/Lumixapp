@@ -45,6 +45,9 @@ import {
   MonitorDown,
   Moon,
   Pause,
+  PanelLeft,
+  PanelRight,
+  PanelTop,
   Pencil,
   Play,
   Plus,
@@ -146,6 +149,9 @@ const ICONOS = {
   trendUp: TrendingUp,
   trendDown: TrendingDown,
   guia: BookOpen,
+  menuIzquierda: PanelLeft,
+  menuArriba: PanelTop,
+  menuDerecha: PanelRight,
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof ICONOS
