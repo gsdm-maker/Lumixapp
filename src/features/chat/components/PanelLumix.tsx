@@ -62,7 +62,7 @@ export function PanelLumix({
   return (
     <aside
       aria-label="Lumix y accesos rápidos"
-      className="hidden xl:flex w-[340px] shrink-0 flex-col gap-3.5 overflow-y-auto pl-1 pr-4 py-4"
+      className="hidden xl:grid flex-1 min-w-[360px] content-start grid-cols-[repeat(auto-fit,minmax(340px,1fr))] gap-3.5 overflow-y-auto pl-2 pr-5 py-4"
     >
       {/* Saludo de Lumix */}
       <section className="vidrio rounded-3xl p-5 flex flex-col gap-3">

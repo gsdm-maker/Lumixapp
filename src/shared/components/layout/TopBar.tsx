@@ -17,10 +17,6 @@ import { abrirPaletaDeComandos } from './paletaEventos'
 import { useEquipos } from './useEquipos'
 import { LogroRacha } from './LogroRacha'
 
-// Los modulos de uso diario van a la vista en la barra; el resto, en "Mas". Notificaciones
-// tiene su campana propia.
-const PRINCIPALES = ['/chat', '/activities', '/minuta', '/proyectos', '/compromisos', '/dashboard']
-
 const tonoIcono = (n: NavItem) =>
   n.color === 'accent' ? 'text-accent' : n.color ? TAG[n.color].text : 'text-fg-faint'
 
@@ -40,10 +36,11 @@ export function TopBar() {
   const { pathname } = useLocation()
   const isAdmin = profile?.role === 'admin'
 
-  const visibles = navItems.filter((n) => !n.capability || can(n.capability))
-  const principales = visibles.filter((n) => PRINCIPALES.includes(n.to))
-  const resto = visibles.filter((n) => !PRINCIPALES.includes(n.to) && n.to !== '/notifications')
-  const enResto = resto.some((n) => pathname.startsWith(n.to)) || pathname.startsWith('/admin')
+  // Todos los modulos a la vista (pedido: sin "Mas"). Notificaciones tiene su campana.
+  const modulos: NavItem[] = [
+    ...navItems.filter((n) => (!n.capability || can(n.capability)) && n.to !== '/notifications'),
+    ...(isAdmin ? [{ to: '/admin', label: 'Administración', icon: 'shield' as const }] : []),
+  ]
 
   const salir = async () => {
     await signOut()
@@ -58,84 +55,44 @@ export function TopBar() {
         aria-label="Lumix, ir al chat"
       >
         <LumixIcon size="md" />
-        <span className="text-lg font-extrabold tracking-tight text-fg">Lumix</span>
+        <span className="hidden lg:inline text-lg font-extrabold tracking-tight text-fg">
+          Lumix
+        </span>
       </NavLink>
 
-      <nav aria-label="Principal" className="vidrio flex items-center gap-0.5 rounded-full p-1">
-        {principales.map((n) => (
+      <nav
+        aria-label="Principal"
+        className="vidrio flex flex-1 min-w-0 items-center justify-between gap-0.5 rounded-full p-1"
+      >
+        {modulos.map((n) => (
           <NavLink
             key={n.to}
             to={n.to}
+            title={n.label}
             className={({ isActive }) =>
               cx(
-                'flex items-center gap-2 h-9 px-3.5 rounded-full text-sm font-semibold whitespace-nowrap transition-colors',
-                isActive ? 'bg-fg text-shell' : 'text-fg-muted hover:text-fg',
+                'flex flex-1 items-center justify-center gap-1.5 h-9 px-2.5 rounded-full text-[13px] font-semibold whitespace-nowrap transition-colors',
+                isActive ? 'bg-fg text-shell' : 'text-fg-muted hover:text-fg hover:bg-surface',
               )
             }
           >
             {({ isActive }) => (
               <>
                 <Icon name={n.icon} size={16} className={isActive ? undefined : tonoIcono(n)} />
-                <span className="hidden lg:inline">{n.label}</span>
-                <span className="lg:hidden sr-only">{n.label}</span>
+                {/* Con poco ancho quedan los iconos (con su nombre en el tooltip). */}
+                <span className="hidden xl:inline">{n.label}</span>
+                <span className="xl:hidden sr-only">{n.label}</span>
               </>
             )}
           </NavLink>
         ))}
-        {(resto.length > 0 || isAdmin) && (
-          <Desplegable
-            alinear="izquierda"
-            botonClassName={cx(
-              'flex items-center gap-1.5 h-9 px-3.5 rounded-full text-sm font-semibold transition-colors',
-              enResto ? 'bg-fg text-shell' : 'text-fg-muted hover:text-fg',
-            )}
-            boton={
-              <>
-                Más
-                <Icon name="chevronDown" size={14} />
-              </>
-            }
-          >
-            {(cerrar) => (
-              <>
-                {resto.map((n) => (
-                  <OpcionMenu
-                    key={n.to}
-                    onClick={() => {
-                      navigate(n.to)
-                      cerrar()
-                    }}
-                    className={pathname.startsWith(n.to) ? 'bg-surface font-semibold' : undefined}
-                  >
-                    <Icon name={n.icon} size={17} className={tonoIcono(n)} />
-                    {n.label}
-                  </OpcionMenu>
-                ))}
-                {isAdmin && (
-                  <>
-                    <div className="h-px bg-border my-1.5 mx-2" />
-                    <OpcionMenu
-                      onClick={() => {
-                        navigate('/admin')
-                        cerrar()
-                      }}
-                    >
-                      <Icon name="shield" size={17} className="text-fg-faint" />
-                      Administración
-                    </OpcionMenu>
-                  </>
-                )}
-              </>
-            )}
-          </Desplegable>
-        )}
       </nav>
 
-      <div className="ml-auto flex items-center gap-1.5">
+      <div className="flex shrink-0 items-center gap-1.5">
         <button
           type="button"
           onClick={abrirPaletaDeComandos}
-          className="vidrio hidden lg:flex items-center gap-2 h-10 pl-3.5 pr-2 rounded-full text-sm text-fg-faint hover:text-fg-muted transition-colors"
+          className="vidrio hidden 2xl:flex items-center gap-2 h-10 pl-3.5 pr-2 rounded-full text-sm text-fg-faint hover:text-fg-muted transition-colors"
         >
           <Icon name="search" size={16} />
           Buscar o crear
@@ -146,7 +103,7 @@ export function TopBar() {
         <BotonRedondo
           label="Buscar o crear (Ctrl K)"
           onClick={abrirPaletaDeComandos}
-          className="lg:hidden"
+          className="2xl:hidden"
         >
           <Icon name="search" size={18} />
         </BotonRedondo>
