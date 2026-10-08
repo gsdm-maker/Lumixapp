@@ -84,3 +84,33 @@ export function tuningParams(
   }
   return { max_tokens: maxOut, ...(temperature === undefined ? {} : { temperature }) }
 }
+
+/**
+ * A quien se le habla segun el modelo. Gemini se usa por su modo compatible con OpenAI: mismo
+ * formato de mensajes y herramientas, cambian la direccion y la clave (GEMINI_API_KEY).
+ *
+ * El id puede traer el esfuerzo de razonamiento tras una arroba: "gemini-2.5-flash@none" apaga
+ * el razonamiento de Gemini 2.5 Flash (mas rapido y barato; medido en bench/agente).
+ */
+export function proveedorDe(id: string): {
+  model: string
+  url: string
+  apiKey: string
+  extra: Record<string, unknown>
+} {
+  const [model, esfuerzo] = id.split('@')
+  if (model.startsWith('gemini')) {
+    return {
+      model,
+      url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+      apiKey: Deno.env.get('GEMINI_API_KEY') ?? '',
+      extra: esfuerzo ? { reasoning_effort: esfuerzo } : {},
+    }
+  }
+  return {
+    model,
+    url: 'https://api.openai.com/v1/chat/completions',
+    apiKey: Deno.env.get('OPENAI_API_KEY') ?? '',
+    extra: esfuerzo ? { reasoning_effort: esfuerzo } : {},
+  }
+}

@@ -4,15 +4,28 @@
 // ejecuta con los permisos de quien escribe. Las referencias (ref) son ids del CONTEXTO que se
 // le pasa en cada mensaje (actividades, temas, proyectos, compromisos, errores visibles).
 //
-// Este archivo es la propuesta que se mide en el banco de pruebas; el ganador pasa tal cual a
-// la Edge Function.
+// Fuente unica: lo usa la Edge Function ai-agente y tambien el banco de pruebas
+// (bench/agente/correr.mjs), asi lo que se mide es exactamente lo que corre. Por eso no
+// importa nada de Deno: tiene que poder cargarse tambien desde Node.
 
 const fecha = { type: 'string', description: 'Fecha YYYY-MM-DD, calculada desde HOY del contexto' }
-const persona = { type: 'string', description: 'Nombre EXACTO de la lista de miembros del contexto' }
-const ref = (que) => ({ type: 'string', description: `id de ${que} tomado del contexto` })
-const prioridad = { type: 'integer', enum: [1, 2, 3], description: '1 alta/urgente, 2 media, 3 baja' }
+const persona = {
+  type: 'string',
+  description: 'Nombre EXACTO de la lista de miembros del contexto',
+}
+const ref = (que: string) => ({ type: 'string', description: `id de ${que} tomado del contexto` })
+const prioridad = {
+  type: 'integer',
+  enum: [1, 2, 3],
+  description: '1 alta/urgente, 2 media, 3 baja',
+}
 
-function accion(name, description, properties, required = []) {
+function accion(
+  name: string,
+  description: string,
+  properties: Record<string, unknown>,
+  required: string[] = [],
+) {
   return {
     type: 'function',
     function: {
@@ -56,7 +69,14 @@ export const CATALOGO = [
       actividad: ref('la actividad'),
       estado: {
         type: 'string',
-        enum: ['pendiente', 'en_proceso', 'bloqueado', 'falta_informacion', 'esperando_aprobacion', 'completado'],
+        enum: [
+          'pendiente',
+          'en_proceso',
+          'bloqueado',
+          'falta_informacion',
+          'esperando_aprobacion',
+          'completado',
+        ],
       },
       fecha_entrega: fecha,
       responsable: persona,
@@ -68,24 +88,33 @@ export const CATALOGO = [
     },
     ['actividad'],
   ),
-  accion('eliminar_actividad', 'Elimina una actividad. Solo si lo piden explicitamente.', {
-    actividad: ref('la actividad'),
-  }, ['actividad']),
   accion(
-    'listar_actividades',
-    'Muestra una lista de actividades para revisar o editar.',
+    'eliminar_actividad',
+    'Elimina una actividad. Solo si lo piden explicitamente.',
     {
-      responsable: { ...persona, description: 'Nombre exacto, o "yo" para quien escribe' },
-      plazo: { type: 'string', enum: ['vencidas', 'hoy', 'semana', 'todas'] },
-      estado: { type: 'string', enum: ['activas', 'pendiente', 'en_proceso', 'bloqueado', 'completado'] },
+      actividad: ref('la actividad'),
     },
+    ['actividad'],
   ),
+  accion('listar_actividades', 'Muestra una lista de actividades para revisar o editar.', {
+    responsable: { ...persona, description: 'Nombre exacto, o "yo" para quien escribe' },
+    plazo: { type: 'string', enum: ['vencidas', 'hoy', 'semana', 'todas'] },
+    estado: {
+      type: 'string',
+      enum: ['activas', 'pendiente', 'en_proceso', 'bloqueado', 'completado'],
+    },
+  }),
 
   // --- Minuta --------------------------------------------------------------------------
   accion(
     'crear_tema_minuta',
     'Crea un tema para la minuta de la reunion semanal.',
-    { tema: { type: 'string' }, responsable: persona, plazo: fecha, comentario: { type: 'string' } },
+    {
+      tema: { type: 'string' },
+      responsable: persona,
+      plazo: fecha,
+      comentario: { type: 'string' },
+    },
     ['tema'],
   ),
   accion(
@@ -106,9 +135,14 @@ export const CATALOGO = [
     { tema: ref('el tema de minuta'), responsable: persona, fecha_entrega: fecha, prioridad },
     ['tema'],
   ),
-  accion('marcar_conversado', 'Marca un tema de minuta como ya conversado en la reunion.', {
-    tema: ref('el tema de minuta'),
-  }, ['tema']),
+  accion(
+    'marcar_conversado',
+    'Marca un tema de minuta como ya conversado en la reunion.',
+    {
+      tema: ref('el tema de minuta'),
+    },
+    ['tema'],
+  ),
 
   // --- Proyectos -----------------------------------------------------------------------
   accion(
@@ -133,7 +167,12 @@ export const CATALOGO = [
   accion(
     'asignar_item_proyecto',
     'Convierte un item de proyecto en actividad. Requiere inicio y termino; si faltan, pide aclaracion.',
-    { item: ref('el item del proyecto'), responsable: persona, fecha_inicio: fecha, fecha_termino: fecha },
+    {
+      item: ref('el item del proyecto'),
+      responsable: persona,
+      fecha_inicio: fecha,
+      fecha_termino: fecha,
+    },
     ['item', 'fecha_inicio', 'fecha_termino'],
   ),
   accion(
@@ -150,9 +189,14 @@ export const CATALOGO = [
     },
     ['item'],
   ),
-  accion('consultar_proyecto', 'Muestra avance, alertas y estructura de un proyecto.', {
-    proyecto: ref('el proyecto'),
-  }, ['proyecto']),
+  accion(
+    'consultar_proyecto',
+    'Muestra avance, alertas y estructura de un proyecto.',
+    {
+      proyecto: ref('el proyecto'),
+    },
+    ['proyecto'],
+  ),
 
   // --- Compromisos ---------------------------------------------------------------------
   accion(
@@ -164,9 +208,14 @@ export const CATALOGO = [
       responsable: persona,
     },
   ),
-  accion('llevar_a_minuta', 'Lleva un compromiso o item de proyecto a la minuta para conversarlo.', {
-    ref: ref('el compromiso o item'),
-  }, ['ref']),
+  accion(
+    'llevar_a_minuta',
+    'Lleva un compromiso o item de proyecto a la minuta para conversarlo.',
+    {
+      ref: ref('el compromiso o item'),
+    },
+    ['ref'],
+  ),
   accion(
     'cerrar_semana',
     'Cierra la semana de compromisos y decide que hacer con lo no cumplido.',
@@ -199,7 +248,11 @@ export const CATALOGO = [
   accion(
     'crear_ingesta',
     'Registra una solicitud de ingesta de datos a otro equipo (carga a tabla, BI, SAP...).',
-    { solicitud: { type: 'string' }, responsable_texto: { type: 'string' }, fecha_compromiso: fecha },
+    {
+      solicitud: { type: 'string' },
+      responsable_texto: { type: 'string' },
+      fecha_compromiso: fecha,
+    },
     ['solicitud'],
   ),
   accion(
@@ -207,7 +260,10 @@ export const CATALOGO = [
     'Cambia una ingesta: estado, fecha de compromiso o comentario.',
     {
       ingesta: ref('la ingesta'),
-      estado: { type: 'string', enum: ['no_iniciado', 'en_proceso', 'completado', 'no_resuelto', 'cancelado'] },
+      estado: {
+        type: 'string',
+        enum: ['no_iniciado', 'en_proceso', 'completado', 'no_resuelto', 'cancelado'],
+      },
       fecha_compromiso: fecha,
       comentario: { type: 'string' },
     },
@@ -215,13 +271,21 @@ export const CATALOGO = [
   ),
 
   // --- Consultas generales -------------------------------------------------------------
-  accion('consultar_carga', 'Horas y actividades por persona en un dia o semana (quien esta libre o saturado).', {
-    fecha,
-    responsable: persona,
-  }),
-  accion('consultar_resumen', 'Resumen del equipo como el Dashboard: pendientes, vencidas, completadas, compromisos.', {
-    periodo: { type: 'string', enum: ['semana', 'mes', 'trimestre'] },
-  }),
+  accion(
+    'consultar_carga',
+    'Horas y actividades por persona en un dia o semana (quien esta libre o saturado).',
+    {
+      fecha,
+      responsable: persona,
+    },
+  ),
+  accion(
+    'consultar_resumen',
+    'Resumen del equipo como el Dashboard: pendientes, vencidas, completadas, compromisos.',
+    {
+      periodo: { type: 'string', enum: ['semana', 'mes', 'trimestre'] },
+    },
+  ),
   accion('consultar_notificaciones', 'Muestra las notificaciones no leidas, o las marca leidas.', {
     marcar_leidas: { type: 'boolean' },
   }),
@@ -249,4 +313,5 @@ en acciones del catalogo (herramientas). Reglas:
 - Bloqueos y falta de informacion de una actividad existente => actualizar_actividad con ese estado y la observacion; no es un error.
 - Asignar un item de proyecto exige fecha de inicio y de termino dichas por la persona; si no las dio, pedir_aclaracion.
 - Consultas: "que tengo / que tiene X / en que esta X / lo vencido" => listar_actividades. Solo usa consultar_compromisos si mencionan compromisos o la reunion semanal.
-- Si falta algo imprescindible o hay ambiguedad real, usa pedir_aclaracion en vez de adivinar.`
+- Si falta algo imprescindible o hay ambiguedad real, usa pedir_aclaracion en vez de adivinar.
+- CONVERSACION PREVIA: si el mensaje responde una pregunta tuya anterior (ej. elige una persona o da las fechas que pediste), completa la orden ORIGINAL con ese dato.`
