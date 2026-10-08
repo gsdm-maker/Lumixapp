@@ -1,8 +1,9 @@
 // Planificacion semanal: carga de trabajo por persona y dia.
 //
-// Rediseno 2026 (idea 14): la vista por defecto es un mapa de calor (horas por celda). Tocar
-// una celda abre las actividades de esa persona, que se arrastran a otro dia para
-// reprogramarlas (mismo comportamiento de siempre: solo cambia la fecha de entrega). En el
+// Rediseno Orbita: la vista por defecto es un calendario de la semana (idea de Planius,
+// adaptada: sin horas del dia) con una persona o todo el equipo, y cada persona con su % de
+// saturacion. La segunda vista es el mapa de calor de siempre (Carga del equipo). En las dos se
+// arrastra una actividad a otro dia para reprogramarla (solo cambia la fecha de entrega). En el
 // celular se ve una persona a la vez, con los dias en vertical.
 
 import { useState } from 'react'
@@ -16,6 +17,7 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core'
 import { Button, IconButton } from '@shared/components/ui/Button'
+import { Icon } from '@shared/components/ui/Icon'
 import { PageHeader } from '@shared/components/ui/PageHeader'
 import { EmptyState } from '@shared/components/ui/EmptyState'
 import { SkeletonRows } from '@shared/components/ui/Skeleton'
@@ -24,7 +26,12 @@ import { cx } from '@shared/utils/cx'
 import { useGantt } from '@features/gantt/hooks/useGantt'
 import { useEsMovil } from '@shared/hooks/useEsMovil'
 import { CALOR_CLASE, CAPACIDAD_DIA, HORAS_SEMANA, fmtHoras } from '@features/gantt/utils/carga'
-import { activitiesService } from '@infrastructure/supabase/activities.service'
+import { minutesService } from '@infrastructure/supabase/minutes.service'
+import { cambiarEntrega } from '@features/compromisos/utils/operaciones'
+import { SegmentedControl } from '@shared/components/ui/SegmentedControl'
+import { Avatar } from '@shared/components/ui/Avatar'
+import { nombreCorto } from '@shared/utils/nombres'
+import { nivelSemana, PILL_NIVEL, saturacionEquipo } from '@features/gantt/utils/niveles'
 import { useAuth } from '@core/auth/hooks/useAuth'
 import { useCapabilities } from '@core/auth/hooks/useCapabilities'
 import type { Activity } from '@shared/types'
@@ -32,10 +39,12 @@ import { HeatmapTable, type CeldaAbierta } from './HeatmapTable'
 import { PersonaSemana } from './PersonaSemana'
 import { ActividadModal } from './ActividadModal'
 import { ChipContenido } from './ActividadChip'
+import { SemanaCalendario } from './SemanaCalendario'
 
 export function GanttPage() {
   const {
     rows,
+    atrasadas,
     loading,
     error,
     days,
@@ -50,7 +59,10 @@ export function GanttPage() {
   const [arrastrandoId, setArrastrandoId] = useState<string | null>(null)
   const [dropping, setDropping] = useState(false)
   const [abierta, setAbierta] = useState<CeldaAbierta | null>(null)
+  const [vista, setVista] = useState<'semana' | 'equipo'>('semana')
   const { profile } = useAuth()
+  // Calendario: por defecto la propia semana; null = todo el equipo.
+  const [persona, setPersona] = useState<string | null>(profile?.id ?? null)
   const [personaMovil, setPersonaMovil] = useState<string>(profile?.id ?? '')
   const { canEditAllActivities } = useCapabilities()
   const toast = useToast()
@@ -58,7 +70,10 @@ export function GanttPage() {
   const canEdit = canEditAllActivities || selectedActivity?.responsible_id === profile?.id
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
-  const todas = rows.flatMap((r) => r.days.flatMap((d) => d.activities))
+  // Lo atrasado tambien se puede arrastrar (desde su columna en el calendario).
+  const todas = [...rows.flatMap((r) => r.days.flatMap((d) => d.activities)), ...atrasadas]
+  // Si la persona elegida no esta en la planificacion (ej. admin), se muestra todo el equipo.
+  const personaVista = persona && rows.some((r) => r.member.id === persona) ? persona : null
   const arrastrandoActividad = todas.find((a) => a.id === arrastrandoId)
 
   const alSoltar = async (e: DragEndEvent) => {
@@ -77,7 +92,12 @@ export function GanttPage() {
 
     setDropping(true)
     try {
-      await activitiesService.update(activity.id, { due_date: newDueDate.toISOString() })
+      // Mismo cambio de fecha que el resto de la app: si nacio de un tema, su plazo tambien.
+      const temas = [
+        ...(await minutesService.getByTeam(activity.team_id, 'minuta')),
+        ...(await minutesService.getByTeam(activity.team_id, 'proyecto')),
+      ]
+      await cambiarEntrega(activity, date, temas)
       reload()
     } catch {
       toast.error('No se pudo mover la actividad')
@@ -94,20 +114,59 @@ export function GanttPage() {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Planificación"
-        meta="Horas por persona y día"
+        meta={weekLabel}
         actions={
           <>
+            {!esMovil && (
+              <SegmentedControl
+                label="Vista"
+                value={vista}
+                onChange={setVista}
+                options={[
+                  { value: 'semana', label: 'Semana' },
+                  { value: 'equipo', label: 'Carga del equipo' },
+                ]}
+              />
+            )}
             <IconButton icon="chevronLeft" label="Semana anterior" onClick={prevWeek} />
             <Button size="xs" variant="secondary" onClick={currentWeek} disabled={weekOffset === 0}>
               Hoy
             </Button>
             <IconButton icon="chevronRight" label="Semana siguiente" onClick={nextWeek} />
-            <span className="ml-1 text-xs text-fg-muted tabular-nums whitespace-nowrap">
-              {weekLabel}
-            </span>
           </>
         }
-      />
+      >
+        {/* Personas con su % de saturacion de la semana (horas / 42 h). */}
+        {!esMovil && vista === 'semana' && rows.length > 0 && (
+          <div
+            role="radiogroup"
+            aria-label="Persona"
+            className="flex flex-wrap items-center gap-1.5 px-3 sm:px-5 pb-3"
+          >
+            {rows.length > 1 && (
+              <ChipPersona
+                activo={personaVista === null}
+                onClick={() => setPersona(null)}
+                nombre="Todo el equipo"
+                pct={saturacionEquipo(rows)}
+                detalle={`${fmtHoras(rows.reduce((s, r) => s + r.totalHours, 0))} de ${fmtHoras(HORAS_SEMANA * rows.length)}`}
+                equipo
+              />
+            )}
+            {rows.map((r) => (
+              <ChipPersona
+                key={r.member.id}
+                activo={personaVista === r.member.id}
+                onClick={() => setPersona(r.member.id)}
+                nombre={r.member.full_name}
+                avatar={r.member.avatar_url}
+                pct={r.loadPercentage}
+                detalle={`${fmtHoras(r.totalHours)} de ${HORAS_SEMANA} h · ${r.totalActivities} actividades`}
+              />
+            ))}
+          </div>
+        )}
+      </PageHeader>
 
       <div
         className={cx(
@@ -148,6 +207,14 @@ export function GanttPage() {
                 onMember={setPersonaMovil}
                 onSelect={setSelectedActivity}
               />
+            ) : vista === 'semana' ? (
+              <SemanaCalendario
+                rows={rows}
+                days={days}
+                atrasadas={atrasadas}
+                personaId={personaVista}
+                onSelect={setSelectedActivity}
+              />
             ) : (
               <HeatmapTable
                 rows={rows}
@@ -169,7 +236,7 @@ export function GanttPage() {
         )}
       </div>
 
-      <Leyenda />
+      {(esMovil || vista === 'equipo') && <Leyenda />}
 
       <ActividadModal
         activity={selectedActivity}
@@ -193,7 +260,7 @@ function Leyenda() {
     { nivel: 4, texto: 'más' },
   ]
   return (
-    <footer className="shrink-0 border-t border-border bg-panel px-3 sm:px-5 py-2">
+    <footer className="shrink-0 border-t border-border px-3 sm:px-5 py-2">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-fg-faint">
         <span>Carga del día:</span>
         {tramos.map((t) => (
@@ -207,5 +274,58 @@ function Leyenda() {
         </span>
       </div>
     </footer>
+  )
+}
+
+/** Persona del calendario con su % de saturacion de la semana, en el color de su nivel. */
+function ChipPersona({
+  activo,
+  onClick,
+  nombre,
+  avatar,
+  pct,
+  detalle,
+  equipo,
+}: {
+  activo: boolean
+  onClick: () => void
+  nombre: string
+  avatar?: string | null
+  pct: number
+  detalle: string
+  equipo?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={activo}
+      onClick={onClick}
+      title={detalle}
+      aria-label={`${nombre}: ${pct}% de saturación, ${detalle}`}
+      className={cx(
+        'inline-flex items-center gap-2 min-h-9 pl-1 pr-1.5 rounded-full border text-[13px] font-semibold transition-shadow',
+        activo
+          ? 'border-transparent bg-panel text-fg shadow-[inset_0_0_0_2px_rgb(var(--accent)),0_0_14px_rgb(var(--accent)/0.3)]'
+          : 'border-border bg-panel text-fg-muted hover:text-fg',
+      )}
+    >
+      {equipo ? (
+        <span className="w-7 h-7 rounded-full grid place-items-center relleno-orbita text-white">
+          <Icon name="users" size={14} />
+        </span>
+      ) : (
+        <Avatar name={nombre} src={avatar} size="sm" />
+      )}
+      {equipo ? nombre : nombreCorto(nombre)}
+      <span
+        className={cx(
+          'font-mono text-2xs font-semibold px-1.5 py-0.5 rounded-full',
+          PILL_NIVEL[nivelSemana(pct)],
+        )}
+      >
+        {pct}%
+      </span>
+    </button>
   )
 }

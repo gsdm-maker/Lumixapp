@@ -45,6 +45,8 @@ function getWeekLabel(days: { date: string; label: string }[]): string {
 
 export function useGantt() {
   const [rows, setRows] = useState<GanttRow[]>([])
+  // Lo vencido y abierto de las personas visibles: se muestra aparte para reprogramarlo.
+  const [atrasadas, setAtrasadas] = useState<Activity[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [weekOffset, setWeekOffset] = useState(0)
@@ -128,7 +130,22 @@ export function useGantt() {
           }
         })
 
-      setRows(isColaborador ? ganttRows.filter((r) => r.member.id === user?.id) : ganttRows)
+      const visibles = isColaborador ? ganttRows.filter((r) => r.member.id === user?.id) : ganttRows
+      setRows(visibles)
+      const hoy = new Date()
+      const hoyYMD = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`
+      const ids = new Set(visibles.map((r) => r.member.id))
+      setAtrasadas(
+        activities
+          .filter(
+            (a) =>
+              ids.has(a.responsible_id) &&
+              a.status !== 'completado' &&
+              !!a.due_date &&
+              a.due_date.split('T')[0] < hoyYMD,
+          )
+          .sort((a, b) => a.due_date.localeCompare(b.due_date)),
+      )
       setLoading(false)
     }
 
@@ -146,6 +163,7 @@ export function useGantt() {
 
   return {
     rows,
+    atrasadas,
     loading,
     error,
     days,
