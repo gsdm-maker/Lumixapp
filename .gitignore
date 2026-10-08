@@ -30,3 +30,6 @@ SUPABASE_CREDS.md
 
 # Local Netlify folder
 .netlify
+
+# Banco de pruebas del agente: resultados locales
+bench/agente/resultados/
