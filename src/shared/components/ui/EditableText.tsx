@@ -44,14 +44,23 @@ export function EditableText({
   const [draft, setDraft] = useState(value)
   const ref = useRef<HTMLTextAreaElement>(null)
 
+  // Al abrir: foco y cursor al final, UNA vez. Antes esto corria tambien con cada tecla (dependia
+  // de `draft`) y el cursor saltaba al final al corregir una letra del medio (bug reportado).
+  useEffect(() => {
+    if (!editing) return
+    const el = ref.current
+    if (!el) return
+    el.focus()
+    el.setSelectionRange(el.value.length, el.value.length)
+  }, [editing])
+
+  // El campo crece con el contenido en cada tecla, sin tocar el cursor.
   useEffect(() => {
     if (!editing) return
     const el = ref.current
     if (!el) return
     el.style.height = 'auto'
     el.style.height = `${el.scrollHeight}px`
-    el.focus()
-    el.setSelectionRange(el.value.length, el.value.length)
   }, [editing, draft])
 
   const confirmar = () => {
