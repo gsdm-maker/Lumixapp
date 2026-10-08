@@ -498,7 +498,8 @@ textarea {
 }
 /* Degradado del acento, para lo principal (boton primario, enviar). */
 .relleno-orbita {
-  background-image: linear-gradient(135deg, rgb(var(--a-600)), rgb(61 107 255));
+  /* Extremo azul medido: el texto blanco del boton da >= 4.6:1 en todo el degradado. */
+  background-image: linear-gradient(135deg, rgb(var(--a-600)), rgb(59 104 249));
 }
 @keyframes nucleo-girar {
   to {

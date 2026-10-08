@@ -31,11 +31,11 @@ const TEXTO_NIVEL: Record<Nivel, string> = {
 
 // Cabecera de la tarjeta segun como viene (texto blanco: cada degradado da >= 4.5).
 const CABECERA = {
-  violeta: 'linear-gradient(90deg, #5b3fd9, #7b5cff)',
-  ambar: 'linear-gradient(90deg, #9a5800, #b36a00)',
+  violeta: 'linear-gradient(90deg, #5b3fd9, #7759f7)',
+  ambar: 'linear-gradient(90deg, #9a5800, #aa6400)',
   rojo: 'linear-gradient(90deg, #b23a29, #c94a37)',
   gris: 'linear-gradient(90deg, #5b5873, #747190)',
-  verde: 'linear-gradient(90deg, #0b7a4f, #12935f)',
+  verde: 'linear-gradient(90deg, #0b7a4f, #108556)',
 }
 
 function cabecera(a: Activity, hoy: string): { tono: keyof typeof CABECERA; texto: string } {

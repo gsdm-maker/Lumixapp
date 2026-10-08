@@ -4,9 +4,9 @@ import type { Tarjeta } from '@features/chat/agente/tipos'
 
 // Cabecera de color por tipo de resultado (texto blanco: cada degradado da >= 4.5 de contraste).
 const CABECERA: Record<Tarjeta['tono'], string> = {
-  violeta: 'linear-gradient(90deg, #5b3fd9, #7b5cff)',
-  verde: 'linear-gradient(90deg, #0b7a4f, #12935f)',
-  ambar: 'linear-gradient(90deg, #9a5800, #b36a00)',
+  violeta: 'linear-gradient(90deg, #5b3fd9, #7759f7)',
+  verde: 'linear-gradient(90deg, #0b7a4f, #108556)',
+  ambar: 'linear-gradient(90deg, #9a5800, #aa6400)',
   rojo: 'linear-gradient(90deg, #b23a29, #c94a37)',
 }
 
