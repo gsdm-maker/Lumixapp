@@ -10,6 +10,7 @@ import { cx } from '@shared/utils/cx'
 import { abrirPaletaDeComandos } from './paletaEventos'
 import { tonoIcono, useModulos } from './useModulos'
 import { BotonRedondo, ContadorNoLeidas, MenuPersona } from './MenuPersona'
+import { SelectorEquipo } from './SelectorEquipo'
 
 /**
  * Menu superior del escritorio (rediseno Orbita, la posicion por defecto): marca con el nucleo
@@ -37,6 +38,7 @@ export function TopBar() {
           Lumix
         </span>
       </NavLink>
+      <SelectorEquipo />
 
       <nav
         aria-label="Principal"

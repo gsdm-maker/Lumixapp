@@ -11,6 +11,7 @@ import { cx } from '@shared/utils/cx'
 import { abrirPaletaDeComandos } from './paletaEventos'
 import { tonoIcono, useModulos } from './useModulos'
 import { ContadorNoLeidas, MenuPersona } from './MenuPersona'
+import { SelectorEquipo } from './SelectorEquipo'
 
 type Lado = 'izquierda' | 'derecha'
 
@@ -96,14 +97,19 @@ export function MenuLateral({ lado }: { lado: Lado }) {
       <NavLink
         to="/chat"
         aria-label="Lumix, ir al chat"
-        className={cx(
-          'flex items-center gap-2.5 pb-3 mb-1 border-b border-border',
-          compacto ? 'justify-center' : 'px-2.5',
-        )}
+        className={cx('flex items-center gap-2.5 pb-2', compacto ? 'justify-center' : 'px-2.5')}
       >
         <LumixIcon size="md" />
         {!compacto && <span className="text-lg font-extrabold tracking-tight text-fg">Lumix</span>}
       </NavLink>
+      <div
+        className={cx('pb-2 mb-1 border-b border-border', compacto ? 'flex justify-center' : '')}
+      >
+        <SelectorEquipo
+          compacto={compacto}
+          abrirHacia={lado === 'derecha' ? 'izquierda' : 'derecha'}
+        />
+      </div>
 
       {/* En compacto sin scroll propio: las etiquetas salen del borde y un overflow las cortaria. */}
       <div

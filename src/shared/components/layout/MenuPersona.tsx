@@ -17,13 +17,14 @@ const POSICION_ICONO: { value: PosicionMenu; label: string; icon: IconName }[] =
 ]
 
 /**
- * Contenido del menu de la persona (avatar): rol y equipo, logro, perfil, guia, equipos,
+ * Contenido del menu de la persona (avatar). El equipo se cambia con el selector a la vista
+ * (SelectorEquipo), no aca. Contenido: rol y equipo, logro, perfil, guia, equipos,
  * WhatsApp (pronto), donde va el menu, instalar y cerrar sesion. Lo usan el menu superior y el
  * lateral.
  */
 export function MenuPersona({ cerrar }: { cerrar: () => void }) {
   const { profile, teamRole, signOut } = useAuth()
-  const { teams, equipoActual, puedeCambiar, cambiarEquipo, switching } = useEquipos()
+  const { equipoActual } = useEquipos()
   const { menu, setMenu } = useTheme()
   const navigate = useNavigate()
   const isAdmin = profile?.role === 'admin'
@@ -45,31 +46,6 @@ export function MenuPersona({ cerrar }: { cerrar: () => void }) {
           {ROLE_LABEL[isAdmin ? 'admin' : (teamRole ?? profile?.role ?? '')] ?? 'Colaborador'}
           {equipoActual ? ` · ${equipoActual.name}` : ''}
         </p>
-        {puedeCambiar && (
-          <label className="relative block mt-2">
-            <span className="sr-only">Equipo activo</span>
-            <select
-              value={profile?.team_id ?? ''}
-              onChange={(e) => {
-                cambiarEquipo(e.target.value)
-                cerrar()
-              }}
-              disabled={switching}
-              className="w-full h-9 appearance-none rounded-xl border border-border-strong bg-field pl-3 pr-8 text-sm font-medium text-fg cursor-pointer focus:outline-none focus:border-accent disabled:opacity-60"
-            >
-              {teams.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-            <Icon
-              name="chevronDown"
-              size={14}
-              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-fg-faint"
-            />
-          </label>
-        )}
       </div>
       <LogroRacha />
       <OpcionMenu onClick={() => ir('/profile')}>
