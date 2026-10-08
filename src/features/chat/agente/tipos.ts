@@ -11,4 +11,8 @@ export interface Llamada {
 export interface Pistas {
   nombres_ambiguos: { escrito: string; opciones: string[] }[]
   fechas_mencionadas: boolean
+  /** El mensaje habla de compromisos o de la reunion semanal. */
+  menciona_compromisos: boolean
+  /** "ya lo conversamos", "lo hablamos": cierre de un tema de minuta. */
+  dice_conversado: boolean
 }

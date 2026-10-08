@@ -4,9 +4,10 @@
 // app las revisa (guardas), las confirma si hace falta y las ejecuta con los permisos de quien
 // escribe. Asi el agente nunca puede hacer algo que la persona no podria hacer en la hoja.
 //
-// Modelo: se elige con AI_MODEL_AGENTE sin tocar codigo (ej. "gemini-2.5-flash@none",
-// "gpt-4.1"). Medidos en el banco de pruebas (bench/agente): gpt-4.1 132/132 con guardas.
-// Gemini usa GEMINI_API_KEY; OpenAI, OPENAI_API_KEY.
+// Modelo: gpt-4.1-mini, elegido en el banco de pruebas (bench/agente): 132/132 con las guardas
+// de la app, ~0,8 s y ~US$ 1,4 por 1.000 mensajes (gpt-4.1 acierta igual y cuesta 5 veces mas).
+// Se cambia sin tocar codigo con AI_MODEL_AGENTE (ej. "gpt-4.1", "gemini-3.5-flash-lite"); Gemini
+// usa GEMINI_API_KEY y OpenAI, OPENAI_API_KEY.
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { buildCors, jsonResponse } from '../_shared/cors.ts'
@@ -15,7 +16,7 @@ import { checkRateLimit } from '../_shared/rate-limit.ts'
 import { pickModel, proveedorDe, tuningParams } from '../_shared/model.ts'
 import { CATALOGO, SISTEMA } from './catalogo.ts'
 
-const AI_MODEL = pickModel('agente', 'gpt-4.1')
+const AI_MODEL = pickModel('agente', 'gpt-4.1-mini')
 const PROVEEDOR = proveedorDe(AI_MODEL)
 const RATE_LIMIT_MAX = 30
 // El contexto (actividades, temas, compromisos...) puede crecer: se pone un techo para que un

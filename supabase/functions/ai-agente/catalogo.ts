@@ -96,14 +96,18 @@ export const CATALOGO = [
     },
     ['actividad'],
   ),
-  accion('listar_actividades', 'Muestra una lista de actividades para revisar o editar.', {
-    responsable: { ...persona, description: 'Nombre exacto, o "yo" para quien escribe' },
-    plazo: { type: 'string', enum: ['vencidas', 'hoy', 'semana', 'todas'] },
-    estado: {
-      type: 'string',
-      enum: ['activas', 'pendiente', 'en_proceso', 'bloqueado', 'completado'],
+  accion(
+    'listar_actividades',
+    'Muestra una lista de actividades para revisar o editar. Para "que tengo", "que tiene X", "en que esta X", "lo vencido".',
+    {
+      responsable: { ...persona, description: 'Nombre exacto, o "yo" para quien escribe' },
+      plazo: { type: 'string', enum: ['vencidas', 'hoy', 'semana', 'todas'] },
+      estado: {
+        type: 'string',
+        enum: ['activas', 'pendiente', 'en_proceso', 'bloqueado', 'completado'],
+      },
     },
-  }),
+  ),
 
   // --- Minuta --------------------------------------------------------------------------
   accion(
@@ -137,7 +141,7 @@ export const CATALOGO = [
   ),
   accion(
     'marcar_conversado',
-    'Marca un tema de minuta como ya conversado en la reunion.',
+    'Marca un tema de minuta como ya conversado en la reunion ("ya lo conversamos", "lo hablamos").',
     {
       tema: ref('el tema de minuta'),
     },
@@ -201,7 +205,7 @@ export const CATALOGO = [
   // --- Compromisos ---------------------------------------------------------------------
   accion(
     'consultar_compromisos',
-    'Muestra los compromisos de la semana (y su %) o los vencidos sin cerrar.',
+    'SOLO si mencionan compromisos o la reunion semanal: compromisos de la semana (y su %) o los vencidos sin cerrar.',
     {
       semana: { type: 'string', enum: ['actual', 'anterior', 'siguiente'] },
       solo_vencidos: { type: 'boolean' },

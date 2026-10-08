@@ -37,9 +37,16 @@ export function fechasMencionadas(msg: string): boolean {
   return FECHA.test(sinTildes(msg))
 }
 
+const COMPROMISOS = /\b(compromiso\w*|reunion|semana(l)? de compromisos|cumplimiento|meta)\b/
+const CONVERSADO =
+  /\b(conversad[oa]s?|conversamos|lo hablamos|ya se hablo|ya lo vimos en la reunion)\b/
+
 export function calcularPistas(msg: string, miembros: string[]): Pistas {
+  const t = sinTildes(msg)
   return {
     nombres_ambiguos: nombresAmbiguos(msg, miembros),
     fechas_mencionadas: fechasMencionadas(msg),
+    menciona_compromisos: COMPROMISOS.test(t),
+    dice_conversado: CONVERSADO.test(t),
   }
 }

@@ -44,7 +44,31 @@ export function aplicarGuardas(llamadas: Llamada[], pistas: Pistas): Llamada[] {
         guarda: 'fechas_inventadas',
       },
     ]
-  return llamadas
+  return llamadas.map((c) => corregir(c, pistas))
+}
+
+/**
+ * Correcciones de intencion que el codigo puede asegurar mirando el texto (medidas en el banco
+ * de pruebas: son justo los fallos repetidos de gpt-4.1-mini).
+ */
+function corregir(c: Llamada, pistas: Pistas): Llamada {
+  // "¿Que tengo?" / "¿que tiene Tomas?" sin hablar de compromisos es una lista de actividades.
+  if (c.tool === 'consultar_compromisos' && !pistas.menciona_compromisos && !c.args.solo_vencidos)
+    return {
+      tool: 'listar_actividades',
+      args: {
+        responsable: c.args.responsable ?? 'yo',
+        ...(c.args.semana === 'actual' ? { plazo: 'semana' } : {}),
+      },
+      guarda: 'lista_no_compromisos',
+    }
+  // "Ya lo conversamos" sobre un tema: es la accion propia de la Minuta, no un cambio de estado.
+  const soloEstado =
+    c.tool === 'actualizar_tema_minuta' &&
+    Object.keys(c.args).every((k) => k === 'tema' || k === 'estado')
+  if (soloEstado && pistas.dice_conversado)
+    return { tool: 'marcar_conversado', args: { tema: c.args.tema }, guarda: 'conversado' }
+  return c
 }
 
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)

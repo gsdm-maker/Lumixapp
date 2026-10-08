@@ -36,8 +36,12 @@ const PRECIOS = {
   'gemini-2.5-flash': [0.3, 2.5],
   'gemini-2.5-flash-lite': [0.1, 0.4],
   'gemini-2.5-pro': [1.25, 10],
+  'gemini-3.8-flash': [0.75, 3.75],
+  'gemini-3.5-flash-lite': [0.3, 2.5],
+  'gemini-3.1-flash-lite': [0.25, 1.5],
 }
-const POR_DEFECTO = ['gemini-2.5-flash@none', 'gemini-2.5-flash-lite@none']
+// Los 2.5 ya no se ofrecen a cuentas nuevas (oct 2026): se mide la generacion actual.
+const POR_DEFECTO = ['gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite']
 // Tokens tipicos por llamada (medidos): sirven para estimar el costo ANTES de correr.
 const TOKENS_ENTRADA = 3200
 const TOKENS_SALIDA = 120
@@ -61,7 +65,8 @@ const PROVEEDORES = {
   gemini: {
     url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
     env: 'GEMINI_API_KEY',
-    creds: /API GEMINI LUMIX:\s*(\S+)/,
+    // "API GEMINI LUMIX: <clave>" o "API GEMINI" con la clave en la linea siguiente.
+    creds: /API GEMINI(?: LUMIX)?:?\s*(AQ\.\S+|AIza\S+)/,
   },
 }
 
@@ -126,8 +131,11 @@ ${JSON.stringify(pistas(msg, CONTEXTO.miembros))}`,
     const ms = performance.now() - t0
     const json = await res.json().catch(() => ({}))
     const err = (Array.isArray(json) ? json[0] : json)?.error
-    if (res.status === 429 && intento < 4 && !/credit|quota|billing/i.test(err?.message ?? '')) {
-      await esperar(2000 * 2 ** intento)
+    // Reintento ante limites de ritmo (429 por minuto) y saturacion (503). "Sin credito" de
+    // OpenAI no se reintenta: corta todo. El "quota" de Gemini gratis es por minuto: se espera.
+    const sinCredito = /credits? remaining|billing_hard_limit/i.test(err?.message ?? '')
+    if ((res.status === 429 || res.status === 503) && intento < 5 && !sinCredito) {
+      await esperar(res.status === 429 ? 20000 * (intento + 1) : 3000 * 2 ** intento)
       continue
     }
     if (!res.ok) throw new Error(`${res.status} ${err?.message ?? ''}`.slice(0, 200))
