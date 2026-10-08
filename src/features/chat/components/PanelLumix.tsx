@@ -34,7 +34,7 @@ const Etiqueta = ({ children }: { children: string }) => (
 
 /**
  * Columna derecha del chat (rediseno Orbita): Lumix saluda con el avance de la semana y
- * sugerencias, el historial de conversaciones, la carga de la semana y los compromisos. Es el
+ * sugerencias, la carga de la semana, los compromisos y el historial de conversaciones. Es el
  * tablero de la persona al lado de donde le da ordenes a Lumix. Solo en pantallas anchas.
  */
 export function PanelLumix({
@@ -105,51 +105,6 @@ export function PanelLumix({
             </button>
           ))}
         </div>
-      </section>
-
-      {/* Historial de conversaciones */}
-      <section className="vidrio rounded-3xl p-4 flex flex-col gap-2" aria-label="Conversaciones">
-        <div className="flex items-center justify-between gap-2 px-1">
-          <Etiqueta>Conversaciones</Etiqueta>
-          <button
-            type="button"
-            onClick={onNueva}
-            className="min-h-8 px-3 rounded-full border border-dashed border-border-strong text-xs font-bold text-accent hover:bg-accent-soft"
-          >
-            + Nueva
-          </button>
-        </div>
-        {sesiones.length === 0 ? (
-          <p className="px-1 text-sm text-fg-faint">Aún no hay conversaciones.</p>
-        ) : (
-          <ul className="flex flex-col gap-0.5">
-            {sesiones.map((s, i) => (
-              <li key={s.id}>
-                <button
-                  type="button"
-                  onClick={() => onSesion(s.id)}
-                  className={cx(
-                    'w-full text-left px-3 py-2 rounded-xl border-l-[3px] transition-colors',
-                    i === 0
-                      ? 'border-accent bg-accent-soft/60'
-                      : 'border-transparent hover:bg-surface',
-                  )}
-                >
-                  <span className="block truncate text-sm font-medium text-fg">{s.titulo}</span>
-                  <span className="block text-xs text-fg-faint">
-                    {new Date(s.cuando).toLocaleString('es-CL', {
-                      weekday: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                    {s.acciones > 0 && ` · ${s.acciones} acci${s.acciones === 1 ? 'ón' : 'ones'}`}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
       </section>
 
       {/* Tu semana: carga por dia */}
@@ -241,6 +196,50 @@ export function PanelLumix({
           </button>
         </section>
       )}
+      {/* Historial de conversaciones */}
+      <section className="vidrio rounded-3xl p-4 flex flex-col gap-2" aria-label="Conversaciones">
+        <div className="flex items-center justify-between gap-2 px-1">
+          <Etiqueta>Conversaciones</Etiqueta>
+          <button
+            type="button"
+            onClick={onNueva}
+            className="min-h-8 px-3 rounded-full border border-dashed border-border-strong text-xs font-bold text-accent hover:bg-accent-soft"
+          >
+            + Nueva
+          </button>
+        </div>
+        {sesiones.length === 0 ? (
+          <p className="px-1 text-sm text-fg-faint">Aún no hay conversaciones.</p>
+        ) : (
+          <ul className="flex flex-col gap-0.5">
+            {sesiones.map((s, i) => (
+              <li key={s.id}>
+                <button
+                  type="button"
+                  onClick={() => onSesion(s.id)}
+                  className={cx(
+                    'w-full text-left px-3 py-2 rounded-xl border-l-[3px] transition-colors',
+                    i === 0
+                      ? 'border-accent bg-accent-soft/60'
+                      : 'border-transparent hover:bg-surface',
+                  )}
+                >
+                  <span className="block truncate text-sm font-medium text-fg">{s.titulo}</span>
+                  <span className="block text-xs text-fg-faint">
+                    {new Date(s.cuando).toLocaleString('es-CL', {
+                      weekday: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                    {s.acciones > 0 && ` · ${s.acciones} acci${s.acciones === 1 ? 'ón' : 'ones'}`}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </aside>
   )
 }
