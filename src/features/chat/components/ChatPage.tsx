@@ -8,8 +8,7 @@ import { useChatMessages, type Member } from '@features/chat/hooks/useChatMessag
 import { useTypingIndicator } from '@features/chat/hooks/useTypingIndicator'
 import { useActividadesVivas } from '@features/chat/hooks/useActividadesVivas'
 import type { ChatMessage, ReplyTarget } from '@features/chat/types'
-import { PageHeader } from '@shared/components/ui/PageHeader'
-import { SegmentedControl } from '@shared/components/ui/SegmentedControl'
+import { cx } from '@shared/utils/cx'
 import { EmptyState } from '@shared/components/ui/EmptyState'
 import { LoadingState } from '@shared/components/ui/Spinner'
 import { ActivityCard, type ActivityCardMeta } from '@features/chat/components/ActivityCard'
@@ -518,37 +517,34 @@ export function ChatPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <PageHeader
-        title="Chat general"
-        meta={[teamName, !loading && `${messages.length} mensajes`].filter(Boolean).join(' · ')}
-        actions={
-          <SegmentedControl<Filtro>
-            label="Filtrar el chat"
-            value={filtro}
-            onChange={setFiltro}
-            options={[
-              { value: 'todo', label: 'Todo' },
-              {
-                value: 'trabajo',
-                label: (
-                  <>
-                    <span className="sm:hidden">Trabajo</span>
-                    <span className="hidden sm:inline">Solo trabajo</span>
-                  </>
-                ),
-              },
-              {
-                value: 'decidir',
-                label: 'Por decidir',
-                count: porDecidir > 0 ? porDecidir : undefined,
-              },
-            ]}
-          />
-        }
-      />
-
       <div className="flex flex-1 min-h-0">
         <div className="flex flex-1 min-w-0 flex-col">
+          <div className="flex items-center gap-2 px-4 sm:px-6 pt-3 pb-1 min-h-11">
+            <h1 className="text-sm font-bold text-fg">Chat</h1>
+            <span className="text-xs text-fg-faint truncate">
+              {[teamName, !loading && `${messages.length} mensajes`].filter(Boolean).join(' · ')}
+            </span>
+            {(porDecidir > 0 || filtro === 'decidir') && (
+              <button
+                type="button"
+                aria-pressed={filtro === 'decidir'}
+                onClick={() => setFiltro(filtro === 'decidir' ? 'todo' : 'decidir')}
+                className={cx(
+                  'ml-auto inline-flex items-center gap-1.5 min-h-8 px-3 rounded-full text-xs font-semibold transition-shadow',
+                  filtro === 'decidir'
+                    ? 'bg-accent-soft text-accent shadow-[inset_0_0_0_2px_rgb(var(--accent))]'
+                    : 'border border-border bg-panel text-fg-muted hover:text-fg',
+                )}
+              >
+                {filtro === 'decidir' ? 'Ver todo' : 'Por decidir'}
+                {porDecidir > 0 && filtro !== 'decidir' && (
+                  <span className="min-w-5 h-5 px-1 inline-flex items-center justify-center rounded-full bg-warning-soft text-warning text-2xs font-bold">
+                    {porDecidir}
+                  </span>
+                )}
+              </button>
+            )}
+          </div>
           {/* El ancho se acota en pantallas grandes: una columna que ocupa todo el ancho se lee
               peor (lineas larguisimas). */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto">

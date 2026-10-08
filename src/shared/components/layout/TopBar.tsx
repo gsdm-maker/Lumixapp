@@ -51,7 +51,7 @@ export function TopBar() {
   }
 
   return (
-    <header className="hidden md:flex shrink-0 items-center gap-3 px-5 pt-3 pb-2">
+    <header className="relative z-30 hidden md:flex shrink-0 items-center gap-3 px-5 pt-3 pb-2">
       <NavLink
         to="/chat"
         className="flex items-center gap-2.5 mr-1 rounded-full"
@@ -61,10 +61,7 @@ export function TopBar() {
         <span className="text-lg font-extrabold tracking-tight text-fg">Lumix</span>
       </NavLink>
 
-      <nav
-        aria-label="Principal"
-        className="vidrio flex items-center gap-0.5 rounded-full p-1 min-w-0 overflow-x-auto"
-      >
+      <nav aria-label="Principal" className="vidrio flex items-center gap-0.5 rounded-full p-1">
         {principales.map((n) => (
           <NavLink
             key={n.to}
