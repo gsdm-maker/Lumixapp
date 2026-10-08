@@ -62,7 +62,7 @@ export function SugerenciaLumix({
   }
 
   return (
-    <div className="px-3 sm:px-5 pb-2 animate-aparecer">
+    <div className="w-full max-w-4xl mx-auto px-3 sm:px-5 pb-2 animate-aparecer">
       <div
         className="flex flex-wrap items-center gap-3 rounded-3xl p-3.5 shadow-md"
         style={{

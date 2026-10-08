@@ -198,7 +198,7 @@ export function Composer({
       className="shrink-0 px-3 sm:px-4 pt-1"
       style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
     >
-      <div className="max-w-3xl">
+      <div className="max-w-4xl mx-auto">
         {atajos.length > 0 && (
           <div className="flex gap-1.5 mb-2 overflow-x-auto [scrollbar-width:none]">
             {atajos.map((a) => (

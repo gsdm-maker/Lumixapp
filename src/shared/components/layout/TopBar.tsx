@@ -37,8 +37,12 @@ export function TopBar() {
   const isAdmin = profile?.role === 'admin'
 
   // Todos los modulos a la vista (pedido: sin "Mas"). Notificaciones tiene su campana.
+  // Equipos y la Guia viven en el menu de la persona; Notificaciones, en su campana.
+  const EN_MENU_PERSONA = ['/notifications', '/teams', '/guia']
   const modulos: NavItem[] = [
-    ...navItems.filter((n) => (!n.capability || can(n.capability)) && n.to !== '/notifications'),
+    ...navItems.filter(
+      (n) => (!n.capability || can(n.capability)) && !EN_MENU_PERSONA.includes(n.to),
+    ),
     ...(isAdmin ? [{ to: '/admin', label: 'Administración', icon: 'shield' as const }] : []),
   ]
 
@@ -187,6 +191,15 @@ export function TopBar() {
               >
                 <Icon name="guia" size={17} className="text-fg-faint" />
                 Guía de Lumix
+              </OpcionMenu>
+              <OpcionMenu
+                onClick={() => {
+                  navigate('/teams')
+                  cerrar()
+                }}
+              >
+                <Icon name="users" size={17} className="text-fg-faint" />
+                Equipos
               </OpcionMenu>
               <div
                 className="flex items-center gap-2.5 min-h-10 px-3 rounded-xl text-sm text-tag-green"
