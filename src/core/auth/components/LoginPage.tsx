@@ -26,9 +26,13 @@ export function LoginPage() {
     const { error: err } = await signIn(email, password)
     setLoading(false)
     if (err) {
-      setError(err)
+      // Cuenta desactivada desde Administracion: Supabase responde en ingles ("User is banned").
+      setError(
+        /banned/i.test(err) ? 'Tu cuenta está desactivada. Habla con el administrador.' : err,
+      )
     } else {
-      navigate('/chat')
+      // El admin elige entre Lumix y Administracion; el resto pasa directo al chat.
+      navigate('/entrar')
     }
   }
 

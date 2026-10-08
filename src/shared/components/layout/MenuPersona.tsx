@@ -18,7 +18,8 @@ const POSICION_ICONO: { value: PosicionMenu; label: string; icon: IconName }[] =
 
 /**
  * Contenido del menu de la persona (avatar). El equipo se cambia con el selector a la vista
- * (SelectorEquipo), no aca. Contenido: rol y equipo, logro, perfil, guia, equipos,
+ * (SelectorEquipo), no aca. Contenido: rol y equipo, logro, perfil, guia, equipos, consola de
+ * administracion (solo admin),
  * WhatsApp (pronto), donde va el menu, instalar y cerrar sesion. Lo usan el menu superior y el
  * lateral.
  */
@@ -60,6 +61,12 @@ export function MenuPersona({ cerrar }: { cerrar: () => void }) {
         <Icon name="users" size={17} className="text-fg-faint" />
         Equipos
       </OpcionMenu>
+      {isAdmin && (
+        <OpcionMenu onClick={() => ir('/admin')}>
+          <Icon name="shield" size={17} className="text-fg-faint" />
+          Administración
+        </OpcionMenu>
+      )}
 
       {/* Acceso rapido: donde va el menu (lo mismo que en Perfil > Apariencia). */}
       <div className="flex items-center gap-2.5 min-h-10 px-3 text-sm text-fg">

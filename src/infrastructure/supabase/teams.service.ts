@@ -99,7 +99,8 @@ export const teamsService = {
     })
 
     if (lookupError) throw new Error('Error al buscar usuario')
-    if (!userId) throw new Error('Usuario no encontrado. Debe registrarse primero en /signup')
+    if (!userId)
+      throw new Error('No hay una cuenta con ese email. Pídele al administrador que la cree.')
 
     const { error } = await supabase.from('team_members').insert({
       team_id: teamId,

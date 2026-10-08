@@ -48,8 +48,20 @@ const NotificationsPage = lazy(() =>
 const TeamsPage = lazy(() =>
   import('@features/teams/components/TeamsPage').then((m) => ({ default: m.TeamsPage })),
 )
-const AdminPage = lazy(() =>
-  import('@features/admin/components/AdminPage').then((m) => ({ default: m.AdminPage })),
+const AdminLayout = lazy(() =>
+  import('@features/admin/components/AdminLayout').then((m) => ({ default: m.AdminLayout })),
+)
+const PersonasAdmin = lazy(() =>
+  import('@features/admin/components/PersonasPage').then((m) => ({ default: m.PersonasPage })),
+)
+const EquiposAdmin = lazy(() =>
+  import('@features/admin/components/EquiposPage').then((m) => ({ default: m.EquiposPage })),
+)
+const ActividadAdmin = lazy(() =>
+  import('@features/admin/components/ActividadPage').then((m) => ({ default: m.ActividadPage })),
+)
+const ElegirEntrada = lazy(() =>
+  import('@core/auth/components/ElegirEntrada').then((m) => ({ default: m.ElegirEntrada })),
 )
 const IngestasTabs = lazy(() =>
   import('@features/ingestas/components/IngestasTabs').then((m) => ({ default: m.IngestasTabs })),
@@ -64,9 +76,6 @@ const GanttPage = lazy(() =>
 )
 const LoginPage = lazy(() =>
   import('@core/auth/components/LoginPage').then((m) => ({ default: m.LoginPage })),
-)
-const SignUpPage = lazy(() =>
-  import('@core/auth/components/SignUpPage').then((m) => ({ default: m.SignUpPage })),
 )
 const ChangePasswordPage = lazy(() =>
   import('@core/auth/components/ChangePasswordPage').then((m) => ({
@@ -103,8 +112,28 @@ export function App() {
                   <Suspense fallback={<PageLoader />}>
                     <Routes>
                       <Route path="/login" element={<LoginPage />} />
-                      <Route path="/signup" element={<SignUpPage />} />
                       <Route path="/change-password" element={<ChangePasswordPage />} />
+                      <Route
+                        path="/entrar"
+                        element={
+                          <AuthGuard>
+                            <ElegirEntrada />
+                          </AuthGuard>
+                        }
+                      />
+                      {/* Consola de administracion: fuera de AppLayout, con su propio menu. */}
+                      <Route
+                        path="/admin"
+                        element={
+                          <AuthGuard>
+                            <AdminLayout />
+                          </AuthGuard>
+                        }
+                      >
+                        <Route index element={<PersonasAdmin />} />
+                        <Route path="equipos" element={<EquiposAdmin />} />
+                        <Route path="actividad" element={<ActividadAdmin />} />
+                      </Route>
                       <Route
                         element={
                           <AuthGuard>
@@ -179,7 +208,6 @@ export function App() {
                         />
                         <Route path="/notifications" element={<NotificationsPage />} />
                         <Route path="/teams" element={<TeamsPage />} />
-                        <Route path="/admin" element={<AdminPage />} />
                         <Route
                           path="/ingestas"
                           element={

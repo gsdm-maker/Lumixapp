@@ -586,13 +586,29 @@ export const SECCIONES: SeccionGuia[] = [
     icon: 'shield',
     ruta: '/admin',
     soloAdmin: true,
-    resumen: 'Solo para administradores: crear usuarios y equipos.',
+    resumen:
+      'Consola aparte, solo para el administrador: se elige al iniciar sesión o desde el menú de tu avatar.',
     acciones: [
       {
-        t: 'Crear usuario',
-        d: 'Nombre, email, rol y equipo. Lumix entrega una clave temporal que la persona debe cambiar al entrar.',
+        t: 'Personas',
+        d: 'Todas las cuentas, con su equipo, rol y último ingreso. Busca por nombre o email y filtra activas, desactivadas o sin equipo.',
       },
-      { t: 'Equipos', d: 'Crear equipos y gestionar sus miembros y roles.' },
+      {
+        t: 'Nueva persona',
+        d: 'Nombre, email, equipo y rol. Lumix genera una clave temporal que se muestra una sola vez; al entrar, la persona debe cambiarla.',
+      },
+      {
+        t: 'Acceso',
+        d: 'Generar una clave temporal nueva a quien la olvidó, o desactivar a quien se fue (no se borra nada y se puede reactivar).',
+      },
+      {
+        t: 'Equipos y roles',
+        d: 'Sumar a una persona a otro equipo, quitarla o cambiar su rol. Crear y renombrar equipos.',
+      },
+      {
+        t: 'Actividad',
+        d: 'Registro de cada cambio hecho en la consola: quién, qué y cuándo. No se puede editar.',
+      },
       {
         t: 'Precisión de la IA',
         d: 'En el Dashboard, cuántas clasificaciones de Lumix tuvieron que corregirse.',

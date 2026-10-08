@@ -85,18 +85,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null }
   }
 
-  const signUp = async (email: string, password: string, fullName: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: fullName },
-      },
-    })
-    if (error) return { error: error.message }
-    return { error: null }
-  }
-
   const signOut = async () => {
     await supabase.auth.signOut()
     setUser(null)
@@ -138,7 +126,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         teamPermissions,
         loading,
         signIn,
-        signUp,
         signOut,
         resetPassword,
         switchTeam,

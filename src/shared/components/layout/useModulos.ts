@@ -1,4 +1,3 @@
-import { useAuth } from '@core/auth/hooks/useAuth'
 import { useCapabilities } from '@core/auth/hooks/useCapabilities'
 import { TAG } from '@shared/utils/colores'
 import { navItems, type NavItem } from './navItems'
@@ -7,20 +6,14 @@ import { navItems, type NavItem } from './navItems'
 const EN_MENU_PERSONA = ['/notifications', '/teams', '/guia']
 
 /**
- * Modulos del menu de escritorio (arriba o lateral): los que la persona puede ver, mas
- * Administracion para el admin global.
+ * Modulos del menu de escritorio (arriba o lateral): los que la persona puede ver.
+ * Administracion no va aca: es una consola aparte (menu de la persona o al iniciar sesion).
  */
 export function useModulos(): NavItem[] {
-  const { profile } = useAuth()
   const { can } = useCapabilities()
-  return [
-    ...navItems.filter(
-      (n) => (!n.capability || can(n.capability)) && !EN_MENU_PERSONA.includes(n.to),
-    ),
-    ...(profile?.role === 'admin'
-      ? [{ to: '/admin', label: 'Administración', icon: 'shield' as const }]
-      : []),
-  ]
+  return navItems.filter(
+    (n) => (!n.capability || can(n.capability)) && !EN_MENU_PERSONA.includes(n.to),
+  )
 }
 
 /** Color del icono de un modulo (como el menu de Todoist); los de sistema, en gris. */

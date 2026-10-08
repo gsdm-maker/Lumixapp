@@ -30,6 +30,8 @@ import {
   Flag,
   FolderKanban,
   GripVertical,
+  History,
+  KeyRound,
   Handshake,
   Info,
   Kanban,
@@ -68,6 +70,7 @@ import {
   Upload,
   User,
   UserRoundPen,
+  UserRoundX,
   Users,
   X,
   type LucideIcon,
@@ -152,6 +155,9 @@ const ICONOS = {
   menuIzquierda: PanelLeft,
   menuArriba: PanelTop,
   menuDerecha: PanelRight,
+  clave: KeyRound,
+  desactivar: UserRoundX,
+  historial: History,
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof ICONOS
