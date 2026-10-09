@@ -30,7 +30,8 @@ export function AdminLayout() {
   }
 
   return (
-    <div className="min-h-dvh flex flex-col fondo-orbita text-fg-body">
+    // Alto fijo y scroll adentro de <main>: la app bloquea el scroll del body (index.css).
+    <div className="h-dvh flex flex-col overflow-hidden fondo-orbita text-fg-body">
       <a
         href="#contenido-admin"
         className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[90] focus:rounded-full focus:bg-panel focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-fg focus:shadow-lg"
@@ -67,7 +68,7 @@ export function AdminLayout() {
       <div className="flex-1 flex flex-col md:flex-row min-h-0">
         <nav
           aria-label="Secciones de administración"
-          className="shrink-0 flex md:flex-col gap-1 px-3 py-2 md:p-4 md:w-56 border-b md:border-b-0 md:border-r border-border overflow-x-auto"
+          className="shrink-0 flex md:flex-col gap-1 md:overflow-y-auto px-3 py-2 md:p-4 md:w-56 border-b md:border-b-0 md:border-r border-border overflow-x-auto"
         >
           {SECCIONES.map((s) => (
             <NavLink
@@ -89,7 +90,11 @@ export function AdminLayout() {
           ))}
         </nav>
 
-        <main id="contenido-admin" tabIndex={-1} className="flex-1 min-w-0 outline-none">
+        <main
+          id="contenido-admin"
+          tabIndex={-1}
+          className="flex-1 min-w-0 min-h-0 overflow-y-auto overscroll-contain outline-none"
+        >
           <Outlet />
         </main>
       </div>
