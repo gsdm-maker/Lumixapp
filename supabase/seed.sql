@@ -1,11 +1,11 @@
--- OPERA AI - Seed Data for Development
+-- Lumixapp - Seed Data for Development
 
 -- Insert test team
 INSERT INTO teams (id, name, description, created_by)
 VALUES (
   '00000000-0000-0000-0000-000000000001',
   'Equipo de Desarrollo',
-  'Equipo principal de desarrollo de OPERA AI',
+  'Equipo principal de desarrollo de Lumixapp',
   '00000000-0000-0000-0000-000000000010'
 );
 

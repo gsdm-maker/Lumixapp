@@ -8,7 +8,7 @@ const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!
 const AI_MODEL = pickModel('classify')
 const RATE_LIMIT_MAX = 30
 
-const SYSTEM_PROMPT = `Eres OPERA AI, un asistente que clasifica mensajes de trabajo en lenguaje natural.
+const SYSTEM_PROMPT = `Eres Lumix, un asistente que clasifica mensajes de trabajo en lenguaje natural.
 
 Tu tarea es analizar el mensaje y devolver un JSON con esta estructura exacta:
 {

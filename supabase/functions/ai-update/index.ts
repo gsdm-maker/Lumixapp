@@ -27,7 +27,7 @@ const JSON_SHAPE = `Devuelve SOLO este JSON:
   "reply": "confirmacion breve en espanol de lo que se hizo"
 }`
 
-const SYSTEM_PROMPT = `Eres OPERA AI. El usuario escribe en lenguaje natural para MODIFICAR una actividad que YA EXISTE (completarla, moverle la fecha, reasignarla, cambiar su estado, su prioridad, su descripcion o su objetivo).
+const SYSTEM_PROMPT = `Eres Lumix. El usuario escribe en lenguaje natural para MODIFICAR una actividad que YA EXISTE (completarla, moverle la fecha, reasignarla, cambiar su estado, su prioridad, su descripcion o su objetivo).
 
 Se te entrega una lista NUMERADA de actividades abiertas del equipo. Debes decidir:
 1. Si el mensaje realmente modifica una de esas actividades (isUpdate).
@@ -78,7 +78,7 @@ Responde SOLO con el objeto JSON, sin texto adicional ni bloques de codigo.`
 
 // Modo dirigido: el usuario respondio a un mensaje, asi que la actividad ya se sabe. No hay
 // lista que recorrer ni targetIndex que adivinar, y por lo mismo tampoco hay ambiguedad.
-const TARGETED_PROMPT = `Eres OPERA AI. El usuario RESPONDIO a un mensaje sobre UNA actividad concreta, que se te entrega abajo. No tienes que adivinar cual es: es esa.
+const TARGETED_PROMPT = `Eres Lumix. El usuario RESPONDIO a un mensaje sobre UNA actividad concreta, que se te entrega abajo. No tienes que adivinar cual es: es esa.
 
 Tu unico trabajo es extraer que cambios pide el mensaje sobre esa actividad.
 

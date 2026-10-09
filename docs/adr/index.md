@@ -1,4 +1,4 @@
-# ADR: Arquitectura de OPERA AI
+# ADR: Arquitectura de Lumixapp
 
 ## ADR-001: Clean Architecture + Feature-Based + DDD
 
@@ -7,7 +7,7 @@
 
 ### Contexto
 
-OPERA AI necesita una arquitectura escalable que soporte múltiples módulos independientes (chat, actividades, errores, reuniones, dashboard, Gantt, notificaciones) con una capa de IA transversal.
+Lumixapp necesita una arquitectura escalable que soporte múltiples módulos independientes (chat, actividades, errores, reuniones, dashboard, Gantt, notificaciones) con una capa de IA transversal.
 
 ### Decision
 

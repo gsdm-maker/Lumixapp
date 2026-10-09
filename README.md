@@ -1,4 +1,4 @@
-# Lumix
+# Lumixapp
 
 Sistema Operativo Conversacional para Equipos de Trabajo.
 

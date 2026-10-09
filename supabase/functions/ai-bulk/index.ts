@@ -9,7 +9,7 @@ const AI_MODEL = pickModel('bulk')
 
 const RATE_LIMIT_MAX = 15
 
-const SYSTEM_PROMPT = `Eres OPERA AI. Recibes un texto que contiene VARIAS actividades de trabajo (una por linea, vineta, numero u oracion) y debes extraerlas TODAS.
+const SYSTEM_PROMPT = `Eres Lumix. Recibes un texto que contiene VARIAS actividades de trabajo (una por linea, vineta, numero u oracion) y debes extraerlas TODAS.
 
 Devuelve un JSON con esta estructura exacta:
 {
