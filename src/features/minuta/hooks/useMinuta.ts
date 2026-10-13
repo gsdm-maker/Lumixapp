@@ -119,7 +119,7 @@ export function useMinuta(tipo: HojaTipo = 'minuta') {
     setLoading(false)
   }, [teamId, tipo])
 
-  // Grupos de trabajo (alias "foco", migracion 043): filtro por equipo, solo lo usa jefatura
+  // Grupos de trabajo (alias "foco", migracion 043): filtro por equipo, solo lo usa el lider
   // -la UI decide si mostrar el selector, aca solo se resuelven los datos-.
   useEffect(() => {
     if (!teamId) return

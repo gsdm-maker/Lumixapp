@@ -54,11 +54,22 @@ const AdminLayout = lazy(() =>
 const PersonasAdmin = lazy(() =>
   import('@features/admin/components/PersonasPage').then((m) => ({ default: m.PersonasPage })),
 )
-const EquiposAdmin = lazy(() =>
-  import('@features/admin/components/EquiposPage').then((m) => ({ default: m.EquiposPage })),
+const EstructuraAdmin = lazy(() =>
+  import('@features/admin/components/EstructuraPage').then((m) => ({
+    default: m.EstructuraPage,
+  })),
+)
+const GuiaAdmin = lazy(() =>
+  import('@features/admin/components/GuiaAdminPage').then((m) => ({ default: m.GuiaAdminPage })),
+)
+const EmpresasAdmin = lazy(() =>
+  import('@features/admin/components/EmpresasPage').then((m) => ({ default: m.EmpresasPage })),
 )
 const ActividadAdmin = lazy(() =>
   import('@features/admin/components/ActividadPage').then((m) => ({ default: m.ActividadPage })),
+)
+const BienvenidaPage = lazy(() =>
+  import('@core/auth/components/BienvenidaPage').then((m) => ({ default: m.BienvenidaPage })),
 )
 const ElegirEntrada = lazy(() =>
   import('@core/auth/components/ElegirEntrada').then((m) => ({ default: m.ElegirEntrada })),
@@ -113,6 +124,7 @@ export function App() {
                     <Routes>
                       <Route path="/login" element={<LoginPage />} />
                       <Route path="/change-password" element={<ChangePasswordPage />} />
+                      <Route path="/bienvenida" element={<BienvenidaPage />} />
                       <Route
                         path="/entrar"
                         element={
@@ -131,7 +143,14 @@ export function App() {
                         }
                       >
                         <Route index element={<PersonasAdmin />} />
-                        <Route path="equipos" element={<EquiposAdmin />} />
+                        <Route path="estructura" element={<EstructuraAdmin />} />
+                        <Route path="empresas" element={<EmpresasAdmin />} />
+                        <Route path="guia" element={<GuiaAdmin />} />
+                        {/* Ruta anterior de la pagina de unidades. */}
+                        <Route
+                          path="equipos"
+                          element={<Navigate to="/admin/estructura" replace />}
+                        />
                         <Route path="actividad" element={<ActividadAdmin />} />
                       </Route>
                       <Route

@@ -116,6 +116,17 @@ export function usePanelLumix({
       if (candidata) sugerencia = { actividad: candidata, hacia: libre, hoy: diaHoy }
     }
 
+    // Lo que vence hoy, lo mas prioritario primero (1 = alta): lo que Lumix dice en voz alta.
+    const hoyLista = mias
+      .filter((a) => ymdDe(a.due_date) === hoy)
+      .sort((a, b) => a.priority - b.priority || horasDe(b) - horasDe(a))
+
+    // Atrasadas: lo abierto de la persona que ya vencio, la mas antigua primero, para irlas
+    // ajustando de a una desde el panel.
+    const atrasadas = mias
+      .filter((a) => ymdDe(a.due_date) < hoy)
+      .sort((a, b) => a.due_date.localeCompare(b.due_date))
+
     return {
       porcentaje: stats.porcentaje,
       cumplidos: stats.cumplidos,
@@ -127,9 +138,23 @@ export function usePanelLumix({
       racha: rachaCompromisos(visibles, temas),
       sugerencia,
       temas,
+      atrasadas,
+      hoyLista,
     }
   }, [datos, userId, veTodo])
 
   const recargar = useCallback(() => setRecarga((n) => n + 1), [])
-  return { panel, recargar }
+
+  /** Pasa una actividad atrasada a hoy (la forma rapida de ponerla al dia). */
+  const moverAHoy = useCallback(
+    async (id: string) => {
+      await activitiesService.update(id, {
+        due_date: new Date(hoyYMD() + 'T00:00:00').toISOString(),
+      })
+      recargar()
+    },
+    [recargar],
+  )
+
+  return { panel, recargar, moverAHoy }
 }

@@ -50,8 +50,8 @@ export function DashboardPage() {
   const d = useDashboard(periodo)
 
   const meta = [d.teamName, `semana ${semanaISO(new Date())}`].filter(Boolean).join(' · ')
-  // Un colaborador ve solo lo suyo: el nombre del responsable en cada fila sobra.
-  const mostrarResponsable = !d.isColaborador
+  // Un member ve solo lo suyo: el nombre del responsable en cada fila sobra.
+  const mostrarResponsable = !d.isIntegrante
   const texto = TEXTOS[periodo]
   const enEquipo = !(isGlobalAdmin && vista === 'ia')
 

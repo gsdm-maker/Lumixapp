@@ -1,7 +1,9 @@
-import { useEffect, useState, useRef, type ReactNode } from 'react'
+import { useEffect, useState, useRef, useCallback, type ReactNode } from 'react'
 import { supabase } from '@infrastructure/supabase/client'
 import type { User, Session } from '@supabase/supabase-js'
 import type { Profile } from '@shared/types'
+import type { Modulo } from '../modulos'
+import type { EmpresaSesion } from '../types'
 import { AuthContext } from './AuthContextValue'
 
 async function fetchProfile(userId: string): Promise<Profile | null> {
@@ -27,14 +29,60 @@ async function fetchMembership(
   }
 }
 
+// Empresa de la persona (plan, prueba y modulos; migracion 056) y los modulos propios de su
+// unidad activa (null = los de la empresa).
+async function fetchEmpresa(
+  prof: Profile | null,
+): Promise<{ empresa: EmpresaSesion | null; teamModulos: Modulo[] | null }> {
+  if (!prof?.empresa_id) return { empresa: null, teamModulos: null }
+  const [{ data: e }, { data: t }] = await Promise.all([
+    supabase
+      .from('empresas')
+      .select('id, nombre, es_personal, modulos, plan, prueba_hasta')
+      .eq('id', prof.empresa_id)
+      .maybeSingle(),
+    prof.team_id
+      ? supabase.from('teams').select('modulos').eq('id', prof.team_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ])
+  return {
+    empresa: (e as EmpresaSesion | null) ?? null,
+    teamModulos: ((t as { modulos: Modulo[] | null } | null)?.modulos ?? null) as Modulo[] | null,
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [teamRole, setTeamRole] = useState<string | null>(null)
   const [teamPermissions, setTeamPermissions] = useState<Record<string, boolean>>({})
+  const [empresa, setEmpresa] = useState<EmpresaSesion | null>(null)
+  const [teamModulos, setTeamModulos] = useState<Modulo[] | null>(null)
   const [loading, setLoading] = useState(true)
   const initialized = useRef(false)
+
+  /** Lee perfil, membresia y empresa de la persona y los deja en el estado. */
+  const cargarTodo = useCallback(async (userId: string) => {
+    const prof = await fetchProfile(userId)
+    const [m, e] = await Promise.all([
+      fetchMembership(userId, prof?.team_id ?? null),
+      fetchEmpresa(prof),
+    ])
+    setProfile(prof)
+    setTeamRole(m.role)
+    setTeamPermissions(m.permissions)
+    setEmpresa(e.empresa)
+    setTeamModulos(e.teamModulos)
+  }, [])
+
+  const limpiar = () => {
+    setProfile(null)
+    setTeamRole(null)
+    setTeamPermissions({})
+    setEmpresa(null)
+    setTeamModulos(null)
+  }
 
   useEffect(() => {
     const {
@@ -45,28 +93,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(newSession)
       setUser(newSession?.user ?? null)
 
-      if (newSession?.user) {
-        const prof = await fetchProfile(newSession.user.id)
-        setProfile(prof)
-        const m = await fetchMembership(newSession.user.id, prof?.team_id ?? null)
-        setTeamRole(m.role)
-        setTeamPermissions(m.permissions)
-      } else {
-        setProfile(null)
-        setTeamRole(null)
-        setTeamPermissions({})
-      }
+      if (newSession?.user) await cargarTodo(newSession.user.id)
+      else limpiar()
     })
 
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
       setSession(currentSession)
       setUser(currentSession?.user ?? null)
       if (currentSession?.user) {
-        fetchProfile(currentSession.user.id).then(async (prof) => {
-          setProfile(prof)
-          const m = await fetchMembership(currentSession.user.id, prof?.team_id ?? null)
-          setTeamRole(m.role)
-          setTeamPermissions(m.permissions)
+        cargarTodo(currentSession.user.id).then(() => {
           initialized.current = true
           setLoading(false)
         })
@@ -77,21 +112,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [cargarTodo])
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+  const signIn = async (email: string, password: string, captchaToken?: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+      options: captchaToken ? { captchaToken } : undefined,
+    })
     if (error) return { error: error.message }
     return { error: null }
+  }
+
+  // Registro abierto (migracion 056): la cuenta nace sin empresa y la Bienvenida la crea. Si el
+  // proyecto pide confirmar el email, no hay sesion hasta confirmarlo.
+  const signUp = async (
+    fullName: string,
+    email: string,
+    password: string,
+    captchaToken?: string,
+  ) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: fullName },
+        emailRedirectTo: `${window.location.origin}/bienvenida`,
+        ...(captchaToken ? { captchaToken } : {}),
+      },
+    })
+    if (error) return { error: error.message, confirmar: false }
+    return { error: null, confirmar: !data.session }
   }
 
   const signOut = async () => {
     await supabase.auth.signOut()
     setUser(null)
     setSession(null)
-    setProfile(null)
-    setTeamRole(null)
-    setTeamPermissions({})
+    limpiar()
   }
 
   // Cambio de equipo activo (idea 18 de la propuesta UI/UX). Antes se hacia con un UPDATE suelto
@@ -102,12 +160,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return { error: 'No hay sesion' }
     const { error } = await supabase.from('profiles').update({ team_id: teamId }).eq('id', user.id)
     if (error) return { error: error.message }
-    const prof = await fetchProfile(user.id)
-    const m = await fetchMembership(user.id, prof?.team_id ?? null)
-    setProfile(prof)
-    setTeamRole(m.role)
-    setTeamPermissions(m.permissions)
+    await cargarTodo(user.id)
     return { error: null }
+  }
+
+  /** Vuelve a leer perfil, equipo y empresa (despues de la Bienvenida o de cambiar modulos). */
+  const recargar = async () => {
+    if (user) await cargarTodo(user.id)
   }
 
   const resetPassword = async (email: string) => {
@@ -124,11 +183,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profile,
         teamRole,
         teamPermissions,
+        empresa,
+        teamModulos,
         loading,
         signIn,
+        signUp,
         signOut,
         resetPassword,
         switchTeam,
+        recargar,
       }}
     >
       {children}

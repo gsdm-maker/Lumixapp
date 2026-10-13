@@ -158,7 +158,11 @@ export function ChatPage() {
     if (!ultima || new Date(ultima.created_at).getTime() <= abiertoEn) return ''
     return `Lumix: ${textoLumix(ultima.content).text}`
   }, [messages, abiertoEn])
-  const { panel, recargar: recargarPanel } = usePanelLumix({
+  const {
+    panel,
+    recargar: recargarPanel,
+    moverAHoy,
+  } = usePanelLumix({
     teamId: profile?.team_id ?? '',
     userId: user?.id,
     veTodo: canViewAllActivities,
@@ -571,7 +575,7 @@ export function ChatPage() {
           {/* El ancho se acota en pantallas grandes: una columna que ocupa todo el ancho se lee
               peor (lineas larguisimas). */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto">
-            <div className="max-w-4xl mx-auto py-2">
+            <div className="max-w-3xl mx-auto py-2">
               {loading ? (
                 <LoadingState />
               ) : messages.length === 0 ? (
@@ -645,6 +649,7 @@ export function ChatPage() {
 
         <PanelLumix
           panel={panel}
+          onMoverAHoy={moverAHoy}
           nombre={profile?.full_name ?? ''}
           sesiones={sesiones}
           onSugerencia={(texto) => setPrellenar((p) => ({ texto, n: (p?.n ?? 0) + 1 }))}
@@ -657,6 +662,7 @@ export function ChatPage() {
           <PanelLumix
             enPanel
             panel={panel}
+            onMoverAHoy={moverAHoy}
             nombre={profile?.full_name ?? ''}
             sesiones={sesiones}
             onSugerencia={(texto) => setPrellenar((p) => ({ texto, n: (p?.n ?? 0) + 1 }))}

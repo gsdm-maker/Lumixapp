@@ -41,12 +41,12 @@ export function TeamDetail({ teamId }: { teamId: string }) {
   // revierte, para que el control nunca muestre algo que no quedo guardado.
   const [umbral, setUmbral] = useState(2)
 
-  // Puede gestionar el equipo el admin global o la jefatura de ESE equipo. Se exige que la
+  // Puede gestionar el equipo el admin global o el lider de ESE equipo. Se exige que la
   // membresia sea del equipo abierto (evita datos obsoletos al cambiar de equipo, que
-  // mostraban los controles donde el usuario es solo colaborador).
+  // mostraban los controles donde el usuario es solo member).
   const myMembership = members.find((m) => m.user_id === profile?.id && m.team_id === teamId)
   const canManageThis =
-    isGlobalAdmin || myMembership?.role === 'jefatura' || myMembership?.role === 'admin'
+    isGlobalAdmin || myMembership?.role === 'lider' || myMembership?.role === 'admin'
   // Gestionar MIEMBROS (agregar/quitar/rol) tambien se puede conceder puntualmente via
   // permiso, sin bajarle el rol a nadie -es del equipo ABIERTO, no del activo, por eso se
   // mira myMembership.permissions y no useCapabilities() (que resuelve contra el equipo
@@ -54,7 +54,7 @@ export function TeamDetail({ teamId }: { teamId: string }) {
   const puedeGestionarMiembros =
     canManageThis || myMembership?.permissions?.['equipo.gestionar_miembros'] === true
   // Lo mismo para configurar el equipo (umbral de sobrecarga y catalogo de grupos), permiso
-  // propio desde la migracion 049. Asignarle el grupo a un miembro sigue siendo de jefatura:
+  // propio desde la migracion 049. Asignarle el grupo a un miembro sigue siendo del lider:
   // es un UPDATE de team_members (policy 021).
   const puedeConfigurar = canManageThis || myMembership?.permissions?.['equipo.configurar'] === true
 

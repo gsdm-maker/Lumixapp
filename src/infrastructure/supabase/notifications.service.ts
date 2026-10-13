@@ -46,7 +46,7 @@ export const notificationsService = {
   },
 
   // Avisa a un subconjunto del equipo. Sin opciones, le llega a todos (como antes).
-  //   roles       : solo esos roles dentro del equipo (ej. jefatura/admin)
+  //   roles       : solo esos roles dentro del equipo (ej. lider/admin)
   //   alsoUserIds : se suman aunque no cumplan el filtro de rol (ej. el responsable)
   //   exceptUserId: quien provoco el evento no necesita que le avisen de su propia accion
   // Existe porque "Actividad bloqueada" le llegaba al equipo entero: era el 61% de todas

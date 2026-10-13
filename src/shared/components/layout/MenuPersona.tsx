@@ -44,7 +44,9 @@ export function MenuPersona({ cerrar }: { cerrar: () => void }) {
       <div className="px-3 pt-2 pb-2.5 border-b border-border mb-1.5">
         <p className="text-sm font-semibold text-fg truncate">{profile?.full_name}</p>
         <p className="text-xs text-fg-faint">
-          {ROLE_LABEL[isAdmin ? 'admin' : (teamRole ?? profile?.role ?? '')] ?? 'Colaborador'}
+          {profile?.es_owner
+            ? ROLE_LABEL.owner
+            : (ROLE_LABEL[isAdmin ? 'admin' : (teamRole ?? profile?.role ?? '')] ?? 'Integrante')}
           {equipoActual ? ` · ${equipoActual.name}` : ''}
         </p>
       </div>

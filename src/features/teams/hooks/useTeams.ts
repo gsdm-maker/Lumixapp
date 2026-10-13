@@ -8,6 +8,10 @@ export interface Team {
   description: string | null
   created_by: string
   created_at: string
+  /** Jerarquia multi-empresa (migracion 051). */
+  empresa_id?: string
+  parent_id?: string | null
+  nivel?: string | null
 }
 
 export interface TeamMember {
@@ -119,7 +123,7 @@ export function useTeamMembers(teamId: string) {
   }
 }
 
-// Grupos de trabajo (alias "foco") de un equipo: catalogo que crea/borra jefatura, usado
+// Grupos de trabajo (alias "foco") de un equipo: catalogo que crea/borra el lider, usado
 // para asignar personas (aqui) y para filtrar en Minuta/Actividades (donde solo se lee).
 export function useGruposTrabajo(teamId: string) {
   const [grupos, setGrupos] = useState<GrupoTrabajo[]>([])

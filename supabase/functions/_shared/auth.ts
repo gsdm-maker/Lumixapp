@@ -47,3 +47,52 @@ export async function getUser(req: Request): Promise<AuthedUser | null> {
     return null
   }
 }
+
+/**
+ * Tope diario de llamadas a la IA por persona (H9, migracion 060). El limite en memoria de
+ * ./rate-limit.ts es por instancia y no sirve como tope de gasto; este contador vive en la base
+ * (tabla uso_ia, via la funcion registrar_uso_ia, que solo puede ejecutar service_role). Devuelve
+ * false cuando la persona ya paso su tope. Ante un error de lectura no se bloquea: un fallo
+ * nuestro no debe cortarle el servicio a nadie.
+ */
+export async function dentroDelTopeIa(userId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${PROJECT_URL}/rest/v1/rpc/registrar_uso_ia`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${SERVICE_KEY}`,
+        apikey: SERVICE_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ p_user: userId }),
+    })
+    if (!res.ok) return true
+    return (await res.json()) === true
+  } catch (err) {
+    console.error('auth: no se pudo revisar el tope diario de IA', err)
+    return true
+  }
+}
+
+// Prueba de 15 dias (migracion 056): vencida, la IA deja de responder para no gastar la clave de
+// OpenAI. Devuelve el mensaje para mostrar, o null si la persona puede usar la IA. El Owner y
+// las empresas en plan 'gratis' o 'pago' nunca se bloquean. Ante un error de lectura no se
+// bloquea (un fallo nuestro no debe cortarle el servicio a nadie).
+export async function bloqueoPorPlan(userId: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `${PROJECT_URL}/rest/v1/profiles?id=eq.${userId}&select=es_owner,empresa:empresas(plan,prueba_hasta)`,
+      { headers: { Authorization: `Bearer ${SERVICE_KEY}`, apikey: SERVICE_KEY } },
+    )
+    if (!res.ok) return null
+    const fila = (await res.json())?.[0]
+    if (!fila || fila.es_owner) return null
+    const e = fila.empresa as { plan: string; prueba_hasta: string } | null
+    if (!e || e.plan !== 'prueba') return null
+    if (Date.parse(e.prueba_hasta) >= Date.now()) return null
+    return 'Tu período de prueba terminó. Contáctanos para activar tu suscripción.'
+  } catch (err) {
+    console.error('auth: no se pudo revisar el plan', err)
+    return null
+  }
+}

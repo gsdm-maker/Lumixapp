@@ -53,7 +53,7 @@ const GROUPS = CAPABILITIES.reduce<{ group: string; caps: typeof CAPABILITIES }[
  *
  * Misma regla que la lista anterior, sin cambios en como se guarda:
  *  - Lo que trae el rol se ve punteado ("por rol") y no se puede quitar...
- *  - ...salvo los modulos, que si se pueden revocar aunque el rol los traiga (jefatura puede
+ *  - ...salvo los modulos, que si se pueden revocar aunque el rol los traiga (el lider puede
  *    ocultarle un modulo puntual a alguien sin bajarle el rol).
  *  - Lo concedido a mano se ve solido.
  * Cada cambio llama a updatePermissions con el objeto completo de flags del miembro.

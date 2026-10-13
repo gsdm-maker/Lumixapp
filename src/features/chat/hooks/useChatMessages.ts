@@ -551,13 +551,13 @@ export function useChatMessages() {
   // llamarla desde el cleanup del primer efecto sin depender del orden de declaracion.
   const emitirResumenSobrecargaRef = useRef<() => Promise<void>>(() => Promise.resolve())
   const teamId = profile?.team_id ?? ''
-  // Capacidades segun el rol del EQUIPO ACTIVO (una persona puede ser jefatura en un equipo
-  // y colaboradora en otro). isAdmin = admin global (ve toda la conversacion del equipo).
+  // Capacidades segun el rol del EQUIPO ACTIVO (una persona puede ser lider en un equipo
+  // e integrante en otro). isAdmin = Admin de la empresa (ve toda la conversacion del equipo).
   const {
     can,
     role,
     canViewAllActivities,
-    isColaborador,
+    isIntegrante,
     isGlobalAdmin: isAdmin,
     canAssignOthers,
     canAssignMinuta,
@@ -740,7 +740,7 @@ export function useChatMessages() {
   }
 
   // Foto del equipo que se le pasa a la IA para responder preguntas: actividades visibles
-  // segun el rol, errores abiertos y carga por persona. Un colaborador solo se ve a si mismo.
+  // segun el rol, errores abiertos y carga por persona. Un member solo se ve a si mismo.
   async function buildTeamData(senderId: string) {
     const [activities, errors, members, temas, proyectos] = await Promise.all([
       activitiesService.getByTeam(teamId),
@@ -779,7 +779,7 @@ export function useChatMessages() {
         plazo: t.plazo,
       }))
 
-    const visibleActivities = isColaborador
+    const visibleActivities = isIntegrante
       ? activities.filter((a) => a.responsible_id === senderId)
       : activities
 
@@ -809,7 +809,7 @@ export function useChatMessages() {
       }))
 
     // Cumplimiento semanal de compromisos (Level 10 Meeting de EOS, ver useCompromisos.ts):
-    // solo lo que nacio de un tema de minuta o de un proyecto y vence esta semana. Un colaborador solo ve lo
+    // solo lo que nacio de un tema de minuta o de un proyecto y vence esta semana. Un member solo ve lo
     // suyo, igual que el resto de teamData.
     const semanaActual = weekRange(0)
     const compromisosSemanaBase = compromisosEnVentana(
@@ -817,7 +817,7 @@ export function useChatMessages() {
       fuentesCompromiso,
       semanaActual.from,
       semanaActual.to,
-    ).filter((a) => !isColaborador || a.responsible_id === senderId)
+    ).filter((a) => !isIntegrante || a.responsible_id === senderId)
     const compromisosSemana = compromisoStats(compromisosSemanaBase)
 
     // Vencidos y no cerrados de CUALQUIER semana: el mismo criterio del boton "Ver N
@@ -826,7 +826,7 @@ export function useChatMessages() {
     const hoy = new Date()
     hoy.setHours(0, 0, 0, 0)
     const compromisosVencidos = compromisosVencidosAbiertos(activities, fuentesCompromiso)
-      .filter((a) => !isColaborador || a.responsible_id === senderId)
+      .filter((a) => !isIntegrante || a.responsible_id === senderId)
       .map((a) => {
         const vence = new Date(a.due_date)
         vence.setHours(0, 0, 0, 0)
@@ -862,7 +862,7 @@ export function useChatMessages() {
       errors: errors
         .filter((e) => e.status !== 'cerrado')
         .map((e) => ({ title: e.title, severity: e.severity, status: e.status })),
-      members: isColaborador
+      members: isIntegrante
         ? [
             {
               name: profile?.full_name || 'Tu',
@@ -936,7 +936,7 @@ export function useChatMessages() {
     // Mismo permiso que el boton de Actividades (migracion 038 dice "NO desde el chat" sin el).
     if (!canDeleteActivities) {
       await aiSay(
-        `No tienes permiso para eliminar actividades. Pidele a tu jefatura que borre "${title}".`,
+        `No tienes permiso para eliminar actividades. Pídele a tu líder que borre "${title}".`,
       )
       return
     }
@@ -1906,7 +1906,7 @@ export function useChatMessages() {
 
     if (updates.status === 'bloqueado') {
       try {
-        // Solo a quien puede desbloquearla: jefatura del equipo y el responsable.
+        // Solo a quien puede desbloquearla: el lider del equipo y el responsable.
         await notificationsService.sendToTeam(
           teamId,
           {
@@ -1917,7 +1917,7 @@ export function useChatMessages() {
           },
           {
             exceptUserId: user?.id,
-            roles: ['admin', 'jefatura'],
+            roles: ['admin', 'lider'],
             alsoUserIds: [updated.responsible_id],
           },
         )
@@ -1927,7 +1927,7 @@ export function useChatMessages() {
     }
     if (updates.status === 'falta_informacion' && activity.status !== 'falta_informacion') {
       try {
-        // A quien puede destrabarla: jefatura y quien la creo (suele ser quien tiene el dato).
+        // A quien puede destrabarla: el lider y quien la creo (suele ser quien tiene el dato).
         await notificationsService.sendToTeam(
           teamId,
           {
@@ -1938,7 +1938,7 @@ export function useChatMessages() {
           },
           {
             exceptUserId: user?.id,
-            roles: ['admin', 'jefatura'],
+            roles: ['admin', 'lider'],
             alsoUserIds: [updated.created_by, updated.responsible_id],
           },
         )
@@ -2411,7 +2411,7 @@ export function useChatMessages() {
     const members = preloaded?.members ?? (await ensureMembers())
     membersRef.current = members
 
-    const visible = isColaborador
+    const visible = isIntegrante
       ? activities.filter((a) => a.responsible_id === senderId)
       : activities
 
@@ -2423,10 +2423,10 @@ export function useChatMessages() {
     let list = visible.filter((a) => !a.title.startsWith('[Ingesta]'))
     let scopeLabel = ''
 
-    if (mentioned.length === 1 && !isColaborador) {
+    if (mentioned.length === 1 && !isIntegrante) {
       list = list.filter((a) => a.responsible_id === mentioned[0].id)
       scopeLabel = mentioned[0].full_name
-    } else if (wantsSelf || isColaborador) {
+    } else if (wantsSelf || isIntegrante) {
       list = list.filter((a) => a.responsible_id === senderId)
       scopeLabel = 'tuyas'
     }

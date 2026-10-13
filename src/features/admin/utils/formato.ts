@@ -56,6 +56,24 @@ export function describirRegistro(r: {
       return `Creó el equipo ${equipo}`
     case 'renombrar-equipo':
       return `Renombró el equipo ${String(d.antes ?? '')} a ${String(d.despues ?? '')}`
+    case 'mover-equipo':
+      return typeof d.depende_de === 'string'
+        ? `Puso ${equipo} bajo ${d.depende_de}`
+        : `Dejó ${equipo} como unidad de primer nivel`
+    case 'crear-empresa':
+      return `Creó la empresa ${String(d.empresa ?? '')}`
+    case 'editar-empresa':
+      return `Editó la empresa ${String(d.empresa ?? '')}`
+    case 'nombrar-admin':
+      return `Nombró a ${quien} Admin de ${String(d.empresa ?? '')}`
+    case 'quitar-admin':
+      return `Quitó el rol Admin a ${quien}`
+    case 'borrar-equipo':
+      return `Borró la unidad ${equipo}`
+    case 'nivel-equipo':
+      return typeof d.nivel === 'string'
+        ? `Cambió el nivel de ${equipo} a ${d.nivel}`
+        : `Quitó el nivel de ${equipo}`
     default:
       return r.accion
   }

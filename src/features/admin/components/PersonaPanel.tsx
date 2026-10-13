@@ -33,7 +33,7 @@ export function PersonaPanel({
   const [ocupado, setOcupado] = useState<string | null>(null)
   const [clave, setClave] = useState<string | null>(null)
   const [nuevoEquipo, setNuevoEquipo] = useState('')
-  const [nuevoRol, setNuevoRol] = useState<RolEquipo>('colaborador')
+  const [nuevoRol, setNuevoRol] = useState<RolEquipo>('integrante')
 
   if (!persona) return null
   const p = persona
@@ -181,7 +181,7 @@ export function PersonaPanel({
           {p.esAdmin ? (
             <p className="flex gap-2 rounded-xl bg-surface p-3 text-sm text-fg-muted">
               <Icon name="shield" size={16} className="shrink-0 mt-0.5" />
-              Administrador global: ve todos los equipos. Esta cuenta no se modifica desde la
+              Admin de la empresa: ve todas sus unidades. Esta cuenta no se modifica desde la
               consola.
             </p>
           ) : (

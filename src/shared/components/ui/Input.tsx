@@ -7,7 +7,7 @@ import {
   type TextareaHTMLAttributes,
 } from 'react'
 import { cx } from '@shared/utils/cx'
-import { Icon } from './Icon'
+import { Icon, type IconName } from './Icon'
 
 // text-base (16px) en movil, text-sm desde sm: Safari/iOS hace zoom automatico al enfocar un
 // campo con letra menor a 16px. En escritorio se vuelve a la escala compacta.
@@ -39,14 +39,20 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string
   error?: string
   hint?: ReactNode
+  /** Icono alineado a la izquierda dentro del campo. */
+  leftIcon?: IconName
+  /** Elemento interactivo alineado a la derecha (ej. boton de mostrar contrasena). */
+  rightElement?: ReactNode
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { label, error, hint, className, id, ...props },
+  { label, error, hint, leftIcon, rightElement, className, id, ...props },
   ref,
 ) {
   const autoId = useId()
   const inputId = id ?? autoId
+  const hasLeft = !!leftIcon
+  const hasRight = !!rightElement
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
@@ -54,18 +60,32 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           {label}
         </FieldLabel>
       )}
-      <input
-        ref={ref}
-        id={inputId}
-        aria-invalid={!!error || undefined}
-        className={cx(
-          CAMPO,
-          'h-10 sm:h-9 px-3',
-          error && 'border-danger focus:ring-danger/20',
-          className,
+      <div className={cx('relative', (hasLeft || hasRight) && 'group')}>
+        {hasLeft && (
+          <Icon
+            name={leftIcon}
+            size={16}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-faint transition-colors group-focus-within:text-accent"
+          />
         )}
-        {...props}
-      />
+        <input
+          ref={ref}
+          id={inputId}
+          aria-invalid={!!error || undefined}
+          className={cx(
+            CAMPO,
+            'h-10 sm:h-9',
+            hasLeft ? 'pl-10' : 'px-3',
+            hasRight && 'pr-10',
+            error && 'border-danger focus:ring-danger/20',
+            className,
+          )}
+          {...props}
+        />
+        {hasRight && (
+          <div className="absolute right-2 top-1/2 -translate-y-1/2">{rightElement}</div>
+        )}
+      </div>
       {error && <p className="text-xs text-danger">{error}</p>}
     </div>
   )

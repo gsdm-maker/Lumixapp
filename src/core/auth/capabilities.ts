@@ -56,7 +56,7 @@ export const CAPABILITIES: { key: Capability; label: string; group: string }[] =
     group: 'Equipo',
   },
   // Visibilidad de modulos completos en la navegacion. Por defecto TODOS en true para
-  // TODOS los roles (nadie pierde acceso que ya tenia): son para que jefatura/admin los
+  // TODOS los roles (nadie pierde acceso que ya tenia): son para que lider/admin los
   // DESTILDE puntualmente a alguien que no necesita ver ese modulo, no para restringir de
   // entrada. Chat, Notificaciones, Equipos y Perfil no estan aca: son identidad/core, nunca
   // se ocultan.
@@ -86,12 +86,12 @@ const MODULOS_VISIBLES: Capability[] = [
 // team_members.permissions), no el estado de partida de ningun rol.
 export const ROLE_DEFAULTS: Record<string, Capability[]> = {
   admin: CAPABILITIES.map((c) => c.key),
-  jefatura: CAPABILITIES.map((c) => c.key),
+  lider: CAPABILITIES.map((c) => c.key),
   invitado: [
     'actividades.ver_todas',
     'errores.gestionar',
     'ingestas.gestionar',
     ...MODULOS_VISIBLES,
   ],
-  colaborador: [...MODULOS_VISIBLES],
+  integrante: [...MODULOS_VISIBLES],
 }

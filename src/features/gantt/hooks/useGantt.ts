@@ -52,7 +52,7 @@ export function useGantt() {
   const [weekOffset, setWeekOffset] = useState(0)
   const [refreshKey, setRefreshKey] = useState(0)
   const { user, profile } = useAuth()
-  const { isColaborador } = useCapabilities()
+  const { isIntegrante } = useCapabilities()
   const teamId = profile?.team_id ?? ''
 
   // Memo por semana: antes `days` era un arreglo nuevo en cada render y el efecto lo leia sin
@@ -130,7 +130,7 @@ export function useGantt() {
           }
         })
 
-      const visibles = isColaborador ? ganttRows.filter((r) => r.member.id === user?.id) : ganttRows
+      const visibles = isIntegrante ? ganttRows.filter((r) => r.member.id === user?.id) : ganttRows
       setRows(visibles)
       const hoy = new Date()
       const hoyYMD = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`
@@ -154,7 +154,7 @@ export function useGantt() {
     return () => {
       cancelled = true
     }
-  }, [days, isColaborador, teamId, user, refreshKey])
+  }, [days, isIntegrante, teamId, user, refreshKey])
 
   /**
    * Mueve una actividad a otra fecha EN PANTALLA, al instante (antes de guardar): la tarjeta no

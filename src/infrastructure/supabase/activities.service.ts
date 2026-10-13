@@ -92,7 +92,7 @@ export const activitiesService = {
   },
 
   /**
-   * Elimina una actividad (migracion 038). La RLS decide quien puede: admin, jefatura del
+   * Elimina una actividad (migracion 038). La RLS decide quien puede: admin, lider del
    * equipo, o quien tenga el permiso 'actividades.eliminar' concedido ahi. Un trigger limpia
    * el vinculo con la minuta y las notificaciones.
    */

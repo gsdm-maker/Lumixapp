@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import { empresaFoco } from '@infrastructure/supabase/admin.service'
 
 /**
  * Carga de una lista de la consola de administracion (personas, equipos, actividad), con
@@ -34,4 +35,9 @@ export function useCargaAdmin<T>(cargar: () => Promise<T[]>) {
   const recargar = useCallback(() => aplicar(cargar()), [cargar, aplicar])
 
   return { datos, cargando, error, recargar }
+}
+
+/** Empresa en la que trabaja el Owner (null = la suya). Se actualiza al elegir otra. */
+export function useEmpresaFoco(): string | null {
+  return useSyncExternalStore(empresaFoco.subscribe, empresaFoco.get)
 }

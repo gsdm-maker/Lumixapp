@@ -1,28 +1,62 @@
+import { useEffect } from 'react'
 import { Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import {
+  adminService,
+  empresaFoco,
+  type EmpresaAdmin,
+} from '@infrastructure/supabase/admin.service'
+import { Select } from '@shared/components/ui/Input'
+import { useCargaAdmin, useEmpresaFoco } from '../hooks/useAdmin'
 import { useAuth } from '@core/auth/hooks/useAuth'
 import { Icon, type IconName } from '@shared/components/ui/Icon'
 import { Button } from '@shared/components/ui/Button'
 import { LumixIcon } from '@shared/components/ui/LumixIcon'
 import { cx } from '@shared/utils/cx'
 
-const SECCIONES: { to: string; label: string; icon: IconName; end?: boolean }[] = [
+type Seccion = { to: string; label: string; icon: IconName; end?: boolean }
+
+const SECCIONES: Seccion[] = [
   { to: '/admin', label: 'Personas', icon: 'users', end: true },
-  { to: '/admin/equipos', label: 'Equipos', icon: 'layers' },
+  { to: '/admin/estructura', label: 'Estructura', icon: 'layers' },
   { to: '/admin/actividad', label: 'Actividad', icon: 'historial' },
+  { to: '/admin/guia', label: 'Guía', icon: 'guia' },
 ]
+
+/** Solo para el Owner de la plataforma: crear empresas y nombrar su Admin. */
+const SECCION_OWNER: Seccion = { to: '/admin/empresas', label: 'Empresas', icon: 'database' }
+
+/** Lo que la consola comparte con sus paginas (useOutletContext). */
+export type ContextoAdmin = { recargarEmpresas: () => void }
+
+/** Lista de empresas para el selector del Owner (un Admin no la pide: no puede). */
+const sinEmpresas = () => Promise.resolve([] as EmpresaAdmin[])
 
 /**
  * Consola de administracion: separada de la app de trabajo, con su propio menu y una franja
- * que deja claro que se esta en modo administracion. Solo para el admin global; a cualquier
- * otra persona la manda al chat (y aunque entrara, la Edge Function rechaza todo sin rol
- * admin: esto es orden, no la seguridad).
+ * que deja claro que se esta en modo administracion. Para el Admin de cada empresa (ve solo
+ * la suya) y el Owner de la plataforma (elige en que empresa trabaja y ve "Empresas"). A
+ * cualquier otra persona la manda al chat (y aunque entrara, la Edge Function rechaza todo:
+ * esto es orden, no la seguridad).
  */
 export function AdminLayout() {
   const { profile, signOut } = useAuth()
   const navigate = useNavigate()
+  const esOwner = profile?.es_owner === true
+  const foco = useEmpresaFoco()
+  const empresas = useCargaAdmin<EmpresaAdmin>(esOwner ? adminService.listarEmpresas : sinEmpresas)
+
+  // Un Admin siempre trabaja en su empresa: si el navegador recordaba otra (de una sesion de
+  // Owner), se olvida.
+  useEffect(() => {
+    if (profile && !esOwner && foco) empresaFoco.set(null)
+  }, [profile, esOwner, foco])
 
   if (!profile) return null
-  if (profile.role !== 'admin') return <Navigate to="/chat" replace />
+  if (profile.role !== 'admin' && !esOwner) return <Navigate to="/chat" replace />
+
+  const secciones = esOwner ? [SECCION_OWNER, ...SECCIONES] : SECCIONES
+  const enFoco =
+    empresas.datos.find((e) => e.id === foco) ?? empresas.datos.find((e) => e.esMia) ?? null
 
   const salir = async () => {
     await signOut()
@@ -44,7 +78,9 @@ export function AdminLayout() {
         <Icon name="shield" size={14} />
         Modo administración
         <span className="hidden sm:inline font-normal opacity-75">
-          · los cambios aplican a todos los equipos
+          {esOwner && enFoco
+            ? `· trabajando en ${enFoco.nombre}`
+            : '· los cambios aplican a toda tu empresa'}
         </span>
       </div>
 
@@ -55,6 +91,25 @@ export function AdminLayout() {
           <p className="text-xs text-fg-faint truncate">{profile.full_name}</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
+          {esOwner && empresas.datos.length > 0 && (
+            <Select
+              size="sm"
+              aria-label="Empresa en la que trabajas"
+              value={enFoco?.id ?? ''}
+              onChange={(e) => {
+                const id = e.target.value
+                empresaFoco.set(empresas.datos.find((x) => x.id === id)?.esMia ? null : id)
+              }}
+              className="w-48"
+            >
+              {empresas.datos.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.nombre}
+                  {e.esMia ? ' (tuya)' : ''}
+                </option>
+              ))}
+            </Select>
+          )}
           <Button variant="secondary" size="sm" icon="arrowLeft" onClick={() => navigate('/chat')}>
             Volver a Lumix
           </Button>
@@ -70,7 +125,7 @@ export function AdminLayout() {
           aria-label="Secciones de administración"
           className="shrink-0 flex md:flex-col gap-1 md:overflow-y-auto px-3 py-2 md:p-4 md:w-56 border-b md:border-b-0 md:border-r border-border overflow-x-auto"
         >
-          {SECCIONES.map((s) => (
+          {secciones.map((s) => (
             <NavLink
               key={s.to}
               to={s.to}
@@ -95,7 +150,11 @@ export function AdminLayout() {
           tabIndex={-1}
           className="flex-1 min-w-0 min-h-0 overflow-y-auto overscroll-contain outline-none"
         >
-          <Outlet />
+          {/* Al cambiar de empresa, cada pagina se monta de nuevo y lee la elegida. */}
+          <Outlet
+            key={foco ?? 'propia'}
+            context={{ recargarEmpresas: empresas.recargar } satisfies ContextoAdmin}
+          />
         </main>
       </div>
     </div>

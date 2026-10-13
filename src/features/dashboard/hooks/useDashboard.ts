@@ -57,7 +57,7 @@ export function useDashboard(periodo: Periodo) {
   const [reloadKey, setReloadKey] = useState(0)
   const [teamName, setTeamName] = useState<string | null>(null)
   const { user, profile } = useAuth()
-  const { isColaborador } = useCapabilities()
+  const { isIntegrante } = useCapabilities()
   const teamId = profile?.team_id ?? ''
   const userId = user?.id
 
@@ -109,14 +109,14 @@ export function useDashboard(periodo: Periodo) {
   }, [teamId])
 
   const vista = useMemo(
-    () => calcular(datos, periodo, isColaborador ? userId : undefined),
-    [datos, periodo, isColaborador, userId],
+    () => calcular(datos, periodo, isIntegrante ? userId : undefined),
+    [datos, periodo, isIntegrante, userId],
   )
 
   return {
     ...vista,
     teamName,
-    isColaborador,
+    isIntegrante,
     loading,
     error,
     reload: () => setReloadKey((k) => k + 1),
@@ -124,7 +124,7 @@ export function useDashboard(periodo: Periodo) {
 }
 
 /**
- * Todo lo que muestra la pagina. `soloDe`: un colaborador ve solo lo suyo (mismo criterio que
+ * Todo lo que muestra la pagina. `soloDe`: un member ve solo lo suyo (mismo criterio que
  * tenia el dashboard), quien ve al equipo lo ve todo.
  */
 function calcular(datos: Datos, periodo: Periodo, soloDe?: string) {

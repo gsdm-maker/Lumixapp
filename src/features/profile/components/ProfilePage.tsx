@@ -15,6 +15,13 @@ import { useTheme } from '@core/theme/ThemeContext'
 import { ACCENTS, POSICIONES_MENU } from '@core/theme/apariencia'
 import { SegmentedControl } from '@shared/components/ui/SegmentedControl'
 import { supabase } from '@infrastructure/supabase/client'
+import {
+  MENSAJE_FILTRADA,
+  MIN_CLAVE,
+  claveFiltrada,
+  errorClaveNueva,
+  mensajeErrorClave,
+} from '@core/auth/claves'
 import { profilesService } from '@infrastructure/supabase/profiles.service'
 import { normalizeFullName } from '@shared/utils/name'
 import { APP_VERSION, APP_VERSION_DATE } from '@shared/changelog'
@@ -102,7 +109,9 @@ export function ProfilePage() {
   const [avatarDraft, setAvatarDraft] = useState('')
   const [savingAvatar, setSavingAvatar] = useState(false)
   const [novedadesOpen, setNovedadesOpen] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
+  const [changingPassword, setChangingPassword] = useState(false)
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordError, setPasswordError] = useState('')
   const [passwordSuccess, setPasswordSuccess] = useState('')
@@ -152,23 +161,30 @@ export function ProfilePage() {
     setPasswordError('')
     setPasswordSuccess('')
 
-    if (newPassword.length < 6) {
-      setPasswordError('La contraseña debe tener al menos 6 caracteres')
-      return
-    }
-    if (newPassword !== confirmPassword) {
-      setPasswordError('Las contraseñas no coinciden')
-      return
-    }
+    if (!currentPassword) return setPasswordError('Escribe tu contraseña actual.')
+    const invalida = errorClaveNueva(newPassword, confirmPassword)
+    if (invalida) return setPasswordError(invalida)
 
-    const { error } = await supabase.auth.updateUser({ password: newPassword })
-    if (error) {
-      setPasswordError(error.message)
-    } else {
+    setChangingPassword(true)
+    try {
+      if (await claveFiltrada(newPassword)) return setPasswordError(MENSAJE_FILTRADA)
+      // Volver a ingresar con la clave actual: confirma que es la persona (y no alguien con su
+      // sesion abierta) y deja la sesion "reciente", que Supabase exige para cambiar la clave.
+      const { error: reingreso } = await supabase.auth.signInWithPassword({
+        email: profile?.email ?? '',
+        password: currentPassword,
+      })
+      if (reingreso) return setPasswordError('La contraseña actual no es correcta.')
+
+      const { error } = await supabase.auth.updateUser({ password: newPassword })
+      if (error) return setPasswordError(mensajeErrorClave(error))
       setPasswordSuccess('Contraseña actualizada')
+      setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
       setShowPassword(false)
+    } finally {
+      setChangingPassword(false)
     }
   }
 
@@ -191,7 +207,11 @@ export function ProfilePage() {
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-lg font-semibold text-fg truncate">{profile?.full_name}</p>
-                <Badge>{ROLE_LABEL[profile?.role ?? 'colaborador'] ?? profile?.role}</Badge>
+                <Badge>
+                  {profile?.es_owner
+                    ? ROLE_LABEL.owner
+                    : (ROLE_LABEL[profile?.role ?? 'integrante'] ?? profile?.role)}
+                </Badge>
               </div>
               <p className="text-sm text-fg-muted truncate">{profile?.email}</p>
             </div>
@@ -257,12 +277,20 @@ export function ProfilePage() {
                   </p>
                 )}
                 <Input
+                  label="Contraseña actual"
+                  type="password"
+                  autoComplete="current-password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="La que usas hoy"
+                />
+                <Input
                   label="Nueva contraseña"
                   type="password"
                   autoComplete="new-password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder={`Mínimo ${MIN_CLAVE} caracteres`}
                 />
                 <Input
                   label="Confirmar contraseña"
@@ -272,7 +300,9 @@ export function ProfilePage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Repite la contraseña"
                 />
-                <Button type="submit">Actualizar contraseña</Button>
+                <Button type="submit" loading={changingPassword}>
+                  Actualizar contraseña
+                </Button>
               </form>
             )}
           </section>

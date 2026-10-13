@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useToast } from '@shared/components/ui/Toast'
 import { Nucleo } from '@shared/components/ui/Nucleo'
 import { Icon } from '@shared/components/ui/Icon'
 import { fechaRelativa } from '@shared/utils/date'
@@ -8,6 +10,8 @@ import type { Sesion } from '@features/chat/components/log/sesiones'
 import type { usePanelLumix } from '@features/chat/hooks/usePanelLumix'
 import { Carita } from '@shared/components/ui/Carita'
 import { TEXTO_NIVEL } from '@shared/utils/nivelCarga'
+import { useVozLumix } from '@features/chat/hooks/useVozLumix'
+import { resumenDelDia } from '@features/chat/utils/resumenVoz'
 
 type Panel = NonNullable<ReturnType<typeof usePanelLumix>['panel']>
 
@@ -27,8 +31,9 @@ const Etiqueta = ({ children }: { children: string }) => (
 
 /**
  * Columna derecha del chat (rediseno Orbita): Lumix saluda con el avance de la semana y
- * sugerencias, la carga de la semana, los compromisos y el historial de conversaciones. Es el
- * tablero de la persona al lado de donde le da ordenes a Lumix. Solo en pantallas anchas.
+ * sugerencias, la carga de la semana (compacta), el avance de los compromisos, lo atrasado para
+ * ponerlo al dia y el historial de conversaciones. Es el tablero de la persona al lado de donde
+ * le da ordenes a Lumix. Solo en pantallas anchas.
  */
 export function PanelLumix({
   panel,
@@ -37,9 +42,12 @@ export function PanelLumix({
   onSugerencia,
   onSesion,
   onNueva,
+  onMoverAHoy,
   enPanel = false,
 }: {
   panel: Panel | null
+  /** Pasa una actividad atrasada a hoy. */
+  onMoverAHoy?: (id: string) => Promise<void>
   nombre: string
   sesiones: Sesion[]
   onSugerencia: (texto: string) => void
@@ -49,6 +57,14 @@ export function PanelLumix({
   enPanel?: boolean
 }) {
   const navigate = useNavigate()
+  const toast = useToast()
+  const [moviendo, setMoviendo] = useState<string | null>(null)
+  const voz = useVozLumix()
+  // Tocar el nucleo: Lumix cuenta en voz alta el dia; otro toque lo calla.
+  const escuchar = () => {
+    if (voz.hablando) return voz.detener()
+    if (panel) voz.hablar(resumenDelDia(panel, nombre))
+  }
   const pct = panel?.porcentaje
   const faltanMeta =
     panel && panel.total
@@ -61,12 +77,42 @@ export function PanelLumix({
       className={
         enPanel
           ? 'flex flex-col gap-3.5'
-          : 'hidden xl:flex w-[360px] 2xl:w-[400px] shrink-0 flex-col gap-3.5 overflow-y-auto pl-1 pr-5 py-4'
+          : 'hidden xl:flex w-[380px] 2xl:w-[420px] shrink-0 flex-col gap-3.5 overflow-y-auto pl-1 pr-5 py-4'
       }
     >
       {/* Saludo de Lumix */}
       <section className="vidrio rounded-3xl p-5 flex flex-col gap-3">
-        <Nucleo size={60} flotar chispas={!!panel?.sugerencia} />
+        <div className="flex items-center gap-3">
+          {voz.disponible && panel ? (
+            <button
+              type="button"
+              onClick={escuchar}
+              aria-pressed={voz.hablando}
+              aria-label={voz.hablando ? 'Detener a Lumix' : 'Escuchar mi día'}
+              title={voz.hablando ? 'Detener' : 'Escuchar mi día'}
+              className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
+            >
+              <Nucleo
+                size={60}
+                flotar={!voz.hablando}
+                pensando={voz.hablando}
+                chispas={!!panel.sugerencia}
+              />
+            </button>
+          ) : (
+            <Nucleo size={60} flotar chispas={!!panel?.sugerencia} />
+          )}
+          {voz.disponible && panel && (
+            <button
+              type="button"
+              onClick={escuchar}
+              className="inline-flex items-center gap-1.5 min-h-8 px-3 rounded-full border border-border bg-panel text-xs font-semibold text-fg-muted hover:text-fg"
+            >
+              <Icon name={voz.hablando ? 'pause' : 'play'} size={13} className="text-accent" />
+              {voz.hablando ? 'Detener' : 'Escuchar mi día'}
+            </button>
+          )}
+        </div>
         <div>
           <Etiqueta>Lumix · tu agente</Etiqueta>
           <h2 className="mt-1 text-lg font-extrabold leading-snug tracking-tight text-fg">
@@ -109,9 +155,12 @@ export function PanelLumix({
 
       {/* Tu semana: carga por dia */}
       {panel && (
-        <section className="vidrio rounded-3xl p-4 flex flex-col gap-3" aria-label="Tu semana">
+        <section
+          className="vidrio rounded-3xl px-4 py-3 flex flex-col gap-2"
+          aria-label="Tu semana"
+        >
           <Etiqueta>Tu semana · carga</Etiqueta>
-          <div className="grid grid-cols-5 gap-1.5">
+          <div className="grid grid-cols-5 gap-1">
             {panel.semana.map((d) => (
               <button
                 key={d.ymd}
@@ -121,17 +170,14 @@ export function PanelLumix({
                 title={`${fmtHoras(d.horas)} · ${TEXTO_NIVEL[d.nivel]}`}
                 aria-current={d.esHoy ? 'date' : undefined}
                 className={cx(
-                  'flex flex-col items-center gap-1 rounded-2xl border border-border bg-panel py-2 text-2xs text-fg-faint',
+                  'flex flex-col items-center gap-0.5 rounded-xl border border-border bg-panel py-1.5 text-2xs text-fg-faint',
                   d.esHoy &&
                     'text-accent shadow-[inset_0_0_0_2px_rgb(var(--accent)),0_0_16px_rgb(var(--accent)/0.3)]',
                 )}
               >
                 {d.dia}
                 <Carita nivel={d.nivel} />
-                <b className="text-sm text-fg">{d.numero}</b>
-                <span className="text-[10px] leading-none text-fg-muted">
-                  {TEXTO_NIVEL[d.nivel]}
-                </span>
+                <b className="text-xs text-fg">{d.numero}</b>
               </button>
             ))}
           </div>
@@ -139,66 +185,125 @@ export function PanelLumix({
         </section>
       )}
 
-      {/* Compromisos */}
+      {/* Compromisos: el avance de la semana contra la meta */}
       {panel && (
-        <section className="vidrio rounded-3xl p-4 flex flex-col gap-3" aria-label="Compromisos">
-          <Etiqueta>Compromisos · esta semana</Etiqueta>
-          <div className="flex items-center gap-4">
-            <div
-              role="img"
-              aria-label={`${pct ?? 0} por ciento cumplido`}
-              className="w-20 h-20 rounded-full grid place-items-center shrink-0"
-              style={{
-                background: `conic-gradient(from -90deg, rgb(var(--a-600)), rgb(61 107 255) ${pct ?? 0}%, rgb(var(--surface-2)) ${pct ?? 0}%)`,
-              }}
+        <section
+          className="vidrio rounded-3xl px-4 py-3 flex flex-col gap-2"
+          aria-label="Compromisos"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <Etiqueta>Compromisos · esta semana</Etiqueta>
+            <button
+              type="button"
+              onClick={() => navigate('/compromisos')}
+              className="text-xs font-bold text-accent hover:underline"
             >
-              <span className="w-16 h-16 rounded-full bg-panel grid place-items-center text-lg font-extrabold text-fg">
-                {pct ?? 0}%
-              </span>
-            </div>
-            <p className="text-sm text-fg-muted leading-relaxed">
-              {panel.cumplidos} de {panel.total} cumplidos
-              <br />
-              meta <b className="text-warning">{panel.meta}%</b>
-              {panel.pendientes.length > 0 && ` · faltan ${panel.pendientes.length}`}
-            </p>
+              Abrir
+            </button>
+          </div>
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-2xl font-extrabold tracking-tight text-fg">{pct ?? 0}%</span>
+            <span className="text-xs text-fg-muted">
+              {panel.cumplidos} de {panel.total} cumplidos · meta{' '}
+              <b className="text-warning">{panel.meta}%</b>
+            </span>
+          </div>
+          <div
+            role="progressbar"
+            aria-label="Avance de los compromisos de la semana"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={pct ?? 0}
+            className="relative h-2.5 rounded-full bg-surface-2"
+          >
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: `${Math.min(100, pct ?? 0)}%`,
+                background: 'linear-gradient(90deg, rgb(var(--a-600)), rgb(61 107 255))',
+              }}
+            />
+            {/* Marca de la meta */}
+            <span
+              aria-hidden="true"
+              className="absolute -top-1 h-4.5 w-0.5 rounded-full bg-warning"
+              style={{ left: `calc(${Math.min(100, panel.meta)}% - 1px)` }}
+            />
           </div>
           {panel.pendientes.length > 0 && (
-            <ul className="divide-y divide-border">
-              {panel.pendientes.slice(0, 4).map((c) => {
-                const f = fechaRelativa(c.due_date)
-                const vencida = f.tone === 'late'
-                return (
-                  <li key={c.id}>
-                    <button
-                      type="button"
-                      onClick={() => navigate('/activities', { state: { activityId: c.id } })}
-                      className="w-full flex items-center justify-between gap-2 py-2 text-left text-sm hover:text-accent"
-                    >
-                      <span className="truncate">{c.title}</span>
-                      <span
-                        className={cx(
-                          'shrink-0 text-2xs font-bold px-2 py-0.5 rounded-full',
-                          vencida ? 'bg-danger-soft text-danger' : 'bg-warning-soft text-warning',
-                        )}
-                      >
-                        {vencida ? 'vencida' : f.text}
-                      </span>
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
+            <p className="text-xs text-fg-muted">
+              Faltan {panel.pendientes.length} esta semana
+              {panel.pendientes.some((c) => fechaRelativa(c.due_date).tone === 'late') &&
+                ', algunas ya vencidas'}
+              .
+            </p>
           )}
-          <button
-            type="button"
-            onClick={() => navigate('/compromisos')}
-            className="self-start text-xs font-bold text-accent hover:underline"
-          >
-            Abrir Compromisos
-          </button>
         </section>
       )}
+
+      {/* Atrasadas: lo vencido de la persona, para ponerlo al dia rapido */}
+      {panel && panel.atrasadas.length > 0 && (
+        <section
+          className="vidrio rounded-3xl px-4 py-3 flex flex-col gap-1.5"
+          aria-label="Atrasadas"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <Etiqueta>{`Atrasadas · ${panel.atrasadas.length}`}</Etiqueta>
+            <button
+              type="button"
+              onClick={() => navigate('/activities')}
+              className="text-xs font-bold text-accent hover:underline"
+            >
+              Ver todas
+            </button>
+          </div>
+          <ul className="divide-y divide-border">
+            {panel.atrasadas.slice(0, 5).map((a) => (
+              <li key={a.id} className="flex items-center gap-2 py-1.5">
+                <button
+                  type="button"
+                  onClick={() => navigate('/activities', { state: { activityId: a.id } })}
+                  className="flex-1 min-w-0 truncate text-left text-sm text-fg hover:text-accent"
+                  title={`Abrir "${a.title}"`}
+                >
+                  {a.title}
+                </button>
+                <span className="shrink-0 rounded-full bg-danger-soft px-2 py-0.5 text-2xs font-bold text-danger">
+                  {fechaRelativa(a.due_date).text}
+                </span>
+                {onMoverAHoy && (
+                  <button
+                    type="button"
+                    disabled={moviendo !== null}
+                    onClick={async () => {
+                      setMoviendo(a.id)
+                      try {
+                        await onMoverAHoy(a.id)
+                        toast.success(`"${a.title}" pasó a hoy`)
+                      } catch {
+                        toast.error('No se pudo mover la fecha')
+                      } finally {
+                        setMoviendo(null)
+                      }
+                    }}
+                    aria-label={`Pasar "${a.title}" a hoy`}
+                    title="Pasar a hoy"
+                    className="shrink-0 min-h-7 rounded-full border border-border bg-panel px-2.5 text-2xs font-bold text-fg-muted hover:text-accent disabled:opacity-50"
+                  >
+                    {moviendo === a.id ? '…' : 'Hoy'}
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+          {panel.atrasadas.length > 5 && (
+            <p className="text-xs text-fg-faint">
+              y {panel.atrasadas.length - 5} más en Actividades.
+            </p>
+          )}
+        </section>
+      )}
+
       {/* Historial de conversaciones */}
       <section className="vidrio rounded-3xl p-4 flex flex-col gap-2" aria-label="Conversaciones">
         <div className="flex items-center justify-between gap-2 px-1">

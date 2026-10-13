@@ -189,7 +189,7 @@ export function useCompromisos() {
   const hoy = new Date()
   hoy.setHours(0, 0, 0, 0)
 
-  // Quien ve a quien: la misma regla del resto de la app. Un colaborador ve lo suyo; quien
+  // Quien ve a quien: la misma regla del resto de la app. Un member ve lo suyo; quien
   // puede ver todo el equipo, ve a todos. La reunion la conduce esa persona.
   //
   // El filtro "nacio de un tema de minuta + cae en esta semana" es el mismo que usa el chat

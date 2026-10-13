@@ -4,11 +4,15 @@ interface Team {
   id: string
   name: string
   /** Cuantas actividades puede tener alguien para un mismo dia antes de que Lumix avise.
-   *  0 = sin aviso. Lo decide la jefatura del equipo (migracion 036). */
+   *  0 = sin aviso. Lo decide el lider del equipo (migracion 036). */
   umbral_sobrecarga?: number
   description: string | null
   created_by: string
   created_at: string
+  /** Jerarquia multi-empresa (migracion 051). */
+  empresa_id?: string
+  parent_id?: string | null
+  nivel?: string | null
 }
 
 interface TeamMember {
@@ -38,13 +42,13 @@ export const teamsService = {
     return (data ?? []).map((d: { team: unknown }) => d.team as Team)
   },
 
-  // Equipos donde el usuario es manager (jefatura/admin): destinos para delegar.
+  // Equipos donde el usuario es manager (lider/admin): destinos para delegar.
   async getManagedTeams(userId: string): Promise<Team[]> {
     const { data, error } = await supabase
       .from('team_members')
       .select('role, team:teams(*)')
       .eq('user_id', userId)
-      .in('role', ['admin', 'jefatura'])
+      .in('role', ['admin', 'lider'])
     if (error) throw error
     return (data ?? []).map((d: { team: unknown }) => d.team as Team)
   },
@@ -67,7 +71,7 @@ export const teamsService = {
     return data as unknown as (TeamMember & { profile: { full_name: string; email: string } })[]
   },
 
-  /** Cambia el umbral de sobrecarga del equipo. La RLS solo lo permite a admin/jefatura. */
+  /** Cambia el umbral de sobrecarga del equipo. La RLS solo lo permite a admin/lider. */
   async setUmbralSobrecarga(teamId: string, umbral: number): Promise<void> {
     const { error } = await supabase
       .from('teams')
@@ -87,7 +91,7 @@ export const teamsService = {
     await supabase.from('team_members').insert({
       team_id: data.id,
       user_id: userId,
-      role: 'admin',
+      role: 'lider',
     })
 
     return data
@@ -105,7 +109,7 @@ export const teamsService = {
     const { error } = await supabase.from('team_members').insert({
       team_id: teamId,
       user_id: userId,
-      role: 'colaborador',
+      role: 'integrante',
     })
 
     if (error) throw error
@@ -144,7 +148,7 @@ export const teamsService = {
     if (error) throw error
   },
 
-  // Grupos de trabajo (alias "foco"): catalogo por equipo, lo crea/asigna jefatura.
+  // Grupos de trabajo (alias "foco"): catalogo por equipo, lo crea/asigna el lider.
   async getGrupos(teamId: string): Promise<GrupoTrabajo[]> {
     const { data, error } = await supabase
       .from('grupos_trabajo')

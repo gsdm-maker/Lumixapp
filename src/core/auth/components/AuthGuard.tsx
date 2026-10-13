@@ -2,13 +2,15 @@ import type { ReactNode } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '@core/auth/hooks/useAuth'
 import { LoadingState } from '@shared/components/ui/Spinner'
+import { pruebaVencida } from '@core/auth/plan'
+import { PruebaTerminada } from './PruebaTerminada'
 
 interface AuthGuardProps {
   children: ReactNode
 }
 
 export function AuthGuard({ children }: AuthGuardProps) {
-  const { user, loading, profile } = useAuth()
+  const { user, loading, profile, empresa } = useAuth()
 
   if (loading) {
     return (
@@ -28,6 +30,14 @@ export function AuthGuard({ children }: AuthGuardProps) {
   if (mustChange && profile) {
     return <Navigate to="/change-password" replace />
   }
+
+  // Cuenta recien creada, sin espacio todavia: primero la Bienvenida (migracion 056).
+  if (profile && !profile.empresa_id && !profile.es_owner) {
+    return <Navigate to="/bienvenida" replace />
+  }
+
+  // Prueba de 15 dias vencida: se pide activar la suscripcion. El Owner nunca se bloquea.
+  if (pruebaVencida(empresa, profile?.es_owner === true)) return <PruebaTerminada />
 
   return <>{children}</>
 }

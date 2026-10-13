@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { buildCors, jsonResponse } from '../_shared/cors.ts'
-import { getUser } from '../_shared/auth.ts'
+import { bloqueoPorPlan, dentroDelTopeIa, getUser } from '../_shared/auth.ts'
 import { checkRateLimit } from '../_shared/rate-limit.ts'
 import { pickModel, tuningParams, jsonSchemaFormat } from '../_shared/model.ts'
 
@@ -85,9 +85,18 @@ serve(async (req: Request) => {
   if (!user) {
     return jsonResponse({ error: 'No autorizado' }, 401, cors)
   }
+  const bloqueo = await bloqueoPorPlan(user.id)
+  if (bloqueo) return jsonResponse({ error: bloqueo, plan: 'vencido' }, 402, cors)
 
   if (!checkRateLimit(user.id, RATE_LIMIT_MAX)) {
     return jsonResponse({ error: 'Too many requests. Try again in a minute.' }, 429, cors)
+  }
+  if (!(await dentroDelTopeIa(user.id))) {
+    return jsonResponse(
+      { error: 'Alcanzaste el límite diario de mensajes con IA. Intenta mañana.' },
+      429,
+      cors,
+    )
   }
   try {
     const { content, todayISO: clientISO, today: clientToday, members } = await req.json()

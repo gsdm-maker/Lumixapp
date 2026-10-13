@@ -72,7 +72,7 @@ export function CompromisosPage() {
     reload,
   } = useCompromisos()
   // Conducir (mover de semana, llevar a minuta, comentar el tema) tiene permiso propio desde
-  // la migracion 049. Antes se usaba "ver todas las actividades": un invitado veia los
+  // la migracion 049. Antes se usaba "ver todas las actividades": un guest veia los
   // botones y la base se los rechazaba, porque esas escrituras van a la minuta.
   const { canConducirCompromisos: conduce, canEditAllActivities } = useCapabilities()
   const { profile } = useAuth()
@@ -109,7 +109,7 @@ export function CompromisosPage() {
   const lista = verVencidos ? vencidosPorPersona : porPersona
   const porGrupoActivo = !verVencidos && vista === 'grupo' && porGrupo.length > 0
 
-  // Si solo hay una persona -un colaborador viendo lo suyo- plegar no aporta nada.
+  // Si solo hay una persona -un member viendo lo suyo- plegar no aporta nada.
   const soloUno = lista.length === 1
   const estaAbierta = (id: string) => soloUno || abiertos.has(id)
   const todoAbierto =

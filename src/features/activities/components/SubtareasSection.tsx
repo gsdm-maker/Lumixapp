@@ -74,7 +74,7 @@ export function SubtareasSection({
   // Fechas YYYY-MM-DD: comparar como texto ordena igual que comparar fechas.
   const fechasInvertidas = !!inicio && !!due && inicio > due
   const fechasInvalidas = !!itemPadre && (!inicio || !due || fechasInvertidas)
-  // Crear el item en el proyecto exige proyectos.gestionar (o jefatura/admin) en la RLS
+  // Crear el item en el proyecto exige proyectos.gestionar (o lider/admin) en la RLS
   // (puede_escribir_hoja, migracion 049). Sin eso el insert fallaria despues de crear la
   // actividad: mejor no ofrecerlo.
   const puedeAgregar = canEdit && (!itemPadre || canManageProyectos)

@@ -134,9 +134,12 @@ export function Sidebar({ onClose }: SidebarProps) {
                 {profile?.full_name ?? 'Usuario'}
               </span>
               <span className="block text-xs text-fg-faint truncate">
-                {/* El admin global se muestra como tal en cualquier equipo; el resto, con su
-                    rol en el equipo activo. */}
-                {ROLE_LABEL[isAdmin ? 'admin' : (teamRole ?? profile?.role ?? '')] ?? 'Colaborador'}
+                {/* El Owner y el Admin de la empresa se muestran como tales en cualquier unidad; el
+                    resto, con su rol en la unidad activa. */}
+                {profile?.es_owner
+                  ? ROLE_LABEL.owner
+                  : (ROLE_LABEL[isAdmin ? 'admin' : (teamRole ?? profile?.role ?? '')] ??
+                    'Integrante')}
               </span>
             </span>
           </button>

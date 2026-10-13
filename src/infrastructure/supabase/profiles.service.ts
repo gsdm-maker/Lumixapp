@@ -15,7 +15,7 @@ export const profilesService = {
       .eq('team_id', teamId)
 
     if (error) throw error
-    // El admin es supervisor global, no miembro de los equipos: no se lista como integrante.
+    // El admin de la empresa no es miembro de los equipos: no se lista como integrante.
     return (data ?? [])
       .map((row: { user: unknown }) => row.user as Profile)
       .filter((p) => p && p.role !== 'admin')

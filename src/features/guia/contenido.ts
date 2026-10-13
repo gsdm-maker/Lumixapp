@@ -22,8 +22,10 @@ export interface SeccionGuia {
   ruta?: string
   /** Si hace falta permiso para ver el modulo: la seccion se oculta a quien no lo tiene. */
   capability?: Capability
-  /** Solo para el administrador global. */
+  /** Solo para el Admin de la empresa (y el Owner). */
   soloAdmin?: boolean
+  /** Solo para el Owner de la plataforma (Guia de administracion). */
+  soloOwner?: boolean
   /** Para que sirve, en una o dos frases. */
   resumen: string
   acciones: Accion[]
@@ -168,7 +170,7 @@ export const SECCIONES: SeccionGuia[] = [
       },
       {
         t: 'Bloquear y desbloquear',
-        d: 'Bloquear pide el motivo, lo guarda en observaciones y avisa a jefatura y al responsable.',
+        d: 'Bloquear pide el motivo, lo guarda en observaciones y avisa al Líder y al responsable.',
       },
       {
         t: 'Subtareas',
@@ -497,7 +499,7 @@ export const SECCIONES: SeccionGuia[] = [
       },
       { t: 'Exportar', d: 'Descarga los números a un CSV para Excel.' },
     ],
-    permisos: ['Un colaborador ve solo sus propios números.'],
+    permisos: ['Un Integrante ve solo sus propios números.'],
   },
   {
     id: 'notificaciones',
@@ -535,11 +537,11 @@ export const SECCIONES: SeccionGuia[] = [
       },
       {
         t: 'Invitar',
-        d: 'Por email. La persona debe estar registrada en Lumix; entra como Colaborador.',
+        d: 'Por email. La persona debe estar registrada en Lumix; entra como Integrante.',
       },
       {
         t: 'Roles y grupos',
-        d: 'Cambiar el rol (Jefatura, Colaborador, Invitado) o el grupo de trabajo de cada persona.',
+        d: 'Cambiar el rol (Líder, Integrante, Invitado) o el grupo de trabajo de cada persona.',
       },
       {
         t: 'Permisos',
@@ -555,7 +557,7 @@ export const SECCIONES: SeccionGuia[] = [
       },
     ],
     permisos: [
-      'Roles, grupos y permisos: Admin o Jefatura del equipo.',
+      'Roles, grupos y permisos: Admin o Líder del equipo.',
       'Invitar y quitar miembros: también quien tenga "Agregar/quitar miembros".',
       'Nadie puede cambiar su propio rol.',
     ],
@@ -584,30 +586,14 @@ export const SECCIONES: SeccionGuia[] = [
     id: 'admin',
     titulo: 'Administración',
     icon: 'shield',
-    ruta: '/admin',
+    ruta: '/admin/guia',
     soloAdmin: true,
     resumen:
-      'Consola aparte, solo para el administrador: se elige al iniciar sesión o desde el menú de tu avatar.',
+      'Consola aparte, solo para el Admin: se elige al iniciar sesión o desde el menú de tu avatar. Tiene su propia guía, con todo lo de administrar.',
     acciones: [
       {
-        t: 'Personas',
-        d: 'Todas las cuentas, con su equipo, rol y último ingreso. Busca por nombre o email y filtra activas, desactivadas o sin equipo.',
-      },
-      {
-        t: 'Nueva persona',
-        d: 'Nombre, email, equipo y rol. Lumix genera una clave temporal que se muestra una sola vez; al entrar, la persona debe cambiarla.',
-      },
-      {
-        t: 'Acceso',
-        d: 'Generar una clave temporal nueva a quien la olvidó, o desactivar a quien se fue (no se borra nada y se puede reactivar).',
-      },
-      {
-        t: 'Equipos y roles',
-        d: 'Sumar a una persona a otro equipo, quitarla o cambiar su rol. Crear y renombrar equipos.',
-      },
-      {
-        t: 'Actividad',
-        d: 'Registro de cada cambio hecho en la consola: quién, qué y cuándo. No se puede editar.',
+        t: 'Guía de administración',
+        d: 'En la consola, menú Guía: empresas, niveles, estructura, personas, cuentas y registro de actividad.',
       },
       {
         t: 'Precisión de la IA',
@@ -619,14 +605,14 @@ export const SECCIONES: SeccionGuia[] = [
 
 /** Lo que trae cada rol por defecto. Los permisos se pueden ajustar por persona en Equipos. */
 export const ROLES: { rol: string; texto: string }[] = [
-  { rol: 'Admin', texto: 'Todo, en todos los equipos. Crea usuarios y equipos.' },
+  { rol: 'Admin', texto: 'Todo, en todas las unidades de su empresa. Crea usuarios y equipos.' },
   {
-    rol: 'Jefatura',
+    rol: 'Líder',
     texto:
       'Todos los permisos de su equipo: gestiona módulos, asigna, edita y configura el equipo.',
   },
   {
-    rol: 'Colaborador',
+    rol: 'Integrante',
     texto: 'Ve los módulos y trabaja lo suyo: crea sus actividades, las avanza y las cierra.',
   },
   {

@@ -15,8 +15,8 @@ const COLS = 'sm:grid sm:grid-cols-[minmax(0,1fr)_9rem_10rem_2rem] sm:items-cent
  * Miembros del equipo como tabla compacta (antes una caja por persona dentro de la tarjeta
  * del equipo). Las reglas de quien puede hacer que no cambian:
  *  - Rol: solo quien administra el equipo (canManageThis), y nunca el propio.
- *  - Quitar: quien administra, o quien tiene "gestionar miembros" pero solo a colaboradores
- *    e invitados (no puede sacar a una jefatura).
+ *  - Quitar: quien administra, o quien tiene "gestionar miembros" pero solo a members
+ *    e invitados (no puede sacar a un lider).
  *  - Grupo: solo quien administra (es un UPDATE de team_members, policy 021).
  */
 export function MembersTable({
@@ -84,7 +84,7 @@ export function MembersTable({
           const puedeQuitar =
             !esYo &&
             (canManageThis ||
-              (puedeGestionarMiembros && (m.role === 'colaborador' || m.role === 'invitado')))
+              (puedeGestionarMiembros && (m.role === 'integrante' || m.role === 'invitado')))
           const opcionesRol: string[] = MEMBER_ROLES.includes(m.role as never)
             ? [...MEMBER_ROLES]
             : [m.role, ...MEMBER_ROLES]

@@ -1,4 +1,4 @@
-export type Role = 'admin' | 'jefatura' | 'colaborador' | 'invitado'
+export type Role = 'admin' | 'lider' | 'integrante' | 'invitado'
 
 export type ActivityStatus =
   | 'pendiente'
@@ -22,6 +22,10 @@ export interface Profile {
   role: Role
   team_id: string
   created_at: string
+  /** Owner de la plataforma: ve todas las empresas. Migracion 051. */
+  es_owner?: boolean
+  /** Empresa a la que pertenece. Migracion 051. */
+  empresa_id?: string | null
   /** Version de changelog (src/shared/changelog.ts) que esta persona ya vio. Migracion 044. */
   changelog_visto?: number
 }

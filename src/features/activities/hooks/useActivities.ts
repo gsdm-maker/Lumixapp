@@ -255,7 +255,7 @@ export function useActivities() {
       await activitiesService.update(id, { status: newStatus })
       const previa = activities.find((a) => a.id === id)
       if (newStatus === 'falta_informacion' && previa && previa.status !== 'falta_informacion') {
-        // A quien puede destrabarla: jefatura y quien la creo (suele ser quien tiene el dato).
+        // A quien puede destrabarla: el lider y quien la creo (suele ser quien tiene el dato).
         await notificationsService.sendToTeam(
           previa.team_id,
           {
@@ -266,7 +266,7 @@ export function useActivities() {
           },
           {
             exceptUserId: user?.id,
-            roles: ['admin', 'jefatura'],
+            roles: ['admin', 'lider'],
             alsoUserIds: [previa.created_by, previa.responsible_id],
           },
         )
@@ -274,7 +274,7 @@ export function useActivities() {
       if (newStatus === 'bloqueado') {
         const activity = activities.find((a) => a.id === id)
         if (activity) {
-          // Solo a quien puede desbloquearla: jefatura del equipo y el responsable.
+          // Solo a quien puede desbloquearla: el lider del equipo y el responsable.
           await notificationsService.sendToTeam(
             activity.team_id,
             {
@@ -285,7 +285,7 @@ export function useActivities() {
             },
             {
               exceptUserId: user?.id,
-              roles: ['admin', 'jefatura'],
+              roles: ['admin', 'lider'],
               alsoUserIds: [activity.responsible_id],
             },
           )
