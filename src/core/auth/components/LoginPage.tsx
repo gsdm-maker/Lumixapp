@@ -65,12 +65,9 @@ export function LoginPage() {
       const r = await signUp(n, email.trim().toLowerCase(), password, captcha ?? undefined)
       setLoading(false)
       setReinicioCaptcha((x) => x + 1)
+      // El mensaje ya viene en espanol (core/auth/errores.ts).
       if (r.error) {
-        setError(
-          /registered|already/i.test(r.error)
-            ? 'Ya existe una cuenta con ese email. Ingresa con tu contraseña.'
-            : r.error,
-        )
+        setError(r.error)
       } else if (r.confirmar) {
         setAviso('Te enviamos un correo para confirmar tu cuenta. Ábrelo y vuelve a ingresar.')
         setModo('ingresar')
@@ -90,14 +87,8 @@ export function LoginPage() {
     setLoading(false)
     setReinicioCaptcha((x) => x + 1)
     if (err) {
-      // Cuenta desactivada desde Administracion: Supabase responde en ingles ("User is banned").
-      setError(
-        /banned/i.test(err)
-          ? 'Tu cuenta está desactivada. Habla con el administrador.'
-          : /confirm/i.test(err)
-            ? 'Confirma tu email primero: revisa el correo que te enviamos.'
-            : err,
-      )
+      // Ya traducido en core/auth/errores.ts (credenciales, cuenta desactivada, sin conexion...).
+      setError(err)
     } else {
       // El admin elige entre Lumix y Administracion; el resto pasa directo al chat.
       navigate('/entrar')
@@ -180,7 +171,6 @@ export function LoginPage() {
               onClick={() => setMostrarClave((v) => !v)}
               className="inline-flex h-8 w-8 items-center justify-center rounded-full text-fg-faint transition-colors hover:bg-surface hover:text-fg"
               aria-label={mostrarClave ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-              tabIndex={-1}
             >
               <Icon name={mostrarClave ? 'eyeOff' : 'eye'} size={16} />
             </button>

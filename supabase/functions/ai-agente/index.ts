@@ -13,6 +13,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { buildCors, jsonResponse } from '../_shared/cors.ts'
 import { bloqueoPorPlan, dentroDelTopeIa, getUser } from '../_shared/auth.ts'
 import { checkRateLimit } from '../_shared/rate-limit.ts'
+import { leerJson, textoExcede } from '../_shared/limites.ts'
 import { pickModel, proveedorDe, tuningParams } from '../_shared/model.ts'
 import { CATALOGO, SISTEMA } from './catalogo.ts'
 
@@ -49,10 +50,19 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { mensaje, contexto, pistas, historial } = await req.json()
+    const lectura = await leerJson(req)
+    if (!lectura.ok) return jsonResponse({ error: lectura.error }, lectura.status, cors)
+    const { mensaje, contexto, pistas, historial } = lectura.body as {
+      mensaje?: unknown
+      contexto?: unknown
+      pistas?: unknown
+      historial?: unknown
+    }
     if (!mensaje || typeof mensaje !== 'string') {
       return jsonResponse({ error: 'mensaje es obligatorio' }, 400, cors)
     }
+    const largo = textoExcede(mensaje)
+    if (largo) return jsonResponse({ error: largo }, 413, cors)
     const ctx = JSON.stringify(contexto ?? {})
     if (ctx.length > MAX_CONTEXTO) {
       return jsonResponse({ error: 'Contexto demasiado grande' }, 413, cors)

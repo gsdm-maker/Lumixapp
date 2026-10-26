@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { buildCors, jsonResponse } from '../_shared/cors.ts'
 import { bloqueoPorPlan, dentroDelTopeIa, getUser } from '../_shared/auth.ts'
 import { checkRateLimit } from '../_shared/rate-limit.ts'
+import { leerJson, textoExcede } from '../_shared/limites.ts'
 import { pickModel, tuningParams, jsonSchemaFormat } from '../_shared/model.ts'
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!
@@ -191,6 +192,8 @@ serve(async (req: Request) => {
     )
   }
   try {
+    const lectura = await leerJson(req)
+    if (!lectura.ok) return jsonResponse({ error: lectura.error }, lectura.status, cors)
     const {
       content,
       activities,
@@ -199,7 +202,7 @@ serve(async (req: Request) => {
       history,
       todayISO: clientISO,
       today: clientToday,
-    } = await req.json()
+    } = lectura.body
 
     if (!content || typeof content !== 'string') {
       return new Response(JSON.stringify({ error: 'Content is required' }), {
@@ -207,6 +210,8 @@ serve(async (req: Request) => {
         headers: { ...cors, 'Content-Type': 'application/json' },
       })
     }
+    const largo = textoExcede(content)
+    if (largo) return jsonResponse({ error: largo }, 413, cors)
 
     const list: ActivityLite[] = Array.isArray(activities) ? activities : []
     const today = clientISO || new Date().toISOString().split('T')[0]

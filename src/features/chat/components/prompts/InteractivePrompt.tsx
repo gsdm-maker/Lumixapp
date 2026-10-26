@@ -346,7 +346,7 @@ function Sobrecarga({
             autoFocus
             aria-label="Días hábiles"
             placeholder="días"
-            className="h-7 w-20 rounded-md border border-border-strong bg-field px-2 text-base sm:text-sm text-fg text-center focus:outline-none focus:border-accent"
+            className="h-7 w-20 rounded-md border border-border-strong bg-field px-2 text-base sm:text-sm text-fg text-center focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
           />
           <span className="text-xs text-fg-faint">días hábiles</span>
           <Button

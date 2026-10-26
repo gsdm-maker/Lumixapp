@@ -202,7 +202,7 @@ export function ActivityCard({
             aria-label="Otra fecha"
             disabled={busy}
             onChange={(e) => e.target.value && act(() => onReschedule(e.target.value))}
-            className="h-7 rounded-md border border-border-strong bg-field px-2 text-xs text-fg focus:outline-none focus:border-accent"
+            className="h-7 rounded-md border border-border-strong bg-field px-2 text-xs text-fg focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
           />
         </div>
       )}

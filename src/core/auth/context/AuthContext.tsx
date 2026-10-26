@@ -5,6 +5,7 @@ import type { Profile } from '@shared/types'
 import type { Modulo } from '../modulos'
 import type { EmpresaSesion } from '../types'
 import { AuthContext } from './AuthContextValue'
+import { conTope, mensajeAuth } from '../errores'
 
 async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
@@ -115,13 +116,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [cargarTodo])
 
   const signIn = async (email: string, password: string, captchaToken?: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-      options: captchaToken ? { captchaToken } : undefined,
-    })
-    if (error) return { error: error.message }
-    return { error: null }
+    try {
+      const { error } = await conTope(
+        supabase.auth.signInWithPassword({
+          email,
+          password,
+          options: captchaToken ? { captchaToken } : undefined,
+        }),
+      )
+      if (error) return { error: mensajeAuth(error.message) }
+      return { error: null }
+    } catch (e) {
+      return { error: mensajeAuth(e instanceof Error ? e.message : String(e)) }
+    }
   }
 
   // Registro abierto (migracion 056): la cuenta nace sin empresa y la Bienvenida la crea. Si el
@@ -132,17 +139,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
     captchaToken?: string,
   ) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: fullName },
-        emailRedirectTo: `${window.location.origin}/bienvenida`,
-        ...(captchaToken ? { captchaToken } : {}),
-      },
-    })
-    if (error) return { error: error.message, confirmar: false }
-    return { error: null, confirmar: !data.session }
+    try {
+      const { data, error } = await conTope(
+        supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { full_name: fullName },
+            emailRedirectTo: `${window.location.origin}/bienvenida`,
+            ...(captchaToken ? { captchaToken } : {}),
+          },
+        }),
+      )
+      if (error) return { error: mensajeAuth(error.message), confirmar: false }
+      return { error: null, confirmar: !data.session }
+    } catch (e) {
+      return { error: mensajeAuth(e instanceof Error ? e.message : String(e)), confirmar: false }
+    }
   }
 
   const signOut = async () => {

@@ -258,7 +258,7 @@ export function ActivityListMessage({
                       onChange={(e) =>
                         e.target.value && runQuick(it.id, { due_date: e.target.value })
                       }
-                      className="h-7 rounded-md border border-border-strong bg-field px-2 text-xs text-fg focus:outline-none focus:border-accent"
+                      className="h-7 rounded-md border border-border-strong bg-field px-2 text-xs text-fg focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
                     />
                   </div>
                 )}
@@ -317,7 +317,7 @@ export function ActivityListMessage({
                 onChange={(e) => setDateValue(e.target.value)}
                 autoFocus
                 aria-label="Nueva fecha"
-                className="h-7 rounded-md border border-border-strong bg-field px-2 text-xs text-fg focus:outline-none focus:border-accent"
+                className="h-7 rounded-md border border-border-strong bg-field px-2 text-xs text-fg focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
               />
               <Button
                 size="xs"
