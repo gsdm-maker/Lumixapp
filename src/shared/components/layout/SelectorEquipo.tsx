@@ -32,9 +32,12 @@ function Insignia({ id, nombre, size = 'md' }: { id: string; nombre: string; siz
 export function SelectorEquipo({
   compacto = false,
   abrirHacia = 'abajo',
+  completo = false,
 }: {
   compacto?: boolean
   abrirHacia?: 'abajo' | 'izquierda' | 'derecha'
+  /** Ocupa todo el ancho disponible (barra lateral): con el tope fijo se salia de la barra. */
+  completo?: boolean
 }) {
   const { profile } = useAuth()
   const { teams, equipoActual, puedeCambiar, cambiarEquipo, switching } = useEquipos()
@@ -45,7 +48,7 @@ export function SelectorEquipo({
         aria-hidden="true"
         className={cx(
           'vidrio block rounded-full animate-pulse',
-          compacto ? 'w-10 h-10' : 'h-10 w-40',
+          compacto ? 'w-10 h-10' : cx('h-10', completo ? 'w-full' : 'w-40'),
         )}
       />
     )
@@ -54,7 +57,12 @@ export function SelectorEquipo({
     <>
       <Insignia id={equipoActual.id} nombre={equipoActual.name} />
       {!compacto && (
-        <span className="min-w-0 truncate text-sm font-semibold text-fg">{equipoActual.name}</span>
+        <span
+          title={equipoActual.name}
+          className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-fg"
+        >
+          {equipoActual.name}
+        </span>
       )}
       {switching ? (
         <Spinner size={14} />
@@ -71,7 +79,7 @@ export function SelectorEquipo({
         title={`Equipo: ${equipoActual.name}`}
         className={cx(
           'vidrio flex items-center gap-2 rounded-full',
-          compacto ? 'p-1.5' : 'h-10 pl-1.5 pr-3.5 max-w-52',
+          compacto ? 'p-1.5' : cx('h-10 pl-1.5 pr-3.5', completo ? 'w-full' : 'max-w-52'),
         )}
       >
         {contenido}
@@ -86,7 +94,7 @@ export function SelectorEquipo({
       panelClassName="w-64"
       botonClassName={cx(
         'vidrio flex items-center gap-2 rounded-full transition-colors hover:border-border-strong disabled:opacity-60',
-        compacto ? 'p-1.5' : 'h-10 pl-1.5 pr-3 max-w-56',
+        compacto ? 'p-1.5' : cx('h-10 pl-1.5 pr-3', completo ? 'w-full' : 'max-w-56'),
       )}
       boton={contenido}
     >

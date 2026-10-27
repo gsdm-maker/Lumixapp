@@ -68,28 +68,33 @@ export function aplicarApariencia(preference: ThemePreference, theme: Theme, acc
 }
 
 // --- Menu de modulos (escritorio) ------------------------------------------------------------
-// Cada persona elige donde va el menu: arriba (barra flotante, el default) o como barra
-// vertical a la izquierda o a la derecha; en las laterales, solo iconos o con nombres. En el
+// Cada persona elige donde va el menu: a la izquierda (el default, como los chats de IA), a la
+// derecha o arriba (barra flotante); en las laterales, solo iconos o con nombres. En el
 // celular no aplica: ahi siempre va el menu inferior.
+//
+// Las claves llevan "-2": antes el default era "arriba" y quedaba guardado apenas alguien
+// entraba, asi que cambiar solo el default no le llegaba a nadie. Con claves nuevas todos parten
+// con la barra lateral y pueden volver a "arriba" en Perfil > Apariencia.
 
 export type PosicionMenu = 'arriba' | 'izquierda' | 'derecha'
 
 export const POSICIONES_MENU: { value: PosicionMenu; label: string }[] = [
-  { value: 'arriba', label: 'Arriba' },
   { value: 'izquierda', label: 'Izquierda' },
+  { value: 'arriba', label: 'Arriba' },
   { value: 'derecha', label: 'Derecha' },
 ]
 
-const STORAGE_MENU = 'lumix-menu'
-const STORAGE_MENU_NOMBRES = 'lumix-menu-nombres'
+const STORAGE_MENU = 'lumix-menu-2'
+const STORAGE_MENU_NOMBRES = 'lumix-menu-nombres-2'
 
 export function leerMenu(): PosicionMenu {
   const v = leer(STORAGE_MENU)
-  return v === 'izquierda' || v === 'derecha' ? v : 'arriba'
+  return v === 'arriba' || v === 'derecha' ? v : 'izquierda'
 }
 
+/** Con nombres por defecto: una barra lateral solo de iconos obliga a adivinar. */
 export function leerMenuNombres(): boolean {
-  return leer(STORAGE_MENU_NOMBRES) === 'si'
+  return leer(STORAGE_MENU_NOMBRES) !== 'no'
 }
 
 export function guardarMenu(posicion: PosicionMenu, nombres: boolean) {

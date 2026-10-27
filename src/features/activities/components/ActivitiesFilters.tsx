@@ -147,7 +147,8 @@ export function ActivitiesFilters(p: ActivitiesFiltersProps) {
           aria-label="Estado"
           value={f.status}
           onChange={(e) => p.setFilterStatus(e.target.value as FiltroEstado)}
-          className="sm:hidden flex-1 min-w-0"
+          // min-w: en una barra que se reparte en lineas, flex-1 solo lo encogia a un ovalo vacio.
+          className="sm:hidden flex-1 min-w-[10rem]"
         >
           {ESTADOS.map((e) => (
             <option key={e.value} value={e.value}>

@@ -218,10 +218,9 @@ def compromisos_semana(page):
 def chat_consulta(page):
     ir(page, "/chat")
     antes = page.locator("main").inner_text()
-    page.get_by_role("button", name=re.compile("Qué tengo pendiente esta semana")).first.click()
-    page.wait_for_timeout(1000)
-    if page.locator("textarea").input_value().strip():
-        page.locator("textarea").press("Enter")
+    ta = page.locator("textarea")
+    ta.fill("¿Qué tengo pendiente esta semana?")
+    ta.press("Enter")
     t0 = time.time()
     while time.time() - t0 < 40:
         page.wait_for_timeout(1500)
@@ -235,7 +234,8 @@ def chat_consulta(page):
 @caso("Chat (IA): crear actividad y verla en Actividades")
 def chat_crear(page):
     ir(page, "/chat")
-    page.get_by_role("button", name="Actividad", exact=True).click()
+    page.get_by_role("button", name=re.compile("^Tipo de mensaje")).click()
+    page.get_by_role("menuitemradio", name="Actividad").click()
     ta = page.locator("textarea")
     ta.fill(f"{TITULO} para mañana")
     ta.press("Enter")
@@ -291,6 +291,41 @@ def logout(page):
     page.wait_for_url(re.compile(r"/login"), timeout=10000)
 
 
+@caso("Diseño: 'Mi semana' en la barra lateral reemplaza al menú y vuelve")
+def mi_semana(page):
+    ir(page, "/chat")
+    menu = page.locator("nav[aria-label=Principal]")
+    semana = page.locator("section[aria-label='Mi semana']")
+    expect(menu).to_be_visible()
+    expect(semana).to_have_count(0)
+    page.get_by_role("button", name="Mi semana", exact=True).filter(visible=True).click()
+    expect(semana).to_be_visible()
+    expect(menu).to_have_count(0)
+    expect(semana.get_by_text("Conversaciones")).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(menu).to_be_visible()
+    page.get_by_role("button", name="Mi semana", exact=True).filter(visible=True).click()
+    page.get_by_role("button", name="Volver al menú").click()
+    expect(menu).to_be_visible()
+
+
+@caso("Diseño: el menú de módulos parte a la izquierda")
+def menu_izquierda(page):
+    ir(page, "/chat")
+    nav = page.locator("nav[aria-label=Principal]").filter(visible=True).first
+    caja = nav.bounding_box()
+    assert caja["x"] < 100 and caja["height"] > caja["width"], f"menú en x={caja['x']:.0f}, {caja['width']:.0f}x{caja['height']:.0f}"
+
+
+@caso("Diseño móvil: el filtro de estado de Actividades se ve")
+def movil_estado(page):
+    ir(page, "/activities")
+    sel = page.locator("select[aria-label=Estado]")
+    ancho = sel.bounding_box()["width"]
+    assert ancho >= 120, f"ancho {ancho:.0f}px"
+    return f"{ancho:.0f}px"
+
+
 with sync_playwright() as p:
     b = lanzar(p)
     try:
@@ -308,10 +343,17 @@ with sync_playwright() as p:
         logs = []
         capturar_consola(page, logs)
         colab_entra(page); novedades(page); navegacion(page, logs); con_h1(page)
+        menu_izquierda(page); mi_semana(page)
         act_filtros(page); act_detalle(page); minuta_reunion(page); compromisos_semana(page)
         chat_consulta(page)
         limpiar(page)
         ctx.close()
+
+        mctx = b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+        mp = mctx.new_page()
+        login(mp, "colab1.prueba@example.com")
+        movil_estado(mp)
+        mctx.close()
 
         # Crear y eliminar con la jefa de equipo (tiene permiso de eliminar)
         jctx = b.new_context(viewport={"width": 1366, "height": 860})

@@ -5,7 +5,6 @@ import { Button } from '@shared/components/ui/Button'
 import { Icon } from '@shared/components/ui/Icon'
 import { TAG } from '@shared/utils/colores'
 import { TIPO_ESTILO } from '@features/chat/components/composer/tipos'
-import { Kbd } from '@shared/components/ui/Indicators'
 import { Spinner } from '@shared/components/ui/Spinner'
 import { cx } from '@shared/utils/cx'
 import { QuotedMessage } from '@features/chat/components/QuotedMessage'
@@ -39,6 +38,14 @@ interface Props {
 
 const COMANDO_RE = /^\/(\p{L}+)\s+/u
 
+/** Color de texto y fondo suave del modulo al que va cada tipo. */
+function tono(t: TipoMensaje) {
+  const color = TIPO_ESTILO[t].color
+  return color === 'accent'
+    ? { texto: 'text-accent', fondo: 'bg-accent-soft' }
+    : { texto: TAG[color].text, fondo: TAG[color].soft }
+}
+
 /**
  * Campo del chat. El tipo se fuerza con un selector compacto o con un comando al inicio
  * ("/error ...") en vez de siete chips de colores, y bajo el campo se adelanta lo que Lumix
@@ -64,9 +71,10 @@ export function Composer({
   const [menuCerrado, setMenuCerrado] = useState(false)
   // No se pudo enviar el ultimo mensaje: se avisa y el texto sigue en el campo (Nielsen 9).
   const [fallo, setFallo] = useState(false)
+  const [menuTipo, setMenuTipo] = useState(false)
 
   // Una sugerencia del panel deja su texto en el campo: enviar sigue siendo decision tuya, igual
-  // que los atajos de aca abajo (mismo gesto en los dos lugares).
+  // que las preguntas del inicio del chat (mismo gesto en los dos lugares).
   useEffect(() => {
     if (!prellenar) return
     // eslint-disable-next-line react-hooks/set-state-in-effect -- el pedido llega desde afuera
@@ -204,20 +212,8 @@ export function Composer({
     )
   } else if (tipoVigente === 'masivo') {
     estado = 'Pega varias actividades, una por línea; las revisas antes de crearlas.'
-  } else {
-    estado = 'Escribe en lenguaje natural. Lumix clasificará tu mensaje.'
   }
-
-  // Atajos de un toque cuando el campo esta vacio: muestran que a Lumix tambien se le
-  // pregunta, no solo se le encargan cosas. Llenan el campo; enviar sigue siendo decision tuya.
-  const atajos =
-    !input && !replyTo && !busy && tipoVigente === 'auto'
-      ? [
-          '¿Qué tengo pendiente esta semana?',
-          '¿Cómo vamos con los compromisos?',
-          '¿Qué está vencido en el equipo?',
-        ]
-      : []
+  // Sin nada que decir, la linea de abajo no se muestra: vista limpia, como un chat de IA.
 
   return (
     <div
@@ -225,24 +221,6 @@ export function Composer({
       style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
     >
       <div className="max-w-3xl mx-auto">
-        {atajos.length > 0 && (
-          <div className="flex gap-1.5 mb-2 overflow-x-auto [scrollbar-width:none]">
-            {atajos.map((a) => (
-              <button
-                key={a}
-                type="button"
-                onClick={() => {
-                  setInput(a)
-                  inputRef.current?.focus()
-                }}
-                className="shrink-0 h-7 px-3 rounded-full border border-border-strong bg-panel text-xs text-fg-muted hover:text-fg hover:border-fg-faint transition-colors"
-              >
-                {a}
-              </button>
-            ))}
-          </div>
-        )}
-
         {/* Tarjeta flotante: campo, tipo, vista previa y enviar viven juntos. El foco marca el
             borde completo, no solo el texto. */}
         <div className="vidrio relative rounded-[28px] transition-[border-color,box-shadow] focus-within:border-accent focus-within:ring-4 focus-within:ring-accent/15">
@@ -310,37 +288,67 @@ export function Composer({
           />
 
           <div className="flex items-center gap-2 px-2 pb-2 pt-1">
-            {/* Tipo como botones a la vista (no un desplegable): cada uno con el color e icono
-                del modulo al que va. En el celular se desplazan de lado. */}
+            {/* Tipo en UN boton con menu (como el "+" de los chats de IA), no siete chips a la
+                vista: la mayoria de los mensajes van en Auto y el resto se elige cuando hace falta
+                (o con "/error ..."). */}
             <div
-              role="group"
-              aria-label="Tipo de mensaje"
-              className="min-w-0 flex-1 flex gap-1 overflow-x-auto py-1 -my-1 px-0.5 [scrollbar-width:none]"
+              className="relative min-w-0 flex-1"
+              onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setMenuTipo(false)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape' && menuTipo) {
+                  e.stopPropagation()
+                  setMenuTipo(false)
+                }
+              }}
             >
-              {tipos.map((t) => {
-                const est = TIPO_ESTILO[t]
-                const activo = t === tipoVigente
-                const texto = est.color === 'accent' ? 'text-accent' : TAG[est.color].text
-                const fondo = est.color === 'accent' ? 'bg-accent-soft' : TAG[est.color].soft
-                return (
-                  <button
-                    key={t}
-                    type="button"
-                    aria-pressed={activo}
-                    onClick={() => {
-                      setTipo(t)
-                      inputRef.current?.focus()
-                    }}
-                    className={cx(
-                      'shrink-0 inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full text-xs font-medium transition-colors',
-                      activo ? cx(fondo, texto) : 'text-fg-muted hover:bg-surface hover:text-fg',
-                    )}
-                  >
-                    <Icon name={est.icon} size={13} className={activo ? undefined : texto} />
-                    {TIPO_LABEL[t]}
-                  </button>
-                )
-              })}
+              <button
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded={menuTipo}
+                aria-label={`Tipo de mensaje: ${TIPO_LABEL[tipoVigente]}`}
+                onClick={() => setMenuTipo((v) => !v)}
+                className={cx(
+                  'inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full text-xs font-medium transition-colors',
+                  tipoVigente !== 'auto'
+                    ? cx(tono(tipoVigente).fondo, tono(tipoVigente).texto)
+                    : 'text-fg-muted hover:bg-surface hover:text-fg',
+                )}
+              >
+                <Icon name={TIPO_ESTILO[tipoVigente].icon} size={14} />
+                {TIPO_LABEL[tipoVigente]}
+                <Icon name="chevronDown" size={12} className="opacity-60" />
+              </button>
+              {menuTipo && (
+                <div
+                  role="menu"
+                  aria-label="Tipo de mensaje"
+                  className="absolute bottom-full left-0 mb-2 w-56 rounded-xl border border-border-strong bg-panel shadow-lg py-1 z-20"
+                >
+                  {tipos.map((t) => {
+                    const activo = t === tipoVigente
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={activo}
+                        onClick={() => {
+                          setTipo(t)
+                          setMenuTipo(false)
+                          inputRef.current?.focus()
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 h-9 text-sm text-fg hover:bg-surface"
+                      >
+                        <Icon name={TIPO_ESTILO[t].icon} size={15} className={tono(t).texto} />
+                        <span className="flex-1 text-left">{TIPO_LABEL[t]}</span>
+                        {activo && <Icon name="check" size={14} className="text-accent" />}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </div>
             <Button
               icon="send"
@@ -355,13 +363,10 @@ export function Composer({
           </div>
         </div>
 
-        {/* Bajo el campo: que hara Lumix (o que esta haciendo) a la izquierda, atajos a la derecha. */}
-        <div className="flex items-center gap-3 mt-1.5 px-2 min-h-5 text-2xs text-fg-faint">
-          <span className="min-w-0 flex-1 truncate" aria-live="polite">
+        {/* Bajo el campo, solo cuando aporta: que hara Lumix, que esta haciendo o si fallo. */}
+        <div className="mt-1.5 px-2 min-h-5 text-2xs text-fg-faint">
+          <span className="block truncate" aria-live="polite">
             {estado}
-          </span>
-          <span className="hidden md:flex shrink-0 items-center gap-1">
-            <Kbd>/</Kbd> comandos · <Kbd>Enter</Kbd> enviar · <Kbd>Shift+Enter</Kbd> nueva línea
           </span>
         </div>
       </div>

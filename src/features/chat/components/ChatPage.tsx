@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
+import { createPortal } from 'react-dom'
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useAuth } from '@core/auth/hooks/useAuth'
 import { useCapabilities } from '@core/auth/hooks/useCapabilities'
@@ -19,8 +20,10 @@ import {
 import { BulkCreateModal } from '@features/chat/components/BulkCreateModal'
 import { Composer } from '@features/chat/components/Composer'
 import { PanelLumix } from '@features/chat/components/PanelLumix'
+import { usePanelLateral } from '@shared/components/layout/panelLateral'
 import { SidePanel } from '@shared/components/ui/SidePanel'
 import { Icon } from '@shared/components/ui/Icon'
+import { LumixIcon } from '@shared/components/ui/LumixIcon'
 import { SugerenciaLumix } from '@features/chat/components/SugerenciaLumix'
 import { TarjetasResultado } from '@features/chat/components/TarjetasResultado'
 import { usePanelLumix } from '@features/chat/hooks/usePanelLumix'
@@ -74,6 +77,9 @@ export function ChatPage() {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const [prellenar, setPrellenar] = useState<{ texto: string; n: number } | undefined>()
   const [verPanel, setVerPanel] = useState(false)
+  // "Mi semana" en la barra lateral: el chat parte limpio y el panel se pide con el boton
+  // flotante de la barra (ver panelLateral.ts).
+  const lateral = usePanelLateral()
 
   useEffect(() => {
     if (teamId) teamsService.getById(teamId).then((t) => setTeamName(t?.name || ''))
@@ -532,21 +538,27 @@ export function ChatPage() {
     else porDia.push({ clave, etiqueta: etiquetaDia(e.msg.created_at), items: [{ e, i }] })
   })
 
+  const primerNombre = (profile?.full_name ?? '').trim().split(/\s+/)[0]
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex flex-1 min-h-0">
         <div className="flex flex-1 min-w-0 flex-col">
           <div className="flex items-center gap-2 px-4 sm:px-6 pt-3 pb-1 min-h-11">
-            <h1 className="text-sm font-bold text-fg">Chat</h1>
-            <span className="text-xs text-fg-muted truncate">
-              {[teamName, !loading && `${messages.length} mensajes`].filter(Boolean).join(' · ')}
-            </span>
+            {/* En el celular la barra de arriba ya dice "Chat": el titulo queda solo para lectores. */}
+            <h1 className="sr-only sm:not-sr-only text-sm font-bold text-fg">Chat</h1>
+            <span className="min-w-0 text-xs text-fg-muted truncate">{teamName}</span>
             <span className="ml-auto" />
-            {/* Sin espacio para el panel de Lumix (bajo 1280 px): se abre aparte. */}
+            {/* Sin barra lateral (celular, o menu arriba): "Mi semana" se abre aparte. Con barra
+                lateral, el boton flotante vive alli (MenuLateral). */}
             <button
               type="button"
               onClick={() => setVerPanel(true)}
-              className="xl:hidden inline-flex items-center gap-1.5 min-h-8 px-3 rounded-full border border-border bg-panel text-xs font-semibold text-fg-muted hover:text-fg"
+              aria-haspopup="dialog"
+              className={cx(
+                'shrink-0 whitespace-nowrap inline-flex items-center gap-1.5 min-h-8 px-3 rounded-full border border-border bg-panel text-xs font-semibold text-fg-muted hover:text-fg',
+                lateral.disponible && 'md:hidden',
+              )}
             >
               <Icon name="sparkles" size={14} className="text-accent" />
               Mi semana
@@ -579,11 +591,26 @@ export function ChatPage() {
               {loading ? (
                 <LoadingState />
               ) : messages.length === 0 ? (
-                <EmptyState
-                  icon="chat"
-                  title="No hay mensajes aún"
-                  description="Escribe lo que hay que hacer y Lumix lo ordena."
-                />
+                // Inicio como un chat de IA: saludo al centro y preguntas de un toque. Llenan el
+                // campo; enviar sigue siendo decision de la persona.
+                <div className="flex min-h-[50vh] flex-col items-center justify-center gap-5 px-4 text-center">
+                  <LumixIcon size="lg" />
+                  <h2 className="text-xl sm:text-2xl font-semibold text-fg text-balance">
+                    ¿En qué te ayudo hoy{primerNombre ? `, ${primerNombre}` : ''}?
+                  </h2>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {ATAJOS.map((a) => (
+                      <button
+                        key={a}
+                        type="button"
+                        onClick={() => setPrellenar((p) => ({ texto: a, n: (p?.n ?? 0) + 1 }))}
+                        className="h-9 px-3.5 rounded-full border border-border-strong bg-panel text-sm text-fg-muted hover:text-fg hover:border-fg-faint transition-colors"
+                      >
+                        {a}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ) : visibles.length === 0 && filtro !== 'todo' ? (
                 <EmptyState icon="filter" {...vacioFiltro[filtro]} />
               ) : (
@@ -647,17 +674,22 @@ export function ChatPage() {
           />
         </div>
 
-        <PanelLumix
-          panel={panel}
-          onMoverAHoy={moverAHoy}
-          nombre={profile?.full_name ?? ''}
-          sesiones={sesiones}
-          onSugerencia={(texto) => setPrellenar((p) => ({ texto, n: (p?.n ?? 0) + 1 }))}
-          onSesion={jumpTo}
-          onNueva={() => {
-            void nuevaConversacion()
-          }}
-        />
+        {lateral.ranura &&
+          createPortal(
+            <PanelLumix
+              enPanel
+              panel={panel}
+              onMoverAHoy={moverAHoy}
+              nombre={profile?.full_name ?? ''}
+              sesiones={sesiones}
+              onSugerencia={(texto) => setPrellenar((p) => ({ texto, n: (p?.n ?? 0) + 1 }))}
+              onSesion={jumpTo}
+              onNueva={() => {
+                void nuevaConversacion()
+              }}
+            />,
+            lateral.ranura,
+          )}
         <SidePanel open={verPanel} onClose={() => setVerPanel(false)} title="Mi semana">
           <PanelLumix
             enPanel
@@ -697,6 +729,13 @@ export function ChatPage() {
     </div>
   )
 }
+
+/** Preguntas de un toque del inicio: muestran que a Lumix tambien se le pregunta. */
+const ATAJOS = [
+  '¿Qué tengo pendiente esta semana?',
+  '¿Cómo vamos con los compromisos?',
+  '¿Qué está vencido en el equipo?',
+]
 
 /** Desplazamiento suave, salvo que la persona pida menos movimiento. */
 function movimiento(): ScrollBehavior {

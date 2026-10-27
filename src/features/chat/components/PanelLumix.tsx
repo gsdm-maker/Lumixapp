@@ -12,11 +12,9 @@ import { Carita } from '@shared/components/ui/Carita'
 import { TEXTO_NIVEL } from '@shared/utils/nivelCarga'
 import { useVozLumix } from '@features/chat/hooks/useVozLumix'
 import { resumenDelDia } from '@features/chat/utils/resumenVoz'
+import { SUGERENCIAS_LUMIX as SUGERENCIAS } from '@features/chat/utils/sugerencias'
 
 type Panel = NonNullable<ReturnType<typeof usePanelLumix>['panel']>
-
-// Distintas de los atajos del campo de mensaje (sin repetir) y, como ellos, solo rellenan.
-const SUGERENCIAS = ['Cerrar la semana', 'Preparar la reunión', 'Equilibrar mi semana']
 
 function saludo(): string {
   const h = new Date().getHours()

@@ -1,25 +1,13 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type FocusEvent,
-  type PointerEvent,
-  type ReactNode,
-} from 'react'
+import { useEffect, useRef, useState, type FocusEvent, type PointerEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { Avatar } from '@shared/components/ui/Avatar'
-import { Icon, type IconName } from '@shared/components/ui/Icon'
+import { NavLink, useLocation } from 'react-router-dom'
+import { Icon } from '@shared/components/ui/Icon'
 import { LumixIcon } from '@shared/components/ui/LumixIcon'
-import { Desplegable } from '@shared/components/ui/Desplegable'
-import { useAuth } from '@core/auth/hooks/useAuth'
-import { useNotificationsContext } from '@core/notifications/NotificationContext'
 import { useTheme } from '@core/theme/ThemeContext'
 import { cx } from '@shared/utils/cx'
-import { abrirPaletaDeComandos } from './paletaEventos'
 import { tonoIcono, useModulos } from './useModulos'
-import { ContadorNoLeidas, MenuPersona } from './MenuPersona'
 import { SelectorEquipo } from './SelectorEquipo'
+import { usePanelLateral } from './panelLateral'
 
 type Lado = 'izquierda' | 'derecha'
 
@@ -105,62 +93,59 @@ function useEtiqueta(lado: Lado, activa: boolean) {
   return { props, nodo }
 }
 
-function Accion({
-  label,
-  icon,
-  onClick,
-  activo = false,
-  compacto,
-  etiqueta,
-  children,
-}: {
-  label: string
-  icon: IconName
-  onClick: () => void
-  activo?: boolean
-  compacto: boolean
-  etiqueta: ReturnType<typeof useEtiqueta>['props']
-  children?: ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      className={claseItem(activo, compacto)}
-      {...etiqueta(label)}
-    >
-      <span className="relative">
-        <Icon name={icon} size={18} />
-        {children}
-      </span>
-      {!compacto && <span className="truncate">{label}</span>}
-    </button>
-  )
-}
-
 /**
  * Menu de modulos como barra vertical a un costado (eleccion de la persona, ver Perfil >
  * Apariencia). Compacto: solo iconos, con el nombre en una etiqueta al pasar el mouse; o con
- * los nombres a la vista. Abajo: buscar, tema, notificaciones y el menu de la persona.
+ * los nombres a la vista. Solo navega: buscar, tema, notificaciones y la persona van arriba a la
+ * derecha (AccionesSuperiores), para que la barra no quede apretada.
+ *
+ * En el chat lleva un boton flotante "Mi semana": al tocarlo la barra se ensancha, esconde los
+ * modulos y muestra el panel de Lumix (lo dibuja el chat en `ranura`, ver panelLateral.ts).
+ * "Volver al menu", Escape o cambiar de pagina devuelven los modulos.
  */
-export function MenuLateral({ lado }: { lado: Lado }) {
-  const { profile } = useAuth()
-  const { unreadCount } = useNotificationsContext()
-  const { theme, setPreference, menuNombres } = useTheme()
+export function MenuLateral({
+  lado,
+  onRanura,
+}: {
+  lado: Lado
+  onRanura: (el: HTMLElement | null) => void
+}) {
+  const { menuNombres } = useTheme()
   const modulos = useModulos()
-  const navigate = useNavigate()
   const { pathname } = useLocation()
-  const compacto = !menuNombres
+  const semana = usePanelLateral()
+  const conSemana = pathname.startsWith('/chat')
+  const compacto = !menuNombres && !semana.abierto
   const etiqueta = useEtiqueta(lado, compacto)
+  const volverRef = useRef<HTMLButtonElement>(null)
+  const botonRef = useRef<HTMLButtonElement>(null)
+  const estabaAbierto = useRef(false)
+
+  // Al abrir, el foco va a "Volver al menu"; al cerrar, vuelve al boton flotante.
+  useEffect(() => {
+    if (semana.abierto) volverRef.current?.focus()
+    else if (estabaAbierto.current) botonRef.current?.focus()
+    estabaAbierto.current = semana.abierto
+  }, [semana.abierto])
+
+  // Escape devuelve el menu, salvo que otro elemento (un dialogo, un menu) ya lo haya usado.
+  const { abierto, cerrar } = semana
+  useEffect(() => {
+    if (!abierto) return
+    const alTeclear = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !e.defaultPrevented) cerrar()
+    }
+    window.addEventListener('keydown', alTeclear)
+    return () => window.removeEventListener('keydown', alTeclear)
+  }, [abierto, cerrar])
 
   return (
-    <nav
-      aria-label="Principal"
+    <div
       className={cx(
         'vidrio relative z-30 hidden md:flex shrink-0 flex-col gap-1 rounded-[28px] my-3 py-3 px-2',
+        'transition-[width] duration-200 ease-out motion-reduce:transition-none',
         lado === 'derecha' ? 'order-last mr-3' : 'ml-3',
-        compacto ? 'w-[64px] items-center' : 'w-[212px]',
+        semana.abierto ? 'w-[360px]' : compacto ? 'w-[64px] items-center' : 'w-[212px]',
       )}
     >
       <NavLink
@@ -176,85 +161,76 @@ export function MenuLateral({ lado }: { lado: Lado }) {
       >
         <SelectorEquipo
           compacto={compacto}
+          completo
           abrirHacia={lado === 'derecha' ? 'izquierda' : 'derecha'}
         />
       </div>
 
-      {/* Con poca altura (o zoom) la lista se desplaza; las etiquetas van en un portal. */}
-      <div
-        className={cx('flex flex-col gap-1 min-h-0 overflow-y-auto', compacto && 'items-center')}
-      >
-        {modulos.map((n) => (
-          <NavLink
-            key={n.to}
-            to={n.to}
-            aria-label={compacto ? n.label : undefined}
-            className={({ isActive }) => claseItem(isActive, compacto)}
-            {...etiqueta.props(n.label)}
+      {semana.abierto ? (
+        <section aria-label="Mi semana" className="flex flex-1 min-h-0 flex-col gap-2">
+          <button
+            ref={volverRef}
+            type="button"
+            onClick={semana.cerrar}
+            className="self-start inline-flex items-center gap-1.5 min-h-9 px-3 rounded-full text-sm font-semibold text-fg-muted hover:text-fg hover:bg-surface transition-colors"
           >
-            {({ isActive }) => (
-              <>
-                <Icon name={n.icon} size={18} className={isActive ? undefined : tonoIcono(n)} />
-                {!compacto && <span className="truncate">{n.label}</span>}
-              </>
-            )}
-          </NavLink>
-        ))}
-      </div>
-
-      <div
-        className={cx(
-          'mt-auto flex flex-col gap-1 pt-2 border-t border-border',
-          compacto && 'items-center',
-        )}
-      >
-        <Accion
-          label="Buscar o crear (Ctrl K)"
-          icon="search"
-          onClick={abrirPaletaDeComandos}
-          compacto={compacto}
-          etiqueta={etiqueta.props}
-        />
-        <Accion
-          label={theme === 'dark' ? 'Tema claro' : 'Tema oscuro'}
-          icon={theme === 'dark' ? 'sun' : 'moon'}
-          onClick={() => setPreference(theme === 'dark' ? 'light' : 'dark')}
-          compacto={compacto}
-          etiqueta={etiqueta.props}
-        />
-        <Accion
-          label={unreadCount ? `Notificaciones (${unreadCount})` : 'Notificaciones'}
-          icon="bell"
-          onClick={() => navigate('/notifications')}
-          activo={pathname.startsWith('/notifications')}
-          compacto={compacto}
-          etiqueta={etiqueta.props}
+            <Icon name="arrowLeft" size={16} />
+            Volver al menú
+          </button>
+          {/* El chat dibuja aca su panel (portal). */}
+          <div
+            ref={onRanura}
+            className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-1 pb-1"
+          />
+        </section>
+      ) : (
+        <nav
+          aria-label="Principal"
+          className={cx('flex flex-col gap-1 min-h-0 overflow-y-auto', compacto && 'items-center')}
         >
-          <ContadorNoLeidas n={unreadCount} />
-        </Accion>
-        <Desplegable
-          label={`Menú de ${profile?.full_name ?? 'usuario'}`}
-          abrirHacia={lado === 'derecha' ? 'izquierda' : 'derecha'}
-          botonClassName={cx(
-            'flex items-center gap-2.5 rounded-full hover:bg-surface transition-colors',
-            compacto ? 'p-1' : 'w-full p-1.5 pr-3 text-left',
-          )}
-          panelClassName="w-72"
-          boton={
-            <>
-              <Avatar name={profile?.full_name ?? 'Usuario'} src={profile?.avatar_url} size="sm" />
-              {!compacto && (
-                <span className="min-w-0 truncate text-sm font-semibold text-fg">
-                  {profile?.full_name}
-                </span>
+          {/* Con poca altura (o zoom) la lista se desplaza; las etiquetas van en un portal. */}
+          {modulos.map((n) => (
+            <NavLink
+              key={n.to}
+              to={n.to}
+              aria-label={compacto ? n.label : undefined}
+              className={({ isActive }) => claseItem(isActive, compacto)}
+              {...etiqueta.props(n.label)}
+            >
+              {({ isActive }) => (
+                <>
+                  <Icon name={n.icon} size={18} className={isActive ? undefined : tonoIcono(n)} />
+                  {!compacto && <span className="truncate">{n.label}</span>}
+                </>
               )}
-            </>
-          }
-        >
-          {(cerrar) => <MenuPersona cerrar={cerrar} />}
-        </Desplegable>
-      </div>
+            </NavLink>
+          ))}
+        </nav>
+      )}
+
+      {/* Boton flotante: solo donde hay un panel que mostrar (el chat). */}
+      {conSemana && !semana.abierto && (
+        <div className={cx('mt-auto pt-2', compacto ? 'flex justify-center' : 'px-1')}>
+          <button
+            ref={botonRef}
+            type="button"
+            onClick={semana.alternar}
+            aria-expanded={false}
+            aria-label={compacto ? 'Mi semana' : undefined}
+            {...(compacto ? etiqueta.props('Mi semana') : {})}
+            className={cx(
+              'inline-flex items-center justify-center gap-2 rounded-full bg-fg text-shell shadow-lg font-semibold text-sm',
+              'hover:opacity-90 active:scale-[0.98] transition-[opacity,transform]',
+              compacto ? 'w-11 h-11' : 'w-full h-11 px-4',
+            )}
+          >
+            <Icon name="sparkles" size={16} />
+            {!compacto && 'Mi semana'}
+          </button>
+        </div>
+      )}
+
       {etiqueta.nodo}
-    </nav>
+    </div>
   )
 }
