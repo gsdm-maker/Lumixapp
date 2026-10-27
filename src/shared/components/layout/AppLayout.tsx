@@ -4,6 +4,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 import { AccionesSuperiores } from './AccionesSuperiores'
+import { AvisoSuscripcion } from './AvisoSuscripcion'
 import { MenuLateral } from './MenuLateral'
 import { useTheme } from '@core/theme/ThemeContext'
 import { BottomNav } from './BottomNav'
@@ -134,6 +135,8 @@ export function AppLayout() {
             <LumixIcon size="sm" />
             <span className="text-sm font-semibold text-fg truncate">{seccion}</span>
           </header>
+
+          <AvisoSuscripcion />
 
           {/* key = equipo activo: al cambiar de equipo (sin recargar) la pantalla se vuelve a
             montar y ningun hook queda con datos del equipo anterior. */}

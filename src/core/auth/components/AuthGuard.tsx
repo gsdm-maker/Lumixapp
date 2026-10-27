@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '@core/auth/hooks/useAuth'
 import { LoadingState } from '@shared/components/ui/Spinner'
-import { pruebaVencida } from '@core/auth/plan'
+import { suscripcionBloqueada } from '@core/auth/plan'
 import { PruebaTerminada } from './PruebaTerminada'
 
 interface AuthGuardProps {
@@ -37,7 +37,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   }
 
   // Prueba de 15 dias vencida: se pide activar la suscripcion. El Owner nunca se bloquea.
-  if (pruebaVencida(empresa, profile?.es_owner === true)) return <PruebaTerminada />
+  if (suscripcionBloqueada(empresa, profile?.es_owner === true)) return <PruebaTerminada />
 
   return <>{children}</>
 }

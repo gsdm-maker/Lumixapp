@@ -36,6 +36,37 @@ export interface EmpresaAdmin {
   modulos: string[]
   plan: PlanEmpresa
   pruebaHasta: string
+  /** Ultimo dia pagado (YYYY-MM-DD), con plan 'pago'. */
+  pagadoHasta: string | null
+}
+
+export type MetodoPago = 'transferencia' | 'efectivo' | 'tarjeta' | 'otro'
+
+/** Un cobro registrado por el Owner (migracion 063). Los anulados quedan con su motivo. */
+export interface Pago {
+  id: string
+  empresa_id: string
+  monto: number
+  moneda: 'CLP'
+  meses: number
+  periodo_desde: string
+  periodo_hasta: string
+  metodo: MetodoPago
+  referencia: string | null
+  nota: string | null
+  created_at: string
+  anulado_at: string | null
+  motivo_anulacion: string | null
+  registrado: { full_name: string } | null
+  anulado: { full_name: string } | null
+}
+
+export interface NuevoPago {
+  monto: number
+  meses: number
+  metodo: MetodoPago
+  referencia: string
+  nota: string
 }
 
 // --- Empresa en foco ---------------------------------------------------------------------------
@@ -212,4 +243,26 @@ export const adminService = {
   /** Gratis, pagada, o prueba por N dias desde hoy. */
   cambiarPlan: (empresaId: string, plan: PlanEmpresa, dias?: number) =>
     llamar('plan-empresa', { empresaId, plan, dias }),
+  /** Registra un cobro: la empresa queda pagada hasta el fin del periodo. */
+  registrarPago: (empresaId: string, pago: NuevoPago) =>
+    llamar<{ pago: Pago }>('registrar-pago', { empresaId, ...pago }).then((r) => r.pago),
+  anularPago: (pagoId: string, motivo: string) => llamar('anular-pago', { pagoId, motivo }),
+  pagosEmpresa: (empresaId: string) =>
+    llamar<{ pagos: Pago[] }>('pagos-empresa', { empresaId }).then((r) => r.pagos),
+  /** Lo cobrado en el mes en curso (pagos no anulados). */
+  resumenPagos: () => llamar<{ cobradoMes: number; pagosMes: number }>('resumen-pagos'),
+  /**
+   * Pagos de la propia empresa, para su Admin (solo lectura). Va directo a la tabla: la politica
+   * de la base deja ver solo los de su empresa.
+   */
+  misPagos: async (): Promise<Pago[]> => {
+    const { data, error } = await supabase
+      .from('pagos')
+      .select(
+        '*, registrado:profiles!pagos_registrado_por_fkey(full_name), anulado:profiles!pagos_anulado_por_fkey(full_name)',
+      )
+      .order('created_at', { ascending: false })
+    if (error) throw new Error('No se pudo cargar el historial de pagos')
+    return (data ?? []) as Pago[]
+  },
 }

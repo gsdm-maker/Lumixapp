@@ -74,21 +74,47 @@ export async function dentroDelTopeIa(userId: string): Promise<boolean> {
   }
 }
 
-// Prueba de 15 dias (migracion 056): vencida, la IA deja de responder para no gastar la clave de
-// OpenAI. Devuelve el mensaje para mostrar, o null si la persona puede usar la IA. El Owner y
-// las empresas en plan 'gratis' o 'pago' nunca se bloquean. Ante un error de lectura no se
-// bloquea (un fallo nuestro no debe cortarle el servicio a nadie).
+// Dias de uso despues de vencido el pago (migracion 063). Mismo valor en src/core/auth/plan.ts.
+const DIAS_GRACIA = 7
+
+/** Fecha de hoy en Chile (YYYY-MM-DD): los vencimientos de pago se cuentan por dia chileno. */
+function hoyChile(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Santiago' })
+}
+
+/** Suma dias a una fecha YYYY-MM-DD. */
+function masDias(ymd: string, dias: number): string {
+  const d = new Date(`${ymd}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + dias)
+  return d.toISOString().slice(0, 10)
+}
+
+// Plan vencido: la IA deja de responder para no gastar la clave de OpenAI. Se corta con la prueba
+// de 15 dias terminada (056) o con el pago vencido mas los dias de gracia (063). Devuelve el
+// mensaje para mostrar, o null si la persona puede usar la IA. El Owner y las empresas 'gratis'
+// nunca se bloquean. Ante un error de lectura no se bloquea (un fallo nuestro no debe cortarle
+// el servicio a nadie).
 export async function bloqueoPorPlan(userId: string): Promise<string | null> {
   try {
     const res = await fetch(
-      `${PROJECT_URL}/rest/v1/profiles?id=eq.${userId}&select=es_owner,empresa:empresas(plan,prueba_hasta)`,
+      `${PROJECT_URL}/rest/v1/profiles?id=eq.${userId}&select=es_owner,empresa:empresas(plan,prueba_hasta,pagado_hasta)`,
       { headers: { Authorization: `Bearer ${SERVICE_KEY}`, apikey: SERVICE_KEY } },
     )
     if (!res.ok) return null
     const fila = (await res.json())?.[0]
     if (!fila || fila.es_owner) return null
-    const e = fila.empresa as { plan: string; prueba_hasta: string } | null
-    if (!e || e.plan !== 'prueba') return null
+    const e = fila.empresa as {
+      plan: string
+      prueba_hasta: string
+      pagado_hasta: string | null
+    } | null
+    if (!e) return null
+    if (e.plan === 'pago') {
+      // Pagada: vale hasta pagado_hasta mas los dias de gracia. Sin fecha = vencida.
+      if (e.pagado_hasta && hoyChile() <= masDias(e.pagado_hasta, DIAS_GRACIA)) return null
+      return 'Tu suscripción venció. Contáctanos para renovarla.'
+    }
+    if (e.plan !== 'prueba') return null
     if (Date.parse(e.prueba_hasta) >= Date.now()) return null
     return 'Tu período de prueba terminó. Contáctanos para activar tu suscripción.'
   } catch (err) {

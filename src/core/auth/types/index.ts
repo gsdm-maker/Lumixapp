@@ -10,6 +10,8 @@ export interface EmpresaSesion {
   modulos: Modulo[]
   plan: 'prueba' | 'gratis' | 'pago'
   prueba_hasta: string
+  /** Ultimo dia pagado (YYYY-MM-DD), con plan 'pago' (migracion 063). */
+  pagado_hasta: string | null
 }
 
 export interface AuthState {

@@ -65,6 +65,11 @@ const GuiaAdmin = lazy(() =>
 const EmpresasAdmin = lazy(() =>
   import('@features/admin/components/EmpresasPage').then((m) => ({ default: m.EmpresasPage })),
 )
+const SuscripcionAdmin = lazy(() =>
+  import('@features/admin/components/SuscripcionPage').then((m) => ({
+    default: m.SuscripcionPage,
+  })),
+)
 const ActividadAdmin = lazy(() =>
   import('@features/admin/components/ActividadPage').then((m) => ({ default: m.ActividadPage })),
 )
@@ -152,6 +157,7 @@ export function App() {
                           element={<Navigate to="/admin/estructura" replace />}
                         />
                         <Route path="actividad" element={<ActividadAdmin />} />
+                        <Route path="suscripcion" element={<SuscripcionAdmin />} />
                       </Route>
                       <Route
                         element={

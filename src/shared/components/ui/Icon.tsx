@@ -77,6 +77,7 @@ import {
   X,
   type LucideIcon,
   type LucideProps,
+  Receipt,
 } from 'lucide-react'
 
 // Iconos de Lumix: Lucide (el set de la familia shadcn/ui), con trazo uniforme de 1.75.
@@ -162,6 +163,7 @@ const ICONOS = {
   clave: KeyRound,
   desactivar: UserRoundX,
   historial: History,
+  pago: Receipt,
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof ICONOS

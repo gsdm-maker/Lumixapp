@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Navigate, useNavigate, useOutletContext } from 'react-router-dom'
 import { useAuth } from '@core/auth/hooks/useAuth'
+import { estadoSuscripcion, fechaCorta, type EstadoSuscripcion } from '@core/auth/plan'
 import {
   adminService,
   empresaFoco,
@@ -20,20 +21,56 @@ import { normalizeFullName } from '@shared/utils/name'
 import { useCargaAdmin } from '../hooks/useAdmin'
 import { ClaveTemporal } from './ClaveTemporal'
 import { ContactoSuscripcion } from './ContactoSuscripcion'
+import { RegistrarPago } from './RegistrarPago'
+import { PagosEmpresa } from './HistorialPagos'
+import { SegmentedControl } from '@shared/components/ui/SegmentedControl'
+import { pesos } from '../utils/formato'
 import type { ContextoAdmin } from './AdminLayout'
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+const estadoDe = (e: EmpresaAdmin): EstadoSuscripcion =>
+  estadoSuscripcion({ plan: e.plan, prueba_hasta: e.pruebaHasta, pagado_hasta: e.pagadoHasta })
+
+type Tono = 'ok' | 'aviso' | 'vencido'
+
 /** Como se ve el plan de una empresa: texto y tono. */
-function estadoPlan(e: EmpresaAdmin): { texto: string; tono: 'ok' | 'aviso' | 'vencido' } {
-  if (e.plan === 'gratis') return { texto: 'Gratis', tono: 'ok' }
-  if (e.plan === 'pago') return { texto: 'Pagada', tono: 'ok' }
-  const dias = Math.ceil((Date.parse(e.pruebaHasta) - Date.now()) / 86_400_000)
-  if (dias <= 0) return { texto: 'Prueba vencida', tono: 'vencido' }
-  return {
-    texto: `Prueba · ${dias} ${dias === 1 ? 'día' : 'días'}`,
-    tono: dias <= 3 ? 'aviso' : 'ok',
+function estadoPlan(e: EmpresaAdmin): { texto: string; tono: Tono } {
+  const est = estadoDe(e)
+  const d = (n: number) => `${n} ${n === 1 ? 'día' : 'días'}`
+  switch (est.tipo) {
+    case 'gratis':
+      return { texto: 'Gratis', tono: 'ok' }
+    case 'prueba':
+      return { texto: `Prueba · ${d(est.dias)}`, tono: est.dias <= 3 ? 'aviso' : 'ok' }
+    case 'prueba_vencida':
+      return { texto: 'Prueba vencida', tono: 'vencido' }
+    case 'al_dia':
+      return { texto: `Pagada hasta ${fechaCorta(est.hasta)}`, tono: 'ok' }
+    case 'por_vencer':
+      return {
+        texto: est.dias === 0 ? 'Pagada · vence hoy' : `Pagada · vence en ${d(est.dias)}`,
+        tono: 'aviso',
+      }
+    case 'en_gracia':
+      return { texto: `Vencida · gracia ${d(est.quedan)}`, tono: 'vencido' }
+    case 'vencida':
+      return {
+        texto: est.hasta ? `Vencida el ${fechaCorta(est.hasta)}` : 'Pagada sin fecha',
+        tono: 'vencido',
+      }
   }
+}
+
+type Filtro = 'todas' | 'por_vencer' | 'vencidas'
+
+/** Por vencer: necesita atencion pronto. Vencidas: ya bloqueadas. */
+function filtroDe(e: EmpresaAdmin): Filtro | null {
+  const est = estadoDe(e)
+  if (est.tipo === 'vencida' || est.tipo === 'prueba_vencida') return 'vencidas'
+  if (est.tipo === 'por_vencer' || est.tipo === 'en_gracia') return 'por_vencer'
+  if (est.tipo === 'prueba' && est.dias <= 3) return 'por_vencer'
+  return null
 }
 
 /**
@@ -56,13 +93,32 @@ export function EmpresasPage() {
   const [adminError, setAdminError] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [clave, setClave] = useState<{ clave: string; nombre: string; email: string } | null>(null)
+  const [paraPago, setParaPago] = useState<EmpresaAdmin | null>(null)
+  const [verPagos, setVerPagos] = useState<EmpresaAdmin | null>(null)
+  const [filtro, setFiltro] = useState<Filtro>('todas')
+  const [resumen, setResumen] = useState<{ cobradoMes: number; pagosMes: number } | null>(null)
+
+  const cargarResumen = useCallback(() => {
+    adminService
+      .resumenPagos()
+      .then(setResumen)
+      .catch(() => setResumen(null))
+  }, [])
+  useEffect(() => {
+    if (profile?.es_owner) cargarResumen()
+  }, [profile?.es_owner, cargarResumen])
 
   if (profile && !profile.es_owner) return <Navigate to="/admin" replace />
 
   const recargar = () => {
     void empresas.recargar()
     recargarEmpresas()
+    cargarResumen()
   }
+
+  const cuenta = (f: Filtro) => empresas.datos.filter((e) => filtroDe(e) === f).length
+  const visibles =
+    filtro === 'todas' ? empresas.datos : empresas.datos.filter((e) => filtroDe(e) === filtro)
 
   const crear = async () => {
     const n = nombre.trim()
@@ -86,9 +142,7 @@ export function EmpresasPage() {
       toast.success(
         plan === 'gratis'
           ? `${e.nombre} queda gratis`
-          : plan === 'pago'
-            ? `${e.nombre} queda como pagada`
-            : `Prueba de ${e.nombre} extendida ${dias} días`,
+          : `Prueba de ${e.nombre} extendida ${dias} días`,
       )
       recargar()
     } catch (err) {
@@ -182,13 +236,49 @@ export function EmpresasPage() {
 
         <ContactoSuscripcion />
 
+        <section
+          aria-label="Cobros"
+          className="lamina px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-1"
+        >
+          <div>
+            <p className="text-xs text-fg-faint">Cobrado este mes</p>
+            <p className="text-lg font-semibold text-fg tabular-nums">
+              {resumen ? pesos(resumen.cobradoMes) : '…'}
+              {resumen && (
+                <span className="ml-1.5 text-xs font-normal text-fg-faint">
+                  {resumen.pagosMes} {resumen.pagosMes === 1 ? 'pago' : 'pagos'}
+                </span>
+              )}
+            </p>
+          </div>
+          {!empresas.cargando && (
+            <SegmentedControl
+              label="Filtrar empresas"
+              size="sm"
+              className="ml-auto"
+              value={filtro}
+              onChange={setFiltro}
+              options={[
+                { value: 'todas', label: 'Todas', count: empresas.datos.length },
+                { value: 'por_vencer', label: 'Por vencer', count: cuenta('por_vencer') },
+                { value: 'vencidas', label: 'Vencidas', count: cuenta('vencidas') },
+              ]}
+            />
+          )}
+        </section>
+
         {empresas.error ? (
           <EmptyState icon="alert" title="No se pudo cargar" description={empresas.error} />
         ) : empresas.cargando ? (
           <SkeletonRows rows={4} />
         ) : (
           <ul className="lamina divide-y divide-border">
-            {empresas.datos.map((e) => (
+            {visibles.length === 0 && (
+              <li className="px-4 py-6 text-center text-sm text-fg-faint">
+                Ninguna empresa en este grupo.
+              </li>
+            )}
+            {visibles.map((e) => (
               <li key={e.id} className="px-4 py-3 space-y-2">
                 <div className="flex items-start gap-3 flex-wrap">
                   <div className="flex-1 min-w-[12rem]">
@@ -238,11 +328,12 @@ export function EmpresasPage() {
                   >
                     Prueba +15 días
                   </Button>
-                  {e.plan !== 'pago' && (
-                    <Button variant="ghost" size="xs" onClick={() => void cambiarPlan(e, 'pago')}>
-                      Marcar pagada
-                    </Button>
-                  )}
+                  <Button variant="ghost" size="xs" icon="plus" onClick={() => setParaPago(e)}>
+                    Registrar pago
+                  </Button>
+                  <Button variant="ghost" size="xs" onClick={() => setVerPagos(e)}>
+                    Pagos
+                  </Button>
                   <span className="text-fg-faint">· {e.modulos.length + 1} módulos</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5 text-xs">
@@ -325,6 +416,9 @@ export function EmpresasPage() {
           )}
         </form>
       </Modal>
+
+      <RegistrarPago empresa={paraPago} onClose={() => setParaPago(null)} onListo={recargar} />
+      <PagosEmpresa empresa={verPagos} onClose={() => setVerPagos(null)} onCambio={recargar} />
 
       <ClaveTemporal
         clave={clave?.clave ?? null}

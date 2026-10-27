@@ -27,6 +27,24 @@ export function fechaHora(fecha: string): string {
   })
 }
 
+const CLP = new Intl.NumberFormat('es-CL', {
+  style: 'currency',
+  currency: 'CLP',
+  maximumFractionDigits: 0,
+})
+
+/** "$25.000" */
+export function pesos(monto: number): string {
+  return CLP.format(monto)
+}
+
+export const METODO_PAGO_LABEL: Record<string, string> = {
+  transferencia: 'Transferencia',
+  efectivo: 'Efectivo',
+  tarjeta: 'Tarjeta',
+  otro: 'Otro',
+}
+
 /** Texto de una fila del registro de actividad. */
 export function describirRegistro(r: {
   accion: string
@@ -74,6 +92,12 @@ export function describirRegistro(r: {
       return typeof d.nivel === 'string'
         ? `Cambió el nivel de ${equipo} a ${d.nivel}`
         : `Quitó el nivel de ${equipo}`
+    case 'registrar-pago':
+      return `Registró un pago de ${pesos(Number(d.monto ?? 0))} de ${String(d.empresa ?? '')} (${String(d.meses ?? '')} ${d.meses === 1 ? 'mes' : 'meses'})`
+    case 'anular-pago':
+      return `Anuló un pago de ${pesos(Number(d.monto ?? 0))}: ${String(d.motivo ?? '')}`
+    case 'plan-empresa':
+      return `Cambió el plan de ${String(d.empresa ?? '')} a ${String(d.plan ?? '')}`
     default:
       return r.accion
   }

@@ -39,7 +39,7 @@ async function fetchEmpresa(
   const [{ data: e }, { data: t }] = await Promise.all([
     supabase
       .from('empresas')
-      .select('id, nombre, es_personal, modulos, plan, prueba_hasta')
+      .select('id, nombre, es_personal, modulos, plan, prueba_hasta, pagado_hasta')
       .eq('id', prof.empresa_id)
       .maybeSingle(),
     prof.team_id

@@ -22,6 +22,13 @@ const SECCIONES: Seccion[] = [
   { to: '/admin/guia', label: 'Guía', icon: 'guia' },
 ]
 
+/** Solo para el Admin de una empresa: el estado y los pagos de SU suscripcion (el Owner los ve en Empresas). */
+const SECCION_SUSCRIPCION: Seccion = {
+  to: '/admin/suscripcion',
+  label: 'Suscripción',
+  icon: 'pago',
+}
+
 /** Solo para el Owner de la plataforma: crear empresas y nombrar su Admin. */
 const SECCION_OWNER: Seccion = { to: '/admin/empresas', label: 'Empresas', icon: 'database' }
 
@@ -54,7 +61,7 @@ export function AdminLayout() {
   if (!profile) return null
   if (profile.role !== 'admin' && !esOwner) return <Navigate to="/chat" replace />
 
-  const secciones = esOwner ? [SECCION_OWNER, ...SECCIONES] : SECCIONES
+  const secciones = esOwner ? [SECCION_OWNER, ...SECCIONES] : [...SECCIONES, SECCION_SUSCRIPCION]
   const enFoco =
     empresas.datos.find((e) => e.id === foco) ?? empresas.datos.find((e) => e.esMia) ?? null
 

@@ -176,6 +176,8 @@ function soloOwner(ctx: Ctx) {
   if (!ctx.owner) throw new Falla('Solo el Owner puede hacer esto')
 }
 
+const METODOS_PAGO = ['transferencia', 'efectivo', 'tarjeta', 'otro']
+
 const MODULOS = [
   'actividades',
   'proyectos',
@@ -212,9 +214,10 @@ type Empresa = {
   modulos: string[]
   plan: string
   prueba_hasta: string
+  pagado_hasta: string | null
 }
 
-const CAMPOS_EMPRESA = 'id,nombre,niveles,es_personal,modulos,plan,prueba_hasta'
+const CAMPOS_EMPRESA = 'id,nombre,niveles,es_personal,modulos,plan,prueba_hasta,pagado_hasta'
 
 async function empresaExiste(id: string, ctx: Ctx): Promise<Empresa> {
   const filas = await rest<Empresa[]>(`empresas?id=eq.${id}&select=${CAMPOS_EMPRESA}`)
@@ -831,6 +834,7 @@ const ACCIONES: Record<string, Accion> = {
         modulos: e.modulos,
         plan: e.plan,
         pruebaHasta: e.prueba_hasta,
+        pagadoHasta: e.pagado_hasta,
         unidades: unidades.filter((u) => u.empresa_id === e.id).length,
         personas: perfiles.filter((p) => p.empresa_id === e.id).length,
         admins: perfiles
@@ -916,14 +920,16 @@ const ACCIONES: Record<string, Accion> = {
   },
 
   /**
-   * Plan de una empresa: 'gratis' (sin vencimiento), 'pago' (suscripcion vigente) o 'prueba'
-   * con N dias desde hoy (para extender una prueba).
+   * Plan de una empresa: 'gratis' (sin vencimiento) o 'prueba' con N dias desde hoy (para
+   * extender una prueba). 'pago' sale de registrar-pago.
    */
   async 'plan-empresa'(b, ctx) {
     soloOwner(ctx)
     const empresa = await empresaExiste(uuid(b.empresaId, 'Empresa'), ctx)
     const plan = b.plan
-    if (plan !== 'gratis' && plan !== 'pago' && plan !== 'prueba') throw new Falla('Plan no válido')
+    // "Pagada" ya no se marca a mano: sale de registrar un pago, que fija hasta cuando (063).
+    if (plan === 'pago') throw new Falla('Para dejarla pagada, registra el pago')
+    if (plan !== 'gratis' && plan !== 'prueba') throw new Falla('Plan no válido')
     const cambios: Record<string, unknown> = { plan }
     if (plan === 'prueba') {
       const dias = Number(b.dias)
@@ -941,6 +947,91 @@ const ACCIONES: Record<string, Accion> = {
       ...cambios,
     })
     return {}
+  },
+
+  /**
+   * Registra un cobro (migracion 063): la empresa queda en 'pago' hasta el fin del periodo. El
+   * periodo parte hoy, o al dia siguiente del vencimiento si aun no vence.
+   */
+  async 'registrar-pago'(b, ctx) {
+    soloOwner(ctx)
+    const empresa = await empresaExiste(uuid(b.empresaId, 'Empresa'), ctx)
+    const monto = Number(b.monto)
+    if (!Number.isInteger(monto) || monto < 1 || monto > 100_000_000)
+      throw new Falla('El monto debe ser un número entero de pesos, mayor que 0')
+    const meses = Number(b.meses)
+    if (![1, 3, 6, 12].includes(meses)) throw new Falla('El período es de 1, 3, 6 o 12 meses')
+    if (typeof b.metodo !== 'string' || !METODOS_PAGO.includes(b.metodo))
+      throw new Falla('Método de pago no válido')
+    const pago = await rest<Record<string, unknown>>('rpc/registrar_pago', {
+      method: 'POST',
+      body: JSON.stringify({
+        p_empresa: empresa.id,
+        p_monto: monto,
+        p_meses: meses,
+        p_metodo: b.metodo,
+        p_referencia: texto(b.referencia, 'Referencia', 0, 120),
+        p_nota: texto(b.nota, 'Nota', 0, 500),
+        p_por: ctx.id,
+      }),
+    })
+    await auditar({ ...ctx, empresa: empresa.id }, 'registrar-pago', null, {
+      empresa: empresa.nombre,
+      monto,
+      meses,
+      hasta: pago.periodo_hasta,
+    })
+    return { pago }
+  },
+
+  /**
+   * Lo cobrado en el mes en curso, sin los pagos anulados. El mes parte a medianoche de Chile en
+   * horario de invierno (-04); en verano la frontera se corre una hora, y para un resumen basta.
+   */
+  async 'resumen-pagos'(_b, ctx) {
+    soloOwner(ctx)
+    const mes = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Santiago' }).slice(0, 7)
+    const filas = await rest<{ monto: number }[]>(
+      `pagos?select=monto&anulado_at=is.null&created_at=gte.${mes}-01T00:00:00-04:00`,
+    )
+    return {
+      cobradoMes: filas.reduce((t, f) => t + Number(f.monto), 0),
+      pagosMes: filas.length,
+    }
+  },
+
+  /** Anula un cobro (no se borra) y recalcula hasta cuando queda pagada la empresa. */
+  async 'anular-pago'(b, ctx) {
+    soloOwner(ctx)
+    const id = uuid(b.pagoId, 'Pago')
+    const motivo = texto(b.motivo, 'Motivo', 3, 300)
+    const filas = await rest<{ empresa_id: string; anulado_at: string | null; monto: number }[]>(
+      `pagos?id=eq.${id}&select=empresa_id,anulado_at,monto`,
+    )
+    const actual = filas?.[0]
+    if (!actual) throw new Falla('Pago no encontrado')
+    if (actual.anulado_at) throw new Falla('Ese pago ya estaba anulado')
+    await rest('rpc/anular_pago', {
+      method: 'POST',
+      body: JSON.stringify({ p_pago: id, p_motivo: motivo, p_por: ctx.id }),
+    })
+    await auditar({ ...ctx, empresa: actual.empresa_id }, 'anular-pago', null, {
+      monto: actual.monto,
+      motivo,
+    })
+    return {}
+  },
+
+  /** Pagos de una empresa, del mas nuevo al mas viejo, con quien los registro o anulo. */
+  async 'pagos-empresa'(b, ctx) {
+    soloOwner(ctx)
+    const empresa = await empresaExiste(uuid(b.empresaId, 'Empresa'), ctx)
+    const pagos = await rest(
+      `pagos?empresa_id=eq.${empresa.id}&order=created_at.desc&select=*,` +
+        'registrado:profiles!pagos_registrado_por_fkey(full_name),' +
+        'anulado:profiles!pagos_anulado_por_fkey(full_name)',
+    )
+    return { pagos }
   },
 
   /** Correos de contacto para suscripciones (los que ve quien termina su prueba). */
