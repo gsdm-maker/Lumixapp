@@ -347,12 +347,12 @@ function ChipPersona({
       className={cx(
         'inline-flex items-center gap-2 min-h-9 pl-1 pr-1.5 rounded-full border text-[13px] font-semibold transition-shadow',
         activo
-          ? 'border-transparent bg-panel text-fg shadow-[inset_0_0_0_2px_rgb(var(--accent)),0_0_14px_rgb(var(--accent)/0.3)]'
+          ? 'border-transparent bg-panel text-fg shadow-[inset_0_0_0_2px_rgb(var(--accent))]'
           : 'border-border bg-panel text-fg-muted hover:text-fg',
       )}
     >
       {equipo ? (
-        <span className="w-7 h-7 rounded-full grid place-items-center relleno-orbita text-white">
+        <span className="w-7 h-7 rounded-full grid place-items-center bg-accent-fill text-on-accent">
           <Icon name="users" size={14} />
         </span>
       ) : (
@@ -361,7 +361,7 @@ function ChipPersona({
       {equipo ? nombre : nombreCorto(nombre)}
       <span
         className={cx(
-          'font-mono text-2xs font-semibold px-1.5 py-0.5 rounded-full',
+          'text-2xs font-semibold tabular-nums px-1.5 py-0.5 rounded-full',
           PILL_NIVEL[nivelSemana(pct)],
         )}
       >

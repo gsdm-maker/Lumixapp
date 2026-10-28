@@ -46,9 +46,7 @@ export function NivelesEmpresa({
   if (!editando)
     return (
       <div className="lamina flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
-        <span className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
-          Niveles de {empresa.nombre}
-        </span>
+        <span className="text-xs font-semibold text-fg-muted">Niveles de {empresa.nombre}</span>
         <ol className="flex flex-wrap items-center gap-1.5 text-sm text-fg">
           {empresa.niveles.map((n, i) => (
             <li key={n} className="flex items-center gap-1.5">

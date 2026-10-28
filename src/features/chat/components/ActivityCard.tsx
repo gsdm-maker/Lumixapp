@@ -110,10 +110,10 @@ export function ActivityCard({
   }
 
   return (
-    <div className="rounded-xl border border-border bg-panel shadow-sm shadow-black/5 px-3.5 py-3">
+    <div className="rounded-xl border border-border bg-panel px-3.5 py-3">
       <div className="flex flex-wrap items-start gap-x-3 gap-y-2.5">
         <div className="min-w-0 flex-1 basis-56">
-          <p className="flex items-center gap-1.5 mb-1 text-2xs font-semibold uppercase tracking-wide text-tag-blue">
+          <p className="flex items-center gap-1.5 mb-1 text-2xs font-semibold text-tag-blue">
             <Icon name="list" size={12} />
             Actividad
           </p>

@@ -37,7 +37,7 @@ export function ItemIndice({
 /** Bloque con ancla para el indice. */
 export function Bloque({ id, children }: { id: string; children: ReactNode }) {
   return (
-    <section id={`guia-${id}`} className="scroll-mt-5 lamina p-4 shadow-xs sm:p-5">
+    <section id={`guia-${id}`} className="scroll-mt-5 lamina p-4 sm:p-5">
       {children}
     </section>
   )
@@ -82,9 +82,7 @@ export function Lista({
   if (!items?.length) return null
   return (
     <div>
-      <h3 className="mb-1.5 text-xs font-semibold tracking-wide text-fg-muted uppercase">
-        {titulo}
-      </h3>
+      <h3 className="mb-1.5 text-xs font-semibold text-fg-muted">{titulo}</h3>
       <ul className="space-y-1.5">
         {items.map((r) => (
           <li key={r} className="flex gap-2 text-sm text-fg-body">
@@ -107,7 +105,7 @@ export function Seccion({ s }: { s: SeccionGuia }) {
           s.ruta && (
             <Link
               to={s.ruta}
-              className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs font-medium text-fg-muted shadow-xs transition-colors hover:bg-surface hover:text-fg"
+              className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs font-medium text-fg-muted transition-colors hover:bg-surface hover:text-fg"
             >
               Abrir
               <Icon name="arrowRight" size={14} />
@@ -119,9 +117,7 @@ export function Seccion({ s }: { s: SeccionGuia }) {
       </Titulo>
       <p className="max-w-3xl text-sm text-fg-body">{s.resumen}</p>
 
-      <h3 className="mt-4 mb-2 text-xs font-semibold tracking-wide text-fg-muted uppercase">
-        Qué puedes hacer
-      </h3>
+      <h3 className="mt-4 mb-2 text-xs font-semibold text-fg-muted">Qué puedes hacer</h3>
       <dl className="grid grid-cols-1 gap-x-6 gap-y-3 md:grid-cols-2">
         {s.acciones.map((a) => (
           <div key={a.t} className="min-w-0">

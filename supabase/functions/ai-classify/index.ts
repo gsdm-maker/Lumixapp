@@ -25,7 +25,7 @@ Tu tarea es analizar el mensaje y devolver un JSON con esta estructura exacta:
     "due_date": "fecha en formato YYYY-MM-DD o null",
     "severity": "baja" | "media" | "alta" | "critica" o null (solo error)
   },
-  "reply": "respuesta breve en espanol confirmando lo que se hizo"
+  "reply": "respuesta breve en espanol de Chile, tuteando (nunca voseo), confirmando lo que se hizo"
 }
 
 REGLAS PARA EL TITULO:

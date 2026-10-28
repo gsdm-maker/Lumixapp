@@ -22,9 +22,7 @@ function saludo(): string {
 }
 
 const Etiqueta = ({ children }: { children: string }) => (
-  <span className="font-mono text-2xs font-medium uppercase tracking-[0.12em] text-accent">
-    {children}
-  </span>
+  <span className="etiqueta-orbita">{children}</span>
 )
 
 /**
@@ -112,13 +110,10 @@ export function PanelLumix({
           )}
         </div>
         <div>
-          <Etiqueta>Lumix · tu agente</Etiqueta>
           <h2 className="mt-1 text-lg font-extrabold leading-snug tracking-tight text-fg">
             {saludo()}, {nombre.split(' ')[0]}.{' '}
             {pct !== null && pct !== undefined ? (
-              <>
-                Esta semana vas en <span className="texto-orbita">{pct}%</span>.
-              </>
+              <>Esta semana vas en {pct}%.</>
             ) : (
               'Esta semana aún no hay compromisos.'
             )}
@@ -142,7 +137,7 @@ export function PanelLumix({
               key={s}
               type="button"
               onClick={() => onSugerencia(s)}
-              className="inline-flex items-center gap-1.5 min-h-9 px-3 rounded-full border border-border bg-panel text-xs font-semibold text-fg-muted hover:text-fg hover:shadow-[inset_0_0_0_2px_rgb(var(--accent)),0_0_16px_rgb(var(--accent)/0.3)] transition-shadow"
+              className="inline-flex items-center gap-1.5 min-h-9 px-3 rounded-full border border-border bg-panel text-xs font-semibold text-fg-muted hover:text-fg hover:border-fg-faint transition-colors"
             >
               <Icon name="sparkles" size={13} className="text-accent" />
               {s}
@@ -157,7 +152,7 @@ export function PanelLumix({
           className="vidrio rounded-3xl px-4 py-3 flex flex-col gap-2"
           aria-label="Tu semana"
         >
-          <Etiqueta>Tu semana · carga</Etiqueta>
+          <Etiqueta>Tu semana</Etiqueta>
           <div className="grid grid-cols-5 gap-1">
             {panel.semana.map((d) => (
               <button
@@ -169,8 +164,7 @@ export function PanelLumix({
                 aria-current={d.esHoy ? 'date' : undefined}
                 className={cx(
                   'flex flex-col items-center gap-0.5 rounded-xl border border-border bg-panel py-1.5 text-2xs text-fg-faint',
-                  d.esHoy &&
-                    'text-accent shadow-[inset_0_0_0_2px_rgb(var(--accent)),0_0_16px_rgb(var(--accent)/0.3)]',
+                  d.esHoy && 'text-accent shadow-[inset_0_0_0_2px_rgb(var(--accent))]',
                 )}
               >
                 {d.dia}
@@ -190,7 +184,7 @@ export function PanelLumix({
           aria-label="Compromisos"
         >
           <div className="flex items-center justify-between gap-2">
-            <Etiqueta>Compromisos · esta semana</Etiqueta>
+            <Etiqueta>Compromisos de la semana</Etiqueta>
             <button
               type="button"
               onClick={() => navigate('/compromisos')}
@@ -215,11 +209,8 @@ export function PanelLumix({
             className="relative h-2.5 rounded-full bg-surface-2"
           >
             <div
-              className="h-full rounded-full"
-              style={{
-                width: `${Math.min(100, pct ?? 0)}%`,
-                background: 'linear-gradient(90deg, rgb(var(--a-600)), rgb(61 107 255))',
-              }}
+              className="h-full rounded-full bg-accent"
+              style={{ width: `${Math.min(100, pct ?? 0)}%` }}
             />
             {/* Marca de la meta */}
             <span
@@ -246,7 +237,7 @@ export function PanelLumix({
           aria-label="Atrasadas"
         >
           <div className="flex items-center justify-between gap-2">
-            <Etiqueta>{`Atrasadas · ${panel.atrasadas.length}`}</Etiqueta>
+            <Etiqueta>{`Atrasadas (${panel.atrasadas.length})`}</Etiqueta>
             <button
               type="button"
               onClick={() => navigate('/activities')}

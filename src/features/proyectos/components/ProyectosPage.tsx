@@ -88,7 +88,7 @@ export function ProyectosPage() {
             {/* Escritorio: tabla comparable. */}
             <table className="hidden md:table w-full text-sm border-collapse">
               <thead>
-                <tr className="border-b border-border text-left text-2xs font-semibold uppercase tracking-wide text-fg-faint">
+                <tr className="border-b border-border text-left text-2xs font-semibold text-fg-faint">
                   <th className="py-2 pl-5 pr-3 font-semibold">Proyecto</th>
                   <th className="py-2 px-3 font-semibold w-36">Estado</th>
                   <th className="py-2 px-3 font-semibold w-32">Avance</th>

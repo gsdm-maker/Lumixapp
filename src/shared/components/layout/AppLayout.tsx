@@ -3,7 +3,6 @@ import { useOverlay } from '@shared/hooks/useOverlay'
 import { Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
-import { AccionesSuperiores } from './AccionesSuperiores'
 import { AvisoSuscripcion } from './AvisoSuscripcion'
 import { MenuLateral } from './MenuLateral'
 import { useTheme } from '@core/theme/ThemeContext'
@@ -108,15 +107,9 @@ export function AppLayout() {
         {menu !== 'arriba' && <MenuLateral lado={menu} onRanura={setRanura} />}
 
         <div className="flex-1 flex flex-col min-w-0">
-          {menu === 'arriba' ? (
-            <TopBar />
-          ) : (
-            // Menu al costado: buscar, tema, notificaciones y la persona quedan arriba a la derecha,
-            // donde estaban, y la barra lateral solo navega.
-            <header className="relative z-30 hidden md:flex shrink-0 justify-end px-5 pt-3 pb-1">
-              <AccionesSuperiores />
-            </header>
-          )}
+          {/* Menu arriba: barra superior. Menu al costado: buscar, tema, notificaciones y la
+              persona van en la barra lateral, y el contenido usa todo el alto. */}
+          {menu === 'arriba' && <TopBar />}
           <header
             className="md:hidden shrink-0 flex items-center gap-2 px-2 border-b border-border vidrio"
             style={{

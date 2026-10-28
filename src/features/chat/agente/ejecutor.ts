@@ -177,9 +177,10 @@ export async function ejecutar(
 }
 
 const corta = (iso: string) =>
-  new Date(iso.split('T')[0] + 'T00:00:00')
-    .toLocaleDateString('es-CL', { weekday: 'short', day: 'numeric' })
-    .toUpperCase()
+  new Date(iso.split('T')[0] + 'T00:00:00').toLocaleDateString('es-CL', {
+    weekday: 'short',
+    day: 'numeric',
+  })
 
 async function ejecutarUna(c: Llamada, ctx: Contexto, tarjetas: Tarjeta[]): Promise<string> {
   const a = c.args
@@ -216,7 +217,7 @@ async function ejecutarUna(c: Llamada, ctx: Contexto, tarjetas: Tarjeta[]): Prom
       datos.temas.push(nuevo)
       tarjetas.push({
         tono: 'violeta',
-        etiqueta: 'TEMA NUEVO',
+        etiqueta: 'Tema nuevo',
         valor: plazo ? corta(plazo) : undefined,
         titulo: titulo,
         detalle: responsable ? `${nombreDe(ctx, responsable)} · Minuta` : 'Minuta',
@@ -268,7 +269,7 @@ async function ejecutarUna(c: Llamada, ctx: Contexto, tarjetas: Tarjeta[]): Prom
       if (cambios.length)
         tarjetas.push({
           tono: 'violeta',
-          etiqueta: 'TEMA',
+          etiqueta: 'Tema',
           valor: plazo ? corta(plazo) : undefined,
           titulo: tema.tema,
           detalle: cambios.join(' · '),
@@ -298,7 +299,7 @@ async function ejecutarUna(c: Llamada, ctx: Contexto, tarjetas: Tarjeta[]): Prom
       tema.linked_activity_ids = [...tema.linked_activity_ids, ...ids]
       tarjetas.push({
         tono: 'violeta',
-        etiqueta: 'ASIGNADA',
+        etiqueta: 'Asignada',
         valor: s(a.fecha_entrega) ? corta(s(a.fecha_entrega)!) : undefined,
         titulo: tema.tema,
         detalle: `${nombreDe(ctx, responsable)} · desde la Minuta`,
@@ -319,7 +320,7 @@ async function ejecutarUna(c: Llamada, ctx: Contexto, tarjetas: Tarjeta[]): Prom
       tema.estado = estado
       tarjetas.push({
         tono: 'verde',
-        etiqueta: 'CONVERSADO',
+        etiqueta: 'Conversado',
         titulo: tema.tema,
         detalle: conActividad ? 'Su actividad sigue su curso' : 'Cerrado sin actividad',
         ruta: '/minuta',
@@ -343,7 +344,7 @@ async function ejecutarUna(c: Llamada, ctx: Contexto, tarjetas: Tarjeta[]): Prom
         act.status = 'completado'
         tarjetas.push({
           tono: 'verde',
-          etiqueta: 'HECHO',
+          etiqueta: 'Hecho',
           titulo: act.title,
           detalle: nombreDe(ctx, act.responsible_id),
           activityId: act.id,
@@ -362,7 +363,7 @@ async function ejecutarUna(c: Llamada, ctx: Contexto, tarjetas: Tarjeta[]): Prom
         else await cambiarEntrega(act, nueva, datos.temas)
         tarjetas.push({
           tono: 'ambar',
-          etiqueta: 'MOVIDA',
+          etiqueta: 'Movida',
           valor: corta(nueva),
           titulo: act.title,
           detalle: nombreDe(ctx, act.responsible_id),
@@ -382,7 +383,7 @@ async function ejecutarUna(c: Llamada, ctx: Contexto, tarjetas: Tarjeta[]): Prom
       await llevarActividadAMinuta(act, { teamId: ctx.teamId, userId: ctx.yo.id })
       tarjetas.push({
         tono: 'ambar',
-        etiqueta: 'A LA MINUTA',
+        etiqueta: 'A la minuta',
         titulo: act.title,
         detalle: 'Para conversarlo en la reunión',
         ruta: '/minuta',
@@ -415,7 +416,7 @@ function tarjetaPendiente(c: Activity, ctx: Contexto): Tarjeta {
   return dias > 0
     ? {
         tono: 'rojo',
-        etiqueta: 'VENCIDA',
+        etiqueta: 'Vencida',
         valor: `HACE ${dias} D`,
         titulo: c.title,
         detalle: nombreDe(ctx, c.responsible_id),
@@ -423,7 +424,7 @@ function tarjetaPendiente(c: Activity, ctx: Contexto): Tarjeta {
       }
     : {
         tono: 'ambar',
-        etiqueta: 'VENCE',
+        etiqueta: 'Vence',
         valor: corta(c.due_date),
         titulo: c.title,
         detalle: nombreDe(ctx, c.responsible_id),
@@ -468,7 +469,7 @@ function consultarCompromisos(
   const tono = st.porcentaje! >= st.meta ? '🟢' : st.porcentaje! >= 60 ? '🟡' : '🔴'
   tarjetas.push({
     tono: st.porcentaje! >= st.meta ? 'verde' : st.porcentaje! >= 60 ? 'ambar' : 'rojo',
-    etiqueta: 'COMPROMISOS',
+    etiqueta: 'Compromisos',
     valor: `${st.porcentaje}%`,
     titulo: `${st.cumplidos} de ${st.total} cumplidos`,
     detalle: `${pendientes.length ? `faltan ${pendientes.length} · ` : ''}meta ${st.meta}%`,
@@ -502,7 +503,7 @@ async function cerrarSemana(
   const cabecera = `Semana ${etiqueta}: cierra con ${st.porcentaje ?? 0}% (${st.cumplidos} de ${st.total}).`
   tarjetas.push({
     tono: (st.porcentaje ?? 0) >= st.meta ? 'verde' : 'ambar',
-    etiqueta: 'SEMANA CERRADA',
+    etiqueta: 'Semana cerrada',
     valor: `${st.porcentaje ?? 0}%`,
     titulo: `${st.cumplidos} de ${st.total} cumplidos`,
     detalle:

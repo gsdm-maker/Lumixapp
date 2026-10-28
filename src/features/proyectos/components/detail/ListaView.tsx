@@ -36,7 +36,7 @@ export function ListaView({
     <div className="lamina overflow-hidden">
       <div
         className={cx(
-          'hidden items-center px-3 py-2 border-b border-border text-2xs font-semibold uppercase tracking-wide text-fg-faint',
+          'hidden items-center px-3 py-2 border-b border-border text-2xs font-semibold text-fg-faint',
           COLUMNAS,
         )}
       >

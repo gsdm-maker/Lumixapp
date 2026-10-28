@@ -1,22 +1,65 @@
-import { useEffect, useRef, useState, type FocusEvent, type PointerEvent } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FocusEvent,
+  type PointerEvent,
+  type ReactNode,
+} from 'react'
 import { createPortal } from 'react-dom'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Avatar } from '@shared/components/ui/Avatar'
+import { Desplegable } from '@shared/components/ui/Desplegable'
 import { Icon } from '@shared/components/ui/Icon'
 import { LumixIcon } from '@shared/components/ui/LumixIcon'
+import { useAuth } from '@core/auth/hooks/useAuth'
+import { ROLE_LABEL } from '@core/auth/roles'
+import { useNotificationsContext } from '@core/notifications/NotificationContext'
 import { useTheme } from '@core/theme/ThemeContext'
 import { cx } from '@shared/utils/cx'
-import { tonoIcono, useModulos } from './useModulos'
+import { abrirPaletaDeComandos } from './paletaEventos'
+import { ContadorNoLeidas, MenuPersona } from './MenuPersona'
+import { useModulos } from './useModulos'
 import { SelectorEquipo } from './SelectorEquipo'
 import { usePanelLateral } from './panelLateral'
 
 type Lado = 'izquierda' | 'derecha'
 
+// Estilo plano, como los chats de IA: letra normal, iconos grises y el activo con un fondo suave.
 const claseItem = (activo: boolean, compacto: boolean) =>
   cx(
-    'group relative flex items-center gap-2.5 min-h-11 rounded-full text-[13.5px] font-semibold transition-colors',
-    compacto ? 'w-11 justify-center' : 'w-full px-3.5',
-    activo ? 'bg-fg text-shell' : 'text-fg-muted hover:text-fg hover:bg-surface',
+    'group relative flex items-center gap-3 h-9 rounded-lg text-sm transition-colors',
+    compacto ? 'w-10 justify-center' : 'w-full px-2.5',
+    activo ? 'bg-surface-2 text-fg font-medium' : 'text-fg-muted hover:text-fg hover:bg-surface',
   )
+
+/** Icono chico de la cabecera (buscar, tema, notificaciones). */
+function BotonCabecera({
+  label,
+  onClick,
+  activo,
+  children,
+}: {
+  label: string
+  onClick: () => void
+  activo?: boolean
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      className={cx(
+        'relative grid place-items-center w-8 h-8 rounded-lg transition-colors hover:bg-surface',
+        activo ? 'text-fg' : 'text-fg-muted hover:text-fg',
+      )}
+    >
+      {children}
+    </button>
+  )
+}
 
 type Etiqueta = { texto: string; top: number; x: number } | null
 type HandlersEtiqueta = {
@@ -94,14 +137,18 @@ function useEtiqueta(lado: Lado, activa: boolean) {
 }
 
 /**
- * Menu de modulos como barra vertical a un costado (eleccion de la persona, ver Perfil >
- * Apariencia). Compacto: solo iconos, con el nombre en una etiqueta al pasar el mouse; o con
- * los nombres a la vista. Solo navega: buscar, tema, notificaciones y la persona van arriba a la
- * derecha (AccionesSuperiores), para que la barra no quede apretada.
+ * Barra lateral (eleccion de la persona en Perfil > Apariencia), plana como la de los chats de IA:
  *
- * En el chat lleva un boton flotante "Mi semana": al tocarlo la barra se ensancha, esconde los
- * modulos y muestra el panel de Lumix (lo dibuja el chat en `ranura`, ver panelLateral.ts).
- * "Volver al menu", Escape o cambiar de pagina devuelven los modulos.
+ *   arriba   Lumix y, a su lado, buscar (Ctrl K), tema y notificaciones; debajo, el equipo.
+ *   medio    los modulos, con letra normal e iconos grises.
+ *   abajo    "Mi semana" (en el chat) y la persona: avatar, nombre y su menu.
+ *
+ * Asi la pantalla no necesita una franja de botones arriba y el chat gana ese espacio.
+ * Compacto: solo iconos, con el nombre en una etiqueta al pasar el mouse.
+ *
+ * "Mi semana": la barra se ensancha, esconde los modulos y muestra el panel de Lumix (lo dibuja
+ * el chat en `ranura`, ver panelLateral.ts). "Volver al menu", Escape o cambiar de pagina
+ * devuelven los modulos.
  */
 export function MenuLateral({
   lado,
@@ -110,8 +157,11 @@ export function MenuLateral({
   lado: Lado
   onRanura: (el: HTMLElement | null) => void
 }) {
-  const { menuNombres } = useTheme()
+  const { menuNombres, theme, setPreference } = useTheme()
+  const { profile, empresa } = useAuth()
+  const { unreadCount } = useNotificationsContext()
   const modulos = useModulos()
+  const navigate = useNavigate()
   const { pathname } = useLocation()
   const semana = usePanelLateral()
   const conSemana = pathname.startsWith('/chat')
@@ -121,7 +171,7 @@ export function MenuLateral({
   const botonRef = useRef<HTMLButtonElement>(null)
   const estabaAbierto = useRef(false)
 
-  // Al abrir, el foco va a "Volver al menu"; al cerrar, vuelve al boton flotante.
+  // Al abrir, el foco va a "Volver al menu"; al cerrar, vuelve al boton de "Mi semana".
   useEffect(() => {
     if (semana.abierto) volverRef.current?.focus()
     else if (estabaAbierto.current) botonRef.current?.focus()
@@ -142,23 +192,42 @@ export function MenuLateral({
   return (
     <div
       className={cx(
-        'vidrio relative z-30 hidden md:flex shrink-0 flex-col gap-1 rounded-[28px] my-3 py-3 px-2',
+        'relative z-30 hidden md:flex shrink-0 flex-col gap-1 bg-panel/70 py-2.5 px-2',
         'transition-[width] duration-200 ease-out motion-reduce:transition-none',
-        lado === 'derecha' ? 'order-last mr-3' : 'ml-3',
-        semana.abierto ? 'w-[360px]' : compacto ? 'w-[64px] items-center' : 'w-[212px]',
+        lado === 'derecha' ? 'order-last border-l border-border' : 'border-r border-border',
+        semana.abierto ? 'w-[360px]' : compacto ? 'w-[60px] items-center' : 'w-[260px]',
       )}
     >
-      <NavLink
-        to="/chat"
-        aria-label="Lumix, ir al chat"
-        className={cx('flex items-center gap-2.5 pb-2', compacto ? 'justify-center' : 'px-2.5')}
-      >
-        <LumixIcon size="md" />
-        {!compacto && <span className="text-lg font-extrabold tracking-tight text-fg">Lumix</span>}
-      </NavLink>
-      <div
-        className={cx('pb-2 mb-1 border-b border-border', compacto ? 'flex justify-center' : '')}
-      >
+      {/* Cabecera: marca y, a su lado, buscar, tema y notificaciones (como ChatGPT). */}
+      <div className={cx('flex items-center gap-1 pb-1', compacto ? 'flex-col' : 'pl-1')}>
+        <NavLink
+          to="/chat"
+          aria-label="Lumix, ir al chat"
+          className="flex items-center gap-2 rounded-lg p-1 hover:bg-surface"
+        >
+          <LumixIcon size="sm" />
+          {!compacto && <span className="text-base font-semibold text-fg">Lumix</span>}
+        </NavLink>
+        {!compacto && <span className="flex-1" />}
+        <BotonCabecera label="Buscar o crear (Ctrl K)" onClick={abrirPaletaDeComandos}>
+          <Icon name="search" size={17} />
+        </BotonCabecera>
+        <BotonCabecera
+          label={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+          onClick={() => setPreference(theme === 'dark' ? 'light' : 'dark')}
+        >
+          <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={17} />
+        </BotonCabecera>
+        <BotonCabecera
+          label={unreadCount ? `Notificaciones, ${unreadCount} sin leer` : 'Notificaciones'}
+          onClick={() => navigate('/notifications')}
+          activo={pathname.startsWith('/notifications')}
+        >
+          <Icon name="bell" size={17} />
+          <ContadorNoLeidas n={unreadCount} />
+        </BotonCabecera>
+      </div>
+      <div className={cx('pb-2 mb-1', compacto ? 'flex justify-center' : '')}>
         <SelectorEquipo
           compacto={compacto}
           completo
@@ -172,7 +241,7 @@ export function MenuLateral({
             ref={volverRef}
             type="button"
             onClick={semana.cerrar}
-            className="self-start inline-flex items-center gap-1.5 min-h-9 px-3 rounded-full text-sm font-semibold text-fg-muted hover:text-fg hover:bg-surface transition-colors"
+            className="self-start inline-flex items-center gap-1.5 h-9 px-2.5 rounded-lg text-sm text-fg-muted hover:text-fg hover:bg-surface transition-colors"
           >
             <Icon name="arrowLeft" size={16} />
             Volver al menú
@@ -186,7 +255,10 @@ export function MenuLateral({
       ) : (
         <nav
           aria-label="Principal"
-          className={cx('flex flex-col gap-1 min-h-0 overflow-y-auto', compacto && 'items-center')}
+          className={cx(
+            'flex flex-col gap-0.5 min-h-0 overflow-y-auto',
+            compacto && 'items-center',
+          )}
         >
           {/* Con poca altura (o zoom) la lista se desplaza; las etiquetas van en un portal. */}
           {modulos.map((n) => (
@@ -197,20 +269,16 @@ export function MenuLateral({
               className={({ isActive }) => claseItem(isActive, compacto)}
               {...etiqueta.props(n.label)}
             >
-              {({ isActive }) => (
-                <>
-                  <Icon name={n.icon} size={18} className={isActive ? undefined : tonoIcono(n)} />
-                  {!compacto && <span className="truncate">{n.label}</span>}
-                </>
-              )}
+              <Icon name={n.icon} size={17} />
+              {!compacto && <span className="truncate">{n.label}</span>}
             </NavLink>
           ))}
         </nav>
       )}
 
-      {/* Boton flotante: solo donde hay un panel que mostrar (el chat). */}
-      {conSemana && !semana.abierto && (
-        <div className={cx('mt-auto pt-2', compacto ? 'flex justify-center' : 'px-1')}>
+      <div className={cx('mt-auto flex flex-col gap-1.5 pt-2 w-full', compacto && 'items-center')}>
+        {/* "Mi semana": solo donde hay un panel que mostrar (el chat). */}
+        {conSemana && !semana.abierto && (
           <button
             ref={botonRef}
             type="button"
@@ -219,16 +287,55 @@ export function MenuLateral({
             aria-label={compacto ? 'Mi semana' : undefined}
             {...(compacto ? etiqueta.props('Mi semana') : {})}
             className={cx(
-              'inline-flex items-center justify-center gap-2 rounded-full bg-fg text-shell shadow-lg font-semibold text-sm',
+              'inline-flex items-center justify-center gap-2 rounded-full bg-fg text-shell shadow-md text-sm font-medium',
               'hover:opacity-90 active:scale-[0.98] transition-[opacity,transform]',
-              compacto ? 'w-11 h-11' : 'w-full h-11 px-4',
+              compacto ? 'w-10 h-10' : 'w-full h-10 px-4',
             )}
           >
             <Icon name="sparkles" size={16} />
             {!compacto && 'Mi semana'}
           </button>
+        )}
+
+        {/* La persona, abajo (como Claude): avatar, nombre, rol y empresa; abre su menu. */}
+        <div className="border-t border-border pt-1.5">
+          <Desplegable
+            label={`Menú de ${profile?.full_name ?? 'usuario'}`}
+            abrirHacia={lado === 'derecha' ? 'izquierda' : 'derecha'}
+            botonClassName={cx(
+              'flex items-center gap-2.5 rounded-lg hover:bg-surface transition-colors',
+              compacto ? 'p-1 mx-auto' : 'w-full p-1.5 text-left',
+            )}
+            panelClassName="w-72"
+            boton={
+              <>
+                <Avatar
+                  name={profile?.full_name ?? 'Usuario'}
+                  src={profile?.avatar_url}
+                  size="sm"
+                />
+                {!compacto && (
+                  <>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-fg">
+                        {profile?.full_name}
+                      </span>
+                      <span className="block truncate text-xs text-fg-faint">
+                        {[profile?.role ? ROLE_LABEL[profile.role] : null, empresa?.nombre]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </span>
+                    </span>
+                    <Icon name="chevronUp" size={14} className="shrink-0 text-fg-faint" />
+                  </>
+                )}
+              </>
+            }
+          >
+            {(cerrarMenu) => <MenuPersona cerrar={cerrarMenu} />}
+          </Desplegable>
         </div>
-      )}
+      </div>
 
       {etiqueta.nodo}
     </div>

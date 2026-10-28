@@ -234,8 +234,7 @@ def chat_consulta(page):
 @caso("Chat (IA): crear actividad y verla en Actividades")
 def chat_crear(page):
     ir(page, "/chat")
-    page.get_by_role("button", name=re.compile("^Tipo de mensaje")).click()
-    page.get_by_role("menuitemradio", name="Actividad").click()
+    page.get_by_role("group", name="Tipo de mensaje").get_by_role("button", name="Actividad").click()
     ta = page.locator("textarea")
     ta.fill(f"{TITULO} para mañana")
     ta.press("Enter")

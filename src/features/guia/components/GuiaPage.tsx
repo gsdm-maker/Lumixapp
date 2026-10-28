@@ -172,9 +172,7 @@ function AtajosYEstados() {
       <Titulo icon="sliders">Atajos de teclado y estados</Titulo>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div>
-          <h3 className="mb-2 text-xs font-semibold tracking-wide text-fg-muted uppercase">
-            Atajos
-          </h3>
+          <h3 className="mb-2 text-xs font-semibold text-fg-muted">Atajos</h3>
           <ul className="divide-y divide-border">
             {ATAJOS.map((a) => (
               <li key={a.texto} className="flex items-center gap-3 py-2 text-sm">
@@ -194,9 +192,7 @@ function AtajosYEstados() {
           </ul>
         </div>
         <div>
-          <h3 className="mb-2 text-xs font-semibold tracking-wide text-fg-muted uppercase">
-            Estados
-          </h3>
+          <h3 className="mb-2 text-xs font-semibold text-fg-muted">Estados</h3>
           <ul className="divide-y divide-border">
             {ESTADOS.map((e) => (
               <li key={e.estado} className="flex items-center gap-3 py-2 text-sm">

@@ -2,12 +2,12 @@ import { useNavigate } from 'react-router-dom'
 import { cx } from '@shared/utils/cx'
 import type { Tarjeta } from '@features/chat/agente/tipos'
 
-// Cabecera de color por tipo de resultado (texto blanco: cada degradado da >= 4.5 de contraste).
+// Cabecera de color solido por tipo de resultado (texto blanco: cada color da >= 4.5 de contraste).
 const CABECERA: Record<Tarjeta['tono'], string> = {
-  violeta: 'linear-gradient(90deg, #5b3fd9, #7759f7)',
-  verde: 'linear-gradient(90deg, #0b7a4f, #108556)',
-  ambar: 'linear-gradient(90deg, #9a5800, #aa6400)',
-  rojo: 'linear-gradient(90deg, #b23a29, #c94a37)',
+  violeta: '#5b3fd9',
+  verde: '#0b7a4f',
+  ambar: '#9a5800',
+  rojo: '#b23a29',
 }
 
 /**
@@ -30,12 +30,12 @@ export function TarjetasResultado({ tarjetas }: { tarjetas: Tarjeta[] }) {
           onClick={() => abrir(t)}
           disabled={!t.activityId && !t.ruta}
           className={cx(
-            'flex flex-col text-left rounded-2xl overflow-hidden border border-border bg-surface-soft transition-shadow',
-            (t.activityId || t.ruta) && 'hover:shadow-md cursor-pointer',
+            'flex flex-col text-left rounded-2xl overflow-hidden border border-border bg-surface-soft transition-colors',
+            (t.activityId || t.ruta) && 'hover:border-border-strong cursor-pointer',
           )}
         >
           <span
-            className="flex items-center justify-between gap-2 px-3 py-1 font-mono text-2xs font-semibold tracking-wide text-white"
+            className="flex items-center justify-between gap-2 px-3 py-1 text-2xs font-semibold text-white"
             style={{ background: CABECERA[t.tono] }}
           >
             <span>{t.etiqueta}</span>

@@ -85,7 +85,7 @@ export function Sidebar({ onClose }: SidebarProps) {
             abrirPaletaDeComandos()
             onClose?.()
           }}
-          className="w-full flex items-center gap-2 h-8 px-2.5 rounded-md border border-border bg-panel text-sm text-fg-faint shadow-xs hover:text-fg-muted transition-colors"
+          className="w-full flex items-center gap-2 h-8 px-2.5 rounded-md border border-border bg-panel text-sm text-fg-faint hover:text-fg-muted transition-colors"
         >
           <Icon name="search" size={15} />
           <span className="flex-1 text-left">Buscar o crear…</span>

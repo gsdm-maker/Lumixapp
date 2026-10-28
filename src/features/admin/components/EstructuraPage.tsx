@@ -259,7 +259,7 @@ export function EstructuraPage() {
               />
               <div className="lamina mt-3 flex flex-col gap-2 px-4 py-3">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
+                  <span className="text-xs font-semibold text-fg-muted">
                     Módulos de {empresa.nombre}
                   </span>
                   <span className="text-xs text-fg-faint">
@@ -463,9 +463,7 @@ export function EstructuraPage() {
                 const lista = unidad.personas.filter((p) => p.rol === g.rol)
                 return (
                   <div key={g.rol} className="space-y-1.5">
-                    <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
-                      {g.titulo}
-                    </h3>
+                    <h3 className="text-xs font-semibold text-fg-muted">{g.titulo}</h3>
                     {lista.length === 0 ? (
                       <p className="text-sm text-fg-faint">{g.vacio}</p>
                     ) : (
@@ -515,9 +513,7 @@ export function EstructuraPage() {
 
               {/* Agregar gente */}
               <div className="space-y-2 border-t border-border pt-4">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
-                  Agregar persona
-                </h3>
+                <h3 className="text-xs font-semibold text-fg-muted">Agregar persona</h3>
                 <form
                   className="flex flex-wrap gap-2"
                   onSubmit={(e) => {
@@ -581,7 +577,7 @@ export function EstructuraPage() {
 
               {/* Unidad debajo */}
               <div className="space-y-2 border-t border-border pt-4">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
+                <h3 className="text-xs font-semibold text-fg-muted">
                   Crear unidad debajo de {unidad.nombre}
                 </h3>
                 <form

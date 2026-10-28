@@ -59,7 +59,7 @@ export function AuthShell({
             <h2 className="text-4xl 2xl:text-5xl font-extrabold leading-[1.05] tracking-tight text-fg [@media(max-height:820px)]:text-3xl">
               Le hablas.
               <br />
-              <span className="texto-orbita">Lumix organiza.</span>
+              Lumix organiza.
             </h2>
             <p className="mt-3 text-base text-fg-muted [@media(max-height:820px)]:text-sm">
               El sistema operativo conversacional para tu trabajo y el de tu equipo.

@@ -55,11 +55,11 @@ import {
 const TIPOS: TipoMensaje[] = [
   'auto',
   'actividad',
+  'minuta',
+  'proyecto',
   'error',
   'ingesta',
   'masivo',
-  'minuta',
-  'proyecto',
 ]
 
 export function ChatPage() {
@@ -474,7 +474,7 @@ export function ChatPage() {
         <div
           key={e.msg.id}
           data-msg-id={e.msg.id}
-          className="flex items-center gap-3 px-5 py-4 text-2xs font-mono uppercase tracking-[0.12em] text-fg-faint"
+          className="flex items-center gap-3 px-5 py-4 text-xs text-fg-faint"
         >
           <span className="h-px flex-1 bg-border" />
           Nueva conversación · {hora(e.msg.created_at)}

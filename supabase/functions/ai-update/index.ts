@@ -25,7 +25,7 @@ const JSON_SHAPE = `Devuelve SOLO este JSON:
     "description": "nueva descripcion completa o null",
     "title": "nuevo objetivo/titulo o null"
   },
-  "reply": "confirmacion breve en espanol de lo que se hizo"
+  "reply": "confirmacion breve en espanol de Chile, tuteando (nunca voseo), de lo que se hizo"
 }`
 
 const SYSTEM_PROMPT = `Eres Lumix. El usuario escribe en lenguaje natural para MODIFICAR una actividad que YA EXISTE (completarla, moverle la fecha, reasignarla, cambiar su estado, su prioridad, su descripcion o su objetivo).
@@ -68,7 +68,7 @@ REGLAS:
   changes.description con el texto completo que debe quedar (no un fragmento suelto).
 - "el objetivo es...", "cambiale el titulo a...", "en realidad se trata de..." => action="retitle",
   changes.title con el objetivo nuevo, corto y en una linea.
-- CUIDADO con el titulo: cambialo SOLO si el usuario lo pide explicitamente. Un mensaje que
+- CUIDADO con el titulo: cámbialo SOLO si el usuario lo pide explicitamente. Un mensaje que
   agrega contexto o detalle va en description, no en title. Reescribir el objetivo por cuenta
   propia le cambia el nombre a la actividad de otra persona sin que nadie lo haya pedido.
 - Solo llena los campos de "changes" que el mensaje pide cambiar; el resto en null.

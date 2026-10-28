@@ -102,29 +102,29 @@ export function LoginPage() {
       overline={crear ? 'Prueba gratis 15 días' : 'Ingresar a Lumix'}
       title={crear ? 'Crea tu cuenta' : 'Hola de nuevo'}
       subtitle={
-        crear ? 'Sin tarjeta. Cancelás cuando quieras.' : 'Ingresá para seguir donde quedaste.'
+        crear ? 'Sin tarjeta. Cancelas cuando quieras.' : 'Ingresa para seguir donde quedaste.'
       }
       footer={
         crear ? (
           <>
-            ¿Ya tenés cuenta?{' '}
+            ¿Ya tienes cuenta?{' '}
             <button
               type="button"
               className="font-semibold text-accent hover:underline"
               onClick={() => cambiarModo('ingresar')}
             >
-              Ingresá
+              Ingresa
             </button>
           </>
         ) : (
           <>
-            ¿No tenés cuenta?{' '}
+            ¿No tienes cuenta?{' '}
             <button
               type="button"
               className="font-semibold text-accent hover:underline"
               onClick={() => cambiarModo('crear')}
             >
-              Creá una y probá Lumix 15 días
+              Crea una y prueba Lumix 15 días
             </button>
           </>
         )

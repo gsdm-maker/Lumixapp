@@ -74,12 +74,8 @@ export function SugerenciaLumix({
   return (
     <div className="w-full max-w-4xl mx-auto px-3 sm:px-5 pb-2 animate-aparecer">
       <div
-        className="flex flex-wrap items-center gap-3 rounded-3xl p-3.5 shadow-md"
-        style={{
-          border: '1px solid transparent',
-          background:
-            'linear-gradient(rgb(var(--panel)), rgb(var(--panel))) padding-box, linear-gradient(135deg, rgb(var(--a-500)), rgb(61 107 255), rgb(47 199 168)) border-box',
-        }}
+        // Borde del acento: es una propuesta de Lumix (el violeta marca lo que viene del agente).
+        className="flex flex-wrap items-center gap-3 rounded-3xl p-3.5 bg-panel border border-accent/40"
         role="status"
       >
         <Nucleo size={28} chispas />

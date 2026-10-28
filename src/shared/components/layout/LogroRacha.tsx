@@ -43,10 +43,7 @@ export function LogroRacha() {
       <span
         aria-hidden="true"
         className="w-9 h-9 shrink-0 rounded-xl grid place-items-center"
-        style={{
-          background: 'linear-gradient(135deg, #ffcf5c, #ff9d3d)',
-          boxShadow: '0 0 18px rgb(255 170 70 / 0.45)',
-        }}
+        style={{ background: '#f5a524' }}
       >
         <svg
           width="18"

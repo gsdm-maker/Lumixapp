@@ -161,7 +161,7 @@ export function Kbd({ children }: { children: ReactNode }) {
 export function SectionLabel({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <h3 className="text-2xs font-semibold uppercase tracking-wide text-fg-faint">{children}</h3>
+      <h3 className="text-2xs font-semibold text-fg-faint">{children}</h3>
       {action}
     </div>
   )

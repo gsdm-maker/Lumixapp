@@ -16,12 +16,11 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children?: ReactNode
 }
 
-// Compactos a proposito (brief: "keep them compact"). Orbita: pastillas; la accion principal se
-// distingue por el degradado del acento (relleno-orbita, index.css), no por el tamano.
+// Compactos a proposito (brief: "keep them compact"). Pastillas; la accion principal se distingue
+// por el color solido del acento, no por el tamano ni por un degradado de adorno.
 const VARIANT: Record<ButtonVariant, string> = {
-  primary:
-    'bg-accent-fill relleno-orbita text-on-accent hover:brightness-110 border border-transparent shadow-md shadow-accent-fill/30',
-  secondary: 'bg-panel text-fg border border-border-strong shadow-xs hover:bg-surface',
+  primary: 'bg-accent-fill text-on-accent hover:brightness-110 border border-transparent',
+  secondary: 'bg-panel text-fg border border-border-strong hover:bg-surface',
   ghost: 'text-fg-muted border border-transparent hover:bg-surface hover:text-fg',
   danger: 'bg-danger-fill text-on-accent hover:brightness-110 border border-transparent',
 }

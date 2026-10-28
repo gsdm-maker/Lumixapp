@@ -360,9 +360,7 @@ export function CompromisosTabla({
                           size={14}
                           className="text-fg-faint -ml-1"
                         />
-                        <span className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
-                          {grupo.nombre}
-                        </span>
+                        <span className="text-xs font-semibold text-fg-muted">{grupo.nombre}</span>
                         <span className="text-xs text-fg-faint">
                           {grupo.personas.length} persona{grupo.personas.length === 1 ? '' : 's'}
                         </span>

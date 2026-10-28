@@ -61,7 +61,9 @@
   --fg: 23 20 43; /* titulos y datos */
   --fg-body: 46 42 70; /* texto de cuerpo */
   --fg-muted: 74 69 102; /* texto secundario */
-  --fg-faint: 107 103 136; /* metadatos */
+  /* metadatos. 100 96 128 y no 107 103 136: sobre surface-2 (filas en hover, avatares) quedaba
+     en 4,1:1; asi llega a 4,6:1 (WCAG AA pide 4,5) en todos los fondos claros. */
+  --fg-faint: 100 96 128;
 
   /* Semantica: solo para comunicar estado, nunca para decorar. */
   --success: 29 122 70;
@@ -118,12 +120,9 @@
   --sombra-sm: 0 2px 6px -2px rgb(60 40 140 / 0.12), 0 1px 2px -1px rgb(60 40 140 / 0.08);
   --sombra-md: 0 10px 24px -12px rgb(60 40 140 / 0.25), 0 2px 6px -3px rgb(60 40 140 / 0.1);
   --sombra-lg: 0 18px 44px -18px rgb(60 40 140 / 0.38), 0 6px 14px -8px rgb(60 40 140 / 0.14);
-  /* Vidrio (paneles flotantes) y halos del fondo. */
+  /* Vidrio: solo el cuadro de escritura del chat. */
   --vidrio: 255 255 255;
   --vidrio-alfa: 0.72;
-  --vidrio-brillo: 255 255 255;
-  --halo-1: 168 85 247;
-  --halo-2: 99 102 241;
 
   color-scheme: light;
 }
@@ -180,9 +179,6 @@
   --sombra-lg: 0 18px 50px -18px rgb(0 0 0 / 0.75), 0 6px 14px -8px rgb(0 0 0 / 0.5);
   --vidrio: 24 24 36;
   --vidrio-alfa: 0.7;
-  --vidrio-brillo: 255 255 255;
-  --halo-1: 123 92 255;
-  --halo-2: 61 123 255;
 
   color-scheme: dark;
 }
@@ -257,7 +253,9 @@
 }
 [data-theme='dark'] {
   --accent: var(--a-400);
-  --accent-fill: var(--a-500);
+  /* a-600 y no a-500: con el acento azul el texto blanco de los botones quedaba en 3,7:1 (e
+     indigo en 4,5:1). Con a-600 todos los acentos quedan entre 5,2 y 6,4:1. */
+  --accent-fill: var(--a-600);
   --accent-soft: var(--a-950);
 }
 
@@ -438,6 +436,17 @@ textarea {
   outline-offset: 1px;
 }
 
+/* El campo del chat va dentro de una tarjeta redondeada que ya marca el foco con su borde: el
+   contorno de arriba dibujaba un rectangulo azul adentro. Esta regla esta fuera de las capas de
+   Tailwind, por eso un `focus:outline-none` en el campo no alcanzaba a quitarlo. */
+textarea[data-composer]:focus-visible {
+  outline: none;
+}
+/* En su lugar, al escribir la tarjeta oscurece apenas su borde (como los chats de IA). */
+.vidrio:has(> textarea[data-composer]:focus) {
+  border-color: rgb(var(--border-strong));
+}
+
 #root {
   height: 100%;
 }
@@ -466,19 +475,18 @@ textarea {
 /* Vidrio: para lo que flota (menu superior, paneles del chat). Brillo de 1px arriba. */
 .vidrio,
 .lamina {
+  /* Superficies planas: fondo solido y borde fino, sin desenfoque ni sombra. Antes todo era
+     vidrio con sombra (el "kit de tarjetas" generico) y nada se distinguia de nada. */
+  background: rgb(var(--panel));
+  border: 1px solid rgb(var(--border));
+}
+/* Lo unico que flota es el cuadro de escritura del chat: ahi el vidrio y la sombra si dicen algo
+   ("aqui escribes"). */
+.vidrio:has(> textarea[data-composer]) {
   background: rgb(var(--vidrio) / var(--vidrio-alfa));
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
-  border: 1px solid rgb(var(--border));
-  box-shadow:
-    var(--sombra-md),
-    inset 0 1px 0 rgb(var(--vidrio-brillo) / 0.08);
-}
-:root:not([data-theme='dark']) .vidrio,
-:root:not([data-theme='dark']) .lamina {
-  box-shadow:
-    var(--sombra-md),
-    inset 0 1px 0 rgb(var(--vidrio-brillo) / 0.9);
+  box-shadow: var(--sombra-md);
 }
 /* Lamina: el vidrio con esquinas de tarjeta. Contenedor de tablas, listas y tarjetas de todas
    las hojas (Card, paneles del Dashboard, Guia...). Sin overflow propio: quien lo necesite le
@@ -486,26 +494,18 @@ textarea {
 .lamina {
   border-radius: var(--radius-2xl);
 }
-/* Etiqueta de seccion Orbita: mono, mayusculas, en el acento ("TU SEMANA · CARGA"). */
+/* Etiqueta de seccion: frase normal, en gris ("Tu semana"). Antes era mono, mayusculas y en
+   el acento ("TU SEMANA · CARGA"): un tic de diseno generico que ademas gastaba el violeta. */
 .etiqueta-orbita {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgb(var(--accent));
+  color: rgb(var(--fg-muted));
 }
 /* Dos manchas de luz suaves en las esquinas (no lavan la pantalla). */
+/* Fondo plano de la app. Antes llevaba dos halos de luz morada en las esquinas: decoracion que
+   no decia nada y teñia toda la pantalla. */
 .fondo-orbita {
   background-color: rgb(var(--shell));
-  background-image:
-    radial-gradient(640px 640px at -8% -18%, rgb(var(--halo-1) / 0.22), transparent 65%),
-    radial-gradient(720px 720px at 108% 118%, rgb(var(--halo-2) / 0.18), transparent 65%);
-}
-/* Degradado del acento, para lo principal (boton primario, enviar). */
-.relleno-orbita {
-  /* Extremo azul medido: el texto blanco del boton da >= 4.6:1 en todo el degradado. */
-  background-image: linear-gradient(135deg, rgb(var(--a-600)), rgb(59 104 249));
 }
 @keyframes nucleo-girar {
   to {
@@ -540,35 +540,6 @@ textarea {
     opacity: 1;
     transform: scale(1) rotate(45deg);
   }
-}
-@keyframes texto-degradado {
-  to {
-    background-position: 200% 50%;
-  }
-}
-/* Texto que se celebra (el % de la semana): degradado animado, solo ahi. */
-.texto-orbita {
-  background-image: linear-gradient(
-    90deg,
-    rgb(var(--a-600)),
-    rgb(50 95 235),
-    rgb(13 125 104),
-    rgb(var(--a-600))
-  );
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: texto-degradado 6s linear infinite;
-}
-[data-theme='dark'] .texto-orbita {
-  background-image: linear-gradient(
-    90deg,
-    rgb(var(--a-400)),
-    rgb(110 150 255),
-    rgb(70 220 180),
-    rgb(var(--a-400))
-  );
 }
 
 /* PWA safe area */

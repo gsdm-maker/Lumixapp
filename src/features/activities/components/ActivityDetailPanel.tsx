@@ -120,8 +120,8 @@ export function ActivityDetailPanel(props: ActivityDetailPanelProps) {
         : h,
     )
 
-  // Editable si NO esta cerrada y sos el responsable, lideras el equipo de esa actividad, o
-  // tenes "editar actividades ajenas" en ese equipo (el permiso se resuelve contra el equipo
+  // Editable si NO esta cerrada y eres el responsable, lideras el equipo de esa actividad, o
+  // tienes "editar actividades ajenas" en ese equipo (el permiso se resuelve contra el equipo
   // activo, por eso solo vale para actividades de ese equipo; la RLS lo exige igual, 049).
   const canEdit =
     activity.status !== 'completado' &&

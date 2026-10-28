@@ -46,7 +46,7 @@ export function HeatmapTable({
     <table className="w-full table-fixed border-collapse text-sm">
       <thead className="sticky top-0 z-10 bg-panel">
         <tr className="border-b border-border">
-          <th className="w-44 py-2 pl-5 pr-3 text-left text-2xs font-semibold uppercase tracking-wide text-fg-faint">
+          <th className="w-44 py-2 pl-5 pr-3 text-left text-2xs font-semibold text-fg-faint">
             Persona
           </th>
           {days.map((d, i) => {
@@ -60,14 +60,14 @@ export function HeatmapTable({
                 )}
                 aria-current={esHoy ? 'date' : undefined}
               >
-                <span className="block text-2xs uppercase tracking-wide">{DIAS[i]}</span>
+                <span className="block text-2xs">{DIAS[i]}</span>
                 <span className={cx('block text-xs', esHoy && 'font-semibold')}>
                   {d.label.split(' ')[0]}
                 </span>
               </th>
             )
           })}
-          <th className="w-52 py-2 pl-3 pr-5 text-left text-2xs font-semibold uppercase tracking-wide text-fg-faint">
+          <th className="w-52 py-2 pl-3 pr-5 text-left text-2xs font-semibold text-fg-faint">
             Semana
           </th>
         </tr>

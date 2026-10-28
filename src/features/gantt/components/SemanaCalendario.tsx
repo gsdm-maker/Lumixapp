@@ -19,30 +19,30 @@ const BARRA: Record<Nivel, string> = {
   saturado: '#e5533d',
 }
 
-// Cabecera de la tarjeta segun como viene (texto blanco: cada degradado da >= 4.5).
+// Cabecera de la tarjeta segun como viene, en color solido (texto blanco: cada color da >= 4.5).
 const CABECERA = {
-  violeta: 'linear-gradient(90deg, #5b3fd9, #7759f7)',
-  azul: 'linear-gradient(90deg, #1d55a8, #2563c4)',
-  ambar: 'linear-gradient(90deg, #9a5800, #aa6400)',
-  rojo: 'linear-gradient(90deg, #b23a29, #c94a37)',
-  gris: 'linear-gradient(90deg, #5b5873, #747190)',
-  verde: 'linear-gradient(90deg, #0b7a4f, #108556)',
+  violeta: '#5b3fd9',
+  azul: '#1d55a8',
+  ambar: '#9a5800',
+  rojo: '#b23a29',
+  gris: '#5b5873',
+  verde: '#0b7a4f',
 }
 
 function cabecera(a: Activity, hoy: string): { tono: keyof typeof CABECERA; texto: string } {
   const dia = a.due_date.split('T')[0]
-  if (a.status === 'completado') return { tono: 'verde', texto: 'HECHA' }
-  if (a.status === 'bloqueado') return { tono: 'gris', texto: 'BLOQUEADA' }
+  if (a.status === 'completado') return { tono: 'verde', texto: 'Hecha' }
+  if (a.status === 'bloqueado') return { tono: 'gris', texto: 'Bloqueada' }
   if (dia < hoy) {
     const dias = Math.round(
       (new Date(hoy + 'T00:00:00').getTime() - new Date(dia + 'T00:00:00').getTime()) / 86_400_000,
     )
-    return { tono: 'rojo', texto: dias === 1 ? 'VENCIDA · AYER' : `VENCIDA · HACE ${dias} D` }
+    return { tono: 'rojo', texto: dias === 1 ? 'Vencida ayer' : `Vencida hace ${dias} d` }
   }
-  if (dia === hoy) return { tono: 'ambar', texto: 'VENCE HOY' }
+  if (dia === hoy) return { tono: 'ambar', texto: 'Vence hoy' }
   return a.status === 'en_proceso'
-    ? { tono: 'azul', texto: 'EN PROCESO' }
-    : { tono: 'violeta', texto: 'PENDIENTE' }
+    ? { tono: 'azul', texto: 'En proceso' }
+    : { tono: 'violeta', texto: 'Pendiente' }
 }
 
 /**
@@ -86,18 +86,18 @@ export function TarjetaActividad({
       title={movible ? `${activity.title} · arrastra para cambiar de día` : activity.title}
       style={{ minHeight: Math.max(76, h * 14 + 34) }}
       className={cx(
-        'flex flex-col w-full overflow-hidden rounded-2xl border border-border bg-panel text-left shadow-sm transition-shadow hover:shadow-md',
+        'flex flex-col w-full overflow-hidden rounded-2xl border border-border bg-panel text-left transition-colors hover:border-border-strong',
         movible && 'cursor-grab active:cursor-grabbing touch-none',
         isDragging && 'opacity-40',
         activity.status === 'completado' && 'opacity-60',
       )}
     >
       <span
-        className="flex items-center justify-between gap-2 px-2.5 py-0.5 font-mono text-[10.5px] font-semibold text-white"
+        className="flex items-center justify-between gap-2 px-2.5 py-0.5 text-[11px] font-semibold text-white"
         style={{ background: CABECERA[cab.tono] }}
       >
         <span className="truncate">{cab.texto}</span>
-        <span className="shrink-0">{fmtHoras(h).toUpperCase()}</span>
+        <span className="shrink-0">{fmtHoras(h)}</span>
       </span>
       <span className="flex flex-1 flex-col gap-1.5 px-2.5 py-2">
         <b
@@ -156,7 +156,7 @@ export function SemanaCalendario({
           className="lamina w-full lg:w-56 shrink-0 p-3.5 flex flex-col gap-2.5"
           aria-label="Vencidas"
         >
-          <span className="etiqueta-orbita">Vencidas · {atrasadasVisibles.length}</span>
+          <span className="etiqueta-orbita">Vencidas ({atrasadasVisibles.length})</span>
           <p className="text-xs text-fg-faint">Arrástralas a un día para reprogramarlas.</p>
           {atrasadasVisibles.map((a) => (
             <TarjetaActividad

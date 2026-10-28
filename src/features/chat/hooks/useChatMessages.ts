@@ -74,24 +74,24 @@ const ACUSE_RE =
 const DESHACER_RE =
   /^(deshaz|deshacer|deshacelo|deshazlo|b[oó]rra(la|lo)|elimina(la|lo)?|elim[ií]n(ala|alo)|cancela(la|lo)?|cancél(ala|alo)|no era (eso|esa|ese)|me equivoqu[eé]|equivocado|mal)(\s+(eso|esa|ese|esto|la|lo))?[\s.!]*$/i
 
-// "Ayuda": el tip de Perfil ("Escribi ayuda en el chat...") prometia esto pero nunca se habia
+// "Ayuda": el tip de Perfil ("Escribe ayuda en el chat...") prometia esto pero nunca se habia
 // implementado -el mensaje caia en la clasificacion normal de la IA y creaba una actividad
 // rara titulada "ayuda" (bug real reportado). Exige que sea la frase completa y corta -"ayuda"
 // dentro de una oracion larga es otra cosa ("necesito ayuda con el pedido de mañana").
 const AYUDA_RE = /^(ayuda|help|que puedes hacer|qué puedes hacer)[\s?.!]*$/i
 
-const MENSAJE_AYUDA = `Esto es lo que podes escribirme, en lenguaje natural:
+const MENSAJE_AYUDA = `Esto es lo que puedes escribirme, en lenguaje natural:
 
 📋 Actividades — "Revisar el pedido de mañana, para Juan"
 🗓️ Minuta — "Agrega a la minuta: revisar capacidad de planta"
 🚀 Proyectos — "Crea un proyecto Gobernar el Infull, primer punto revisar quien carga el pedido"
 🐛 Errores — "Se cayó el reporte de ventas, es urgente"
 📦 Modo masivo — pega una lista de varias actividades de una vez
-✏️ Cambios — respondiendo un mensaje: "cambiale la fecha al viernes", "reasignala a Pedro", "márcala completa"
+✏️ Cambios — respondiendo un mensaje: "cámbiale la fecha al viernes", "reasígnala a Pedro", "márcala completa"
 🗑️ Deshacer — "bórrala" (respondiendo) o "deshacer" (lo último que creaste)
 💬 Consultas — "¿cuántas actividades tiene Juan pendientes?"
 
-Tocá el selector de arriba (Auto/Actividad/Error/...) si querés forzar un tipo en vez de dejar que la IA lo adivine.`
+Toca los botones de tipo bajo el campo (Auto, Actividad, Error...) si quieres forzar un tipo en vez de dejar que la IA lo adivine.`
 
 // Cuando un mensaje habla de "lo ultimo" sin nombrarlo.
 //
@@ -906,7 +906,7 @@ export function useChatMessages() {
       no_existe: `"${ultima.title}" ya no existe.`,
       no_es_tuya: `No puedo deshacer "${ultima.title}": la creo otra persona.`,
       muy_antigua: `"${ultima.title}" se creo hace mas de 30 minutos. Ciérrala o editala desde Actividades.`,
-      ya_empezada: `"${ultima.title}" ya esta en curso, asi que no la borro. Si igual sobra, cambiala desde Actividades.`,
+      ya_empezada: `"${ultima.title}" ya esta en curso, asi que no la borro. Si igual sobra, cámbiala desde Actividades.`,
       tiene_delegadas: `"${ultima.title}" tiene actividades delegadas a otras personas. Borrarla las dejaria huerfanas.`,
     }
 

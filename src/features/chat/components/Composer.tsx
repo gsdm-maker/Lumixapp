@@ -3,7 +3,6 @@ import type { ReplyTarget } from '@features/chat/types'
 import type { Member } from '@features/chat/hooks/useChatMessages'
 import { Button } from '@shared/components/ui/Button'
 import { Icon } from '@shared/components/ui/Icon'
-import { TAG } from '@shared/utils/colores'
 import { TIPO_ESTILO } from '@features/chat/components/composer/tipos'
 import { Spinner } from '@shared/components/ui/Spinner'
 import { cx } from '@shared/utils/cx'
@@ -38,18 +37,10 @@ interface Props {
 
 const COMANDO_RE = /^\/(\p{L}+)\s+/u
 
-/** Color de texto y fondo suave del modulo al que va cada tipo. */
-function tono(t: TipoMensaje) {
-  const color = TIPO_ESTILO[t].color
-  return color === 'accent'
-    ? { texto: 'text-accent', fondo: 'bg-accent-soft' }
-    : { texto: TAG[color].text, fondo: TAG[color].soft }
-}
-
 /**
- * Campo del chat. El tipo se fuerza con un selector compacto o con un comando al inicio
- * ("/error ...") en vez de siete chips de colores, y bajo el campo se adelanta lo que Lumix
- * va a entender, para corregir antes de enviar y no despues con otra pregunta.
+ * Campo del chat. El tipo se elige con los botones a la vista (grises, sin colores) o con un
+ * comando al inicio ("/error ..."), y bajo el campo se adelanta lo que Lumix va a entender, para
+ * corregir antes de enviar y no despues con otra pregunta.
  */
 export function Composer({
   inputRef,
@@ -71,7 +62,6 @@ export function Composer({
   const [menuCerrado, setMenuCerrado] = useState(false)
   // No se pudo enviar el ultimo mensaje: se avisa y el texto sigue en el campo (Nielsen 9).
   const [fallo, setFallo] = useState(false)
-  const [menuTipo, setMenuTipo] = useState(false)
 
   // Una sugerencia del panel deja su texto en el campo: enviar sigue siendo decision tuya, igual
   // que las preguntas del inicio del chat (mismo gesto en los dos lugares).
@@ -223,7 +213,7 @@ export function Composer({
       <div className="max-w-3xl mx-auto">
         {/* Tarjeta flotante: campo, tipo, vista previa y enviar viven juntos. El foco marca el
             borde completo, no solo el texto. */}
-        <div className="vidrio relative rounded-[28px] transition-[border-color,box-shadow] focus-within:border-accent focus-within:ring-4 focus-within:ring-accent/15">
+        <div className="vidrio relative rounded-[28px] transition-colors">
           {replyTo && (
             <div className="px-2 pt-2">
               <QuotedMessage reply={replyTo} onCancel={onCancelReply} />
@@ -288,67 +278,36 @@ export function Composer({
           />
 
           <div className="flex items-center gap-2 px-2 pb-2 pt-1">
-            {/* Tipo en UN boton con menu (como el "+" de los chats de IA), no siete chips a la
-                vista: la mayoria de los mensajes van en Auto y el resto se elige cuando hace falta
-                (o con "/error ..."). */}
+            {/* Tipos a la vista, con el estilo sencillo de la barra lateral: iconos grises y el
+                elegido con un fondo suave (sin colores). En el celular se desplazan de lado. */}
             <div
-              className="relative min-w-0 flex-1"
-              onBlur={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setMenuTipo(false)
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape' && menuTipo) {
-                  e.stopPropagation()
-                  setMenuTipo(false)
-                }
-              }}
+              role="group"
+              aria-label="Tipo de mensaje"
+              className="min-w-0 flex-1 flex gap-0.5 overflow-x-auto py-1 -my-1 [scrollbar-width:none]"
             >
-              <button
-                type="button"
-                aria-haspopup="menu"
-                aria-expanded={menuTipo}
-                aria-label={`Tipo de mensaje: ${TIPO_LABEL[tipoVigente]}`}
-                onClick={() => setMenuTipo((v) => !v)}
-                className={cx(
-                  'inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full text-xs font-medium transition-colors',
-                  tipoVigente !== 'auto'
-                    ? cx(tono(tipoVigente).fondo, tono(tipoVigente).texto)
-                    : 'text-fg-muted hover:bg-surface hover:text-fg',
-                )}
-              >
-                <Icon name={TIPO_ESTILO[tipoVigente].icon} size={14} />
-                {TIPO_LABEL[tipoVigente]}
-                <Icon name="chevronDown" size={12} className="opacity-60" />
-              </button>
-              {menuTipo && (
-                <div
-                  role="menu"
-                  aria-label="Tipo de mensaje"
-                  className="absolute bottom-full left-0 mb-2 w-56 rounded-xl border border-border-strong bg-panel shadow-lg py-1 z-20"
-                >
-                  {tipos.map((t) => {
-                    const activo = t === tipoVigente
-                    return (
-                      <button
-                        key={t}
-                        type="button"
-                        role="menuitemradio"
-                        aria-checked={activo}
-                        onClick={() => {
-                          setTipo(t)
-                          setMenuTipo(false)
-                          inputRef.current?.focus()
-                        }}
-                        className="w-full flex items-center gap-2.5 px-3 h-9 text-sm text-fg hover:bg-surface"
-                      >
-                        <Icon name={TIPO_ESTILO[t].icon} size={15} className={tono(t).texto} />
-                        <span className="flex-1 text-left">{TIPO_LABEL[t]}</span>
-                        {activo && <Icon name="check" size={14} className="text-accent" />}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
+              {tipos.map((t) => {
+                const activo = t === tipoVigente
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    aria-pressed={activo}
+                    onClick={() => {
+                      setTipo(t)
+                      inputRef.current?.focus()
+                    }}
+                    className={cx(
+                      'shrink-0 inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs transition-colors',
+                      activo
+                        ? 'bg-surface-2 text-fg font-medium'
+                        : 'text-fg-muted hover:bg-surface hover:text-fg',
+                    )}
+                  >
+                    <Icon name={TIPO_ESTILO[t].icon} size={14} />
+                    {TIPO_LABEL[t]}
+                  </button>
+                )
+              })}
             </div>
             <Button
               icon="send"
