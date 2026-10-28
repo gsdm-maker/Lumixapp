@@ -1,0 +1,3 @@
+# Lumix es una aplicacion privada: no hay contenido publico que indexar.
+User-agent: *
+Disallow: /

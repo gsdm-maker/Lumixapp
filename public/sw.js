@@ -37,7 +37,9 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  if (url.origin.includes('supabase.co') || url.origin.includes('api.openai.com')) {
+  // Datos y funciones de Supabase: siempre a la red (la IA tambien pasa por aca: el navegador
+  // nunca llama a un proveedor de IA directo).
+  if (url.origin.includes('supabase.co')) {
     event.respondWith(fetch(request))
     return
   }

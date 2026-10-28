@@ -1,7 +1,7 @@
 // CORS compartido por todas las Edge Functions.
 //
 // ALLOWED_ORIGIN acepta una lista separada por comas, por ejemplo:
-//   https://lumix.netlify.app,http://localhost:5173
+//   https://lumix.gsdm.cl,https://lumixapp.netlify.app,http://localhost:5173
 //
 // Si el Origin de la peticion esta en la lista, se devuelve ese origen exacto
 // (obligatorio: el navegador rechaza una lista o un comodin cuando se envian

@@ -1,0 +1,4 @@
+Contact: mailto:sebadiazespindola57@gmail.com
+Expires: 2027-10-28T00:00:00.000Z
+Preferred-Languages: es, en
+Canonical: https://lumix.gsdm.cl/.well-known/security.txt
